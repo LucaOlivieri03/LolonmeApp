@@ -44,4 +44,5 @@ docs/LOLONMEBOL.xlsx
 
 # local agent/tool machine state
 .gemini/
+.engram/
 .impeccable/config.local.json
