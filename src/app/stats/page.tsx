@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BarChart3, FlaskConical, Search, Star, Swords, User, Users } from "lucide-react";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  FlaskConical,
+  Search,
+  Star,
+  Swords,
+  User,
+  Users,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -22,6 +32,137 @@ import type { MatchModality } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 
 type StatsTab = "profile" | "lab";
+type MetricKey =
+  | "chemistry"
+  | "wilson"
+  | "effectiveness310"
+  | "h2h"
+  | "pgPct"
+  | "avgRating"
+  | "minThreshold";
+
+interface MetricDefinition {
+  key: MetricKey;
+  title: string;
+  description: string;
+  formula: string;
+  example: string;
+}
+
+const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
+  chemistry: {
+    key: "chemistry",
+    title: "Química (%)",
+    description:
+      "Porcentaje directo de victorias cuando los jugadores seleccionados comparten el mismo equipo.",
+    formula: "Química (%) = (V / PJ) × 100",
+    example:
+      "Ejemplo: si dos jugadores compartieron equipo en 5 partidos y ganaron 4, su Química es (4 / 5) × 100 = 80,0%.",
+  },
+  wilson: {
+    key: "wilson",
+    title: "Consistencia (Wilson CT%)",
+    description:
+      "Índice de efectividad ajustado por tamaño de muestra que evita que rachas cortas (ej. 1 de 1) superen a duplas o grupos probados en muchos partidos.",
+    formula:
+      "Cota inferior de Wilson (z = 1.28, 80% de confianza): ((p + z²/(2n) − z · √(p(1−p)/n + z²/(4n²))) / (1 + z²/n)) × 100, con p = V / PJ y n = PJ",
+    example:
+      "Ejemplo: 1 victoria en 1 PJ (100% bruto) arroja Wilson CT% = 37,9%, mientras que 8 victorias en 10 PJ (80% bruto) alcanza Wilson CT% = 60,0%.",
+  },
+  effectiveness310: {
+    key: "effectiveness310",
+    title: "Efectividad 3/1/0",
+    description:
+      "Porcentaje de puntos obtenidos sobre el total posible aplicando la escala estándar de 3 puntos por victoria, 1 por empate y 0 por derrota.",
+    formula: "Efectividad 3/1/0 (%) = ((V × 3 + E) / (PJ × 3)) × 100",
+    example:
+      "Ejemplo: en 4 PJ con 2 victorias, 1 empate y 1 derrota se suman 7 de 12 puntos posibles: (7 / 12) × 100 = 58,3%.",
+  },
+  h2h: {
+    key: "h2h",
+    title: "Historial Mano a Mano (V − D)",
+    description:
+      "Diferencia neta de victorias menos derrotas cuando dos jugadores se enfrentan en equipos rivales (los empates no alteran el balance).",
+    formula: "Balance Mano a Mano = V_jugador − V_rival",
+    example:
+      "Ejemplo: si en 6 cruces como rivales ganaste 4, empataron 1 y perdiste 1, el balance es 4 − 1 = +3.",
+  },
+  pgPct: {
+    key: "pgPct",
+    title: "PG% (Porcentaje de Victorias)",
+    description:
+      "Proporción de partidos ganados por el jugador sobre el total de partidos computados en la tabla seleccionada.",
+    formula: "PG% = (PG / PJ) × 100",
+    example:
+      "Ejemplo: con 12 victorias en 20 partidos jugados en tabla, PG% = (12 / 20) × 100 = 60%.",
+  },
+  avgRating: {
+    key: "avgRating",
+    title: "Calif. Prom (Calificación Promedio)",
+    description:
+      "Promedio aritmético de las puntuaciones individuales recibidas por el jugador en las fechas con calificación registrada.",
+    formula: "Calif. Prom = (∑ calificaciones registradas) / N_partidos_calificados",
+    example:
+      "Ejemplo: si recibió puntajes de 7.5, 8.0 y 8.5 en tres fechas calificadas, su Calif. Prom es 24.0 / 3 = 8,00.",
+  },
+  minThreshold: {
+    key: "minThreshold",
+    title: "Umbral mínimo de 3 PJ",
+    description:
+      "Filtro de estabilidad estadística aplicado al padrón activo y a los rankings de Mejores Socios e Historial vs Rivales para descartar cruces aislados.",
+    formula:
+      "Condición de inclusión: PJ_totales ≥ 3 (padrón activo) · PJ_juntos ≥ 3 (socios) · PJ_enfrentados ≥ 3 (rivales)",
+    example:
+      "Ejemplo: una dupla con 2 victorias en 2 PJ juntos aún no ingresa al ranking de Mejores Socios hasta disputar su 3.º partido compartido.",
+  },
+};
+
+function MetricFormulaToggle({
+  metricKey,
+  openMetrics,
+  onToggle,
+  compact = false,
+}: {
+  metricKey: MetricKey;
+  openMetrics: Record<string, boolean>;
+  onToggle: (key: MetricKey) => void;
+  compact?: boolean;
+}) {
+  const def = METRIC_DEFINITIONS[metricKey];
+  const isOpen = Boolean(openMetrics[metricKey]);
+
+  return (
+    <div className="mt-1.5 text-left">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <p className="text-xs leading-relaxed text-ink-muted">{def.description}</p>
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          onClick={() => onToggle(metricKey)}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-sm border border-rule bg-paper px-2 py-0.5 text-[11px] font-semibold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-surface-subtle",
+            compact && "mt-0.5"
+          )}
+        >
+          {isOpen ? "Ocultar fórmula" : "Ver fórmula"}
+          {isOpen ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )}
+        </button>
+      </div>
+      {isOpen && (
+        <div className="mt-2 space-y-1 rounded-md border border-rule bg-paper p-2.5 text-xs text-ink">
+          <p className="font-mono text-[11px] font-semibold text-pitch-800">
+            {def.formula}
+          </p>
+          <p className="text-ink-muted">{def.example}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StatsPage() {
   const { dataset } = useTournament();
@@ -39,6 +180,11 @@ export default function StatsPage() {
   const [modality, setModality] = useState<MatchModality | "ALL">("ALL");
   const [showEffectiveness310, setShowEffectiveness310] = useState(false);
   const [labSearch, setLabSearch] = useState("");
+  const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
+
+  const toggleMetricFormula = (key: MetricKey) => {
+    setOpenMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const historicalStandings = useMemo(
     () =>
@@ -357,6 +503,17 @@ export default function StatsPage() {
                 );
               })}
             </div>
+
+            <div className="mt-3 border-t border-rule pt-2.5">
+              <div className="text-xs font-semibold text-ink">
+                {METRIC_DEFINITIONS.minThreshold.title}
+              </div>
+              <MetricFormulaToggle
+                metricKey="minThreshold"
+                openMetrics={openMetrics}
+                onToggle={toggleMetricFormula}
+              />
+            </div>
           </section>
 
           {labPlayerIds.length < 2 ? (
@@ -431,11 +588,47 @@ export default function StatsPage() {
                         </ResponsiveContainer>
                       </div>
                     )}
+
+                    <div className="mt-4 space-y-2.5 border-t border-rule pt-3">
+                      <div>
+                        <div className="text-xs font-semibold text-pitch-800">
+                          {METRIC_DEFINITIONS.chemistry.title}
+                        </div>
+                        <MetricFormulaToggle
+                          metricKey="chemistry"
+                          openMetrics={openMetrics}
+                          onToggle={toggleMetricFormula}
+                        />
+                      </div>
+                      <div className="border-t border-rule/60 pt-2">
+                        <div className="text-xs font-semibold text-leather-700">
+                          {METRIC_DEFINITIONS.wilson.title}
+                        </div>
+                        <MetricFormulaToggle
+                          metricKey="wilson"
+                          openMetrics={openMetrics}
+                          onToggle={toggleMetricFormula}
+                        />
+                      </div>
+                      <div className="border-t border-rule/60 pt-2">
+                        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-ink">
+                          <span>{METRIC_DEFINITIONS.effectiveness310.title}</span>
+                          <span className="font-display text-sm font-bold text-pitch-800">
+                            {labSubgroup.effectiveness310Pct.toFixed(1)}%
+                          </span>
+                        </div>
+                        <MetricFormulaToggle
+                          metricKey="effectiveness310"
+                          openMetrics={openMetrics}
+                          onToggle={toggleMetricFormula}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {showEffectiveness310 && (
                     <p className="mt-3 border-t border-rule pt-2.5 text-xs text-ink-muted">
-                      Efectividad unificada 3/1/0:{" "}
+                      Efectividad unificada 3/1/0 en gráfico:{" "}
                       <strong className="text-ink">
                         {labSubgroup.effectiveness310Pct.toFixed(1)}%
                       </strong>
@@ -482,6 +675,17 @@ export default function StatsPage() {
                           {labPairwise.winsB}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="mt-4 border-t border-rule pt-3">
+                      <div className="text-xs font-semibold text-ink">
+                        {METRIC_DEFINITIONS.h2h.title}
+                      </div>
+                      <MetricFormulaToggle
+                        metricKey="h2h"
+                        openMetrics={openMetrics}
+                        onToggle={toggleMetricFormula}
+                      />
                     </div>
                   </div>
 
@@ -579,15 +783,68 @@ export default function StatsPage() {
                     </dd>
                   </div>
                 </dl>
+
+                <div className="grid gap-3 rounded-md border border-rule bg-paper p-3 sm:grid-cols-3">
+                  <div>
+                    <div className="text-xs font-semibold text-ink">
+                      {METRIC_DEFINITIONS.pgPct.title}
+                    </div>
+                    <MetricFormulaToggle
+                      metricKey="pgPct"
+                      openMetrics={openMetrics}
+                      onToggle={toggleMetricFormula}
+                      compact
+                    />
+                  </div>
+                  <div className="border-t border-rule pt-2 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+                    <div className="text-xs font-semibold text-pitch-800">
+                      {METRIC_DEFINITIONS.avgRating.title}
+                    </div>
+                    <MetricFormulaToggle
+                      metricKey="avgRating"
+                      openMetrics={openMetrics}
+                      onToggle={toggleMetricFormula}
+                      compact
+                    />
+                  </div>
+                  <div className="border-t border-rule pt-2 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
+                    <div className="text-xs font-semibold text-ink">
+                      {METRIC_DEFINITIONS.minThreshold.title}
+                    </div>
+                    <MetricFormulaToggle
+                      metricKey="minThreshold"
+                      openMetrics={openMetrics}
+                      onToggle={toggleMetricFormula}
+                      compact
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-lg border border-rule bg-surface p-4">
-              <h3 className="font-display mb-3 border-b border-rule pb-2 text-lg font-bold tracking-wide text-pitch-800">
-                Mejores Socios (Wilson CT%)
-              </h3>
+              <div className="mb-3 border-b border-rule pb-2.5">
+                <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
+                  Mejores Socios (Wilson CT%)
+                </h3>
+                <MetricFormulaToggle
+                  metricKey="wilson"
+                  openMetrics={openMetrics}
+                  onToggle={toggleMetricFormula}
+                />
+                <div className="mt-2 border-t border-rule/60 pt-2">
+                  <div className="text-xs font-semibold text-pitch-800">
+                    {METRIC_DEFINITIONS.chemistry.title}
+                  </div>
+                  <MetricFormulaToggle
+                    metricKey="chemistry"
+                    openMetrics={openMetrics}
+                    onToggle={toggleMetricFormula}
+                  />
+                </div>
+              </div>
               {teammatesChartData.length === 0 ? (
                 <p className="py-6 text-center text-sm text-ink-muted">
                   Se necesitan al menos 3 partidos juntos con este filtro para calcular socios.
@@ -647,9 +904,16 @@ export default function StatsPage() {
             </section>
 
             <section className="rounded-lg border border-rule bg-surface p-4">
-              <h3 className="font-display mb-3 border-b border-rule pb-2 text-lg font-bold tracking-wide text-ink">
-                Historial vs Rivales (V − D)
-              </h3>
+              <div className="mb-3 border-b border-rule pb-2.5">
+                <h3 className="font-display text-lg font-bold tracking-wide text-ink">
+                  Historial vs Rivales (V − D)
+                </h3>
+                <MetricFormulaToggle
+                  metricKey="h2h"
+                  openMetrics={openMetrics}
+                  onToggle={toggleMetricFormula}
+                />
+              </div>
               {rivalsChartData.length === 0 ? (
                 <p className="py-6 text-center text-sm text-ink-muted">
                   Se necesitan al menos 3 enfrentamientos como rivales con este filtro.
