@@ -61,6 +61,20 @@ describe("Excel Importer & Real LOLONMEBOL.xlsx Cross-Check", () => {
       expect(dataset.players.length).toBeGreaterThanOrEqual(15);
       expect(dataset.matches.length).toBeGreaterThanOrEqual(70);
 
+      // Ensure non-player headers/subtotals like Total, Rendimientos, and Gastos are excluded
+      const playerIds = dataset.players.map((p) => p.id);
+      expect(playerIds).not.toContain("total");
+      expect(playerIds).not.toContain("rendimientos");
+      expect(playerIds).not.toContain("gastos");
+      expect(
+        dataset.fundPayments.some(
+          (fp) =>
+            fp.playerId === "total" ||
+            fp.playerId === "rendimientos" ||
+            fp.playerId === "gastos"
+        )
+      ).toBe(false);
+
       // Verify 2026 leader is B. Aguzzi with 69 pts and 34 PJ (from Liga 26 y Copa 26)
       const s26 = dataset.seasons.find((s) => s.year === 2026)!;
       const standings26 = computeStandings({

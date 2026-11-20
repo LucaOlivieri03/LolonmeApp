@@ -98,9 +98,13 @@ class PlayerRegistry {
     const norm = normalizePlayerName(trimmed);
     if (!norm.canonicalName) return null;
 
-    // Filter out non-player header/score noise
+    // Filter out non-player header/score/summary noise
     if (isIntegerString(norm.canonicalName)) return null;
-    if (/^(f11|liga|copa|lolonmebol|descanso|partido|mvp)/i.test(norm.canonicalName)) {
+    if (
+      /^(f11|liga|copa|lolonmebol|descanso|partido|mvp|total|totales|subtotal|subtotales|rendimiento|rendimientos|gasto|gastos|premio|premios|saldo|pozo|cuota|cuotas|mes|jugador|jugadores|promedio|calificaciones)/i.test(
+        norm.canonicalName
+      )
+    ) {
       return null;
     }
 

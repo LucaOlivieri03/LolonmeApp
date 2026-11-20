@@ -150,8 +150,12 @@ export function AdminPozoTab() {
               </th>
               <th className="py-3 px-2.5">Cuota ($)</th>
               {pozoPlayers.map((p) => (
-                <th key={p.id} className="py-3 px-1.5 text-center">
-                  {p.displayName.split(" ")[0]}
+                <th
+                  key={p.id}
+                  className="py-3 px-2 text-center whitespace-nowrap"
+                  title={p.displayName}
+                >
+                  {p.displayName}
                 </th>
               ))}
             </tr>
