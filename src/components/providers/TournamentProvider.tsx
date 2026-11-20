@@ -7,6 +7,7 @@ import {
   computeStandings,
   enrollPlayerInSeasonFund,
   generateCupBracket,
+  replaceMatchInDataset,
 } from "@/lib/engine";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -36,6 +37,7 @@ interface TournamentContextValue {
   resetToSeed: () => void;
   applyDataset: (next: TournamentDataset) => void;
   addMatch: (match: Match) => void;
+  updateMatch: (match: Match) => void;
   deleteMatch: (matchId: string) => void;
   addAnnouncement: (ann: Omit<Announcement, "id" | "createdAt">) => void;
   deleteAnnouncement: (id: string) => void;
@@ -146,6 +148,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       matches: [match, ...prev.matches].sort((a, b) =>
         b.matchDate.localeCompare(a.matchDate)
       ),
+    }));
+  };
+
+  const updateMatch = (match: Match) => {
+    setDataset((prev) => ({
+      ...prev,
+      matches: replaceMatchInDataset(prev.matches, match),
     }));
   };
 
@@ -457,6 +466,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         resetToSeed,
         applyDataset,
         addMatch,
+        updateMatch,
         deleteMatch,
         addAnnouncement,
         deleteAnnouncement,

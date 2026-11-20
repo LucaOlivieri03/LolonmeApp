@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeStandings } from "./standings";
+import { filterMatches, replaceMatchInDataset } from "./outcome";
 import {
   generateCupBracket,
   resolveCupTieWinner,
@@ -341,5 +342,81 @@ describe("Fund (Pozo) Engine", () => {
     expect(next).toHaveLength(2);
     expect(next.find((p) => p.fundMonthId === "fm-2026-1")?.paid).toBe(true);
     expect(next.find((p) => p.fundMonthId === "fm-2026-2")?.paid).toBe(false);
+  });
+});
+
+describe("Match Updating & Filtering (Issue #7)", () => {
+  const sampleMatches: Match[] = [
+    {
+      id: "m1",
+      seasonId: "season-2026",
+      matchNumber: 12,
+      matchDate: "2026-04-15",
+      matchType: "league",
+      modality: "F5",
+      teamAScore: 5,
+      teamBScore: 4,
+      countsForLeague: true,
+      countsForStats: true,
+      votingStatus: "closed",
+      players: [],
+    },
+    {
+      id: "m2",
+      seasonId: "season-2026",
+      matchNumber: 13,
+      matchDate: "2026-05-02",
+      matchType: "cup",
+      modality: "F5",
+      teamAScore: 7,
+      teamBScore: 7,
+      countsForLeague: true,
+      countsForStats: true,
+      votingStatus: "closed",
+      players: [],
+    },
+  ];
+
+  it("replaces an existing match in dataset sorted by matchDate desc and syncs resultOutcome", () => {
+    const edited: Match = {
+      ...sampleMatches[0],
+      matchDate: "2026-05-10",
+      teamAScore: 3,
+      teamBScore: 8,
+    };
+    const updated = replaceMatchInDataset(sampleMatches, edited);
+    expect(updated).toHaveLength(2);
+    expect(updated[0].id).toBe("m1");
+    expect(updated[0].teamBScore).toBe(8);
+    expect(updated[0].resultOutcome).toBe("B");
+  });
+
+  it("filters matches combinably by season, type, calendar date/month, and matchNumber", () => {
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "season-2026",
+        matchType: "ALL",
+        dateFilter: "2026-04",
+        matchNumberQuery: "",
+      }).map((m) => m.id)
+    ).toEqual(["m1"]);
+
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "ALL",
+        matchType: "ALL",
+        dateFilter: "",
+        matchNumberQuery: "13",
+      }).map((m) => m.id)
+    ).toEqual(["m2"]);
+
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "season-2026",
+        matchType: "league",
+        dateFilter: "2026-04-15",
+        matchNumberQuery: "12",
+      }).map((m) => m.id)
+    ).toEqual(["m1"]);
   });
 });

@@ -1,8 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Award, ChevronDown, ChevronUp, Shield, Trophy } from "lucide-react";
+import {
+  Award,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Hash,
+  Pencil,
+  Shield,
+  Trophy,
+  X,
+} from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { filterMatches } from "@/lib/engine";
+import { MatchEditModal } from "@/components/tournament/MatchEditModal";
 import type { Match, MatchType } from "@/lib/types/domain";
 import { cn, formatDateEs } from "@/lib/utils";
 
@@ -35,7 +47,8 @@ const MATCH_TYPE_META: Record<
 };
 
 export default function PartidosPage() {
-  const { dataset } = useTournament();
+  const { dataset, role, updateMatch } = useTournament();
+  const isAdmin = role === "admin";
   const sortedSeasons = useMemo(
     () => [...dataset.seasons].sort((a, b) => b.year - a.year),
     [dataset.seasons]
@@ -49,20 +62,35 @@ export default function PartidosPage() {
       ? rawSeasonFilter
       : (sortedSeasons[0]?.id ?? "ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [dateFilter, setDateFilter] = useState("");
+  const [matchNumberQuery, setMatchNumberQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   const playerMap = useMemo(
     () => new Map(dataset.players.map((p) => [p.id, p])),
     [dataset.players]
   );
 
-  const filteredMatches = useMemo(() => {
-    return dataset.matches.filter((m) => {
-      if (seasonFilter !== "ALL" && m.seasonId !== seasonFilter) return false;
-      if (typeFilter !== "ALL" && m.matchType !== typeFilter) return false;
-      return true;
-    });
-  }, [dataset.matches, seasonFilter, typeFilter]);
+  const availableMatchNumbers = useMemo(() => {
+    const nums = new Set<number>();
+    for (const m of dataset.matches) {
+      if (seasonFilter !== "ALL" && m.seasonId !== seasonFilter) continue;
+      if (m.matchNumber !== null) nums.add(m.matchNumber);
+    }
+    return Array.from(nums).sort((a, b) => a - b);
+  }, [dataset.matches, seasonFilter]);
+
+  const filteredMatches = useMemo(
+    () =>
+      filterMatches(dataset.matches, {
+        seasonId: seasonFilter,
+        matchType: typeFilter,
+        dateFilter,
+        matchNumberQuery,
+      }),
+    [dataset.matches, seasonFilter, typeFilter, dateFilter, matchNumberQuery]
+  );
 
   const nameOf = (id: string) => playerMap.get(id)?.displayName ?? id;
 
@@ -120,32 +148,116 @@ export default function PartidosPage() {
         </div>
       </header>
 
-      {/* Competition Type Filter Bar */}
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por competencia">
-        {(
-          [
-            { id: "ALL", label: "Todos" },
-            { id: "league", label: "Liga" },
-            { id: "league_tiebreaker", label: "Desempate" },
-            { id: "cup", label: "Copa" },
-            { id: "special_f11", label: "Fechas Especiales" },
-            { id: "lolonmebol", label: "Final LOLONMEBOL" },
-          ] as const
-        ).map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTypeFilter(item.id)}
-            className={cn(
-              "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
-              typeFilter === item.id
-                ? "border-pitch-800 bg-pitch-800 text-white"
-                : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      {/* Competition Type & Date / MatchNumber Filter Bar */}
+      <div className="space-y-3 rounded-lg border border-rule bg-surface p-3.5">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por competencia">
+          {(
+            [
+              { id: "ALL", label: "Todos" },
+              { id: "league", label: "Liga" },
+              { id: "league_tiebreaker", label: "Desempate" },
+              { id: "cup", label: "Copa" },
+              { id: "special_f11", label: "Fechas Especiales" },
+              { id: "lolonmebol", label: "Final LOLONMEBOL" },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTypeFilter(item.id)}
+              className={cn(
+                "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
+                typeFilter === item.id
+                  ? "border-pitch-800 bg-pitch-800 text-white"
+                  : "border-rule bg-paper text-ink-muted hover:border-rule-strong hover:text-ink"
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 border-t border-rule pt-3">
+          <div>
+            <label
+              htmlFor="partidos-date-filter"
+              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-ink-muted"
+            >
+              <Calendar className="h-3.5 w-3.5 text-pitch-700" />
+              Fecha calendario
+            </label>
+            <input
+              id="partidos-date-filter"
+              type="date"
+              value={dateFilter.length === 10 ? dateFilter : ""}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-3 text-sm text-ink"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="partidos-month-filter"
+              className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
+            >
+              O filtrar por mes
+            </label>
+            <input
+              id="partidos-month-filter"
+              type="month"
+              value={dateFilter.length === 7 ? dateFilter : ""}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-3 text-sm text-ink"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="partidos-number-select"
+              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-ink-muted"
+            >
+              <Hash className="h-3.5 w-3.5 text-leather-600" />
+              Fecha de torneo
+            </label>
+            <div className="mt-1 flex items-center gap-1.5">
+              <select
+                id="partidos-number-select"
+                value={matchNumberQuery}
+                onChange={(e) => setMatchNumberQuery(e.target.value)}
+                className="min-h-10 rounded-md border border-rule bg-paper px-3 text-sm font-semibold text-ink"
+              >
+                <option value="">Todas las fechas</option>
+                {availableMatchNumbers.map((num) => (
+                  <option key={num} value={String(num)}>
+                    Fecha #{num}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="search"
+                aria-label="Buscar número de fecha"
+                placeholder="N° (ej. 12)"
+                value={matchNumberQuery}
+                onChange={(e) => setMatchNumberQuery(e.target.value)}
+                className="min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
+              />
+            </div>
+          </div>
+
+          {(dateFilter || matchNumberQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setDateFilter("");
+                setMatchNumberQuery("");
+              }}
+              className="inline-flex min-h-10 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100"
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpiar fecha / N°
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Matchday Ledger */}
@@ -162,6 +274,8 @@ export default function PartidosPage() {
             onClick={() => {
               setSeasonFilter("ALL");
               setTypeFilter("ALL");
+              setDateFilter("");
+              setMatchNumberQuery("");
             }}
             className="mt-4 inline-flex min-h-11 items-center rounded-md border border-pitch-800 bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
           >
@@ -236,6 +350,18 @@ export default function PartidosPage() {
 
                 {isOpen && (
                   <div className="border-t border-rule bg-paper px-4 py-3.5">
+                    {isAdmin && (
+                      <div className="mb-3 flex items-center justify-end border-b border-rule pb-2.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditingMatch(m)}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-pitch-800 bg-surface px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar partido (Admin)
+                        </button>
+                      </div>
+                    )}
                     <div className="grid gap-4 sm:grid-cols-2 sm:divide-x sm:divide-rule">
                       {(
                         [
@@ -302,6 +428,19 @@ export default function PartidosPage() {
             );
           })}
         </div>
+      )}
+
+      {editingMatch && isAdmin && (
+        <MatchEditModal
+          match={editingMatch}
+          seasons={sortedSeasons}
+          players={dataset.players}
+          onSave={(updated) => {
+            updateMatch(updated);
+            setEditingMatch(null);
+          }}
+          onClose={() => setEditingMatch(null)}
+        />
       )}
     </div>
   );
