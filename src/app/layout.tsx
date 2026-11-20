@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { PwaRegistrar } from "@/components/layout/PwaRegistrar";
+import { TournamentProvider } from "@/components/providers/TournamentProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,12 +30,14 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className="min-h-screen bg-[#f4f7f4] text-[#0f1c14] antialiased">
-        <PwaRegistrar />
-        <AppHeader />
-        <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-5xl px-3 pt-4 pb-24 sm:px-5">
-          {children}
-        </main>
-        <BottomNav />
+        <TournamentProvider>
+          <PwaRegistrar />
+          <AppHeader />
+          <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-5xl px-3 pt-4 pb-24 sm:px-5">
+            {children}
+          </main>
+          <BottomNav />
+        </TournamentProvider>
       </body>
     </html>
   );
