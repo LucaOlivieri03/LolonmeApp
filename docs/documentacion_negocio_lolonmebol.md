@@ -1,24 +1,25 @@
-# Documentación de Negocio y Producto — LolonmeApp
+# Documentación de Negocio y Producto — LolonmeApp (v2 — Definitiva)
 
-> [!IMPORTANT]
-> **Propósito de este documento**: Definir el alcance funcional, los roles, los flujos de usuario, la arquitectura de costo \$0 y el plan de entregas de **LolonmeApp**, para validar toda la configuración junto con el Presidente de LOLONMEBOL antes de pasar al diseño técnico y programación.
+> [!NOTE]
+> **Estado del documento**: Alcance funcional y decisiones de negocio cerradas. Listo para pasar a diseño técnico e implementación por fases.
 
 ---
 
 ## 1. Visión del Producto
 
-**LolonmeApp** es el hub digital **mobile-first** (Web App instalable — **PWA**) del torneo de fútbol **LOLONMEBOL**. Su objetivo es:
+**LolonmeApp** es el hub digital **mobile-first** (Web App instalable — **PWA**) del torneo de fútbol **LOLONMEBOL**. Sus pilares son:
 
-1. **Centralizar la gestión del torneo** (fechas, formaciones, resultados, Liga, Copa, Final LOLONMEBOL, fechas especiales y Pozo) eliminando errores manuales de planillas.
-2. **Potenciar la experiencia de los jugadores** con estadísticas personales, filtros grupales avanzados (Química, Consistencia Wilson, Historial H2H), club preferido en vivo, blog comunitario, votaciones y galería de partidos.
-3. **Mantener \$0 de costo fijo de mantenimiento**, sin depender de tiendas (Play Store / App Store) y con despliegue automático.
-4. **Asegurar continuidad histórica** mediante un **importador constante desde Excel** compatible con `LOLONMEBOL.xlsx` (temporadas 2025, 2026 y futuras).
+1. **Gestión centralizada del torneo**: Fechas, formaciones, resultados, Liga, Copa (automática y 100% editable), Final LOLONMEBOL, fechas especiales y Pozo.
+2. **Experiencia rica para los jugadores**: Estadísticas personales, filtros grupales avanzados (Química, Consistencia Wilson, Historial H2H), club preferido vía API de fútbol, votación transparente de MVP/calificaciones, blog por tópicos y galería de partidos.
+3. **Costo \$0/mes de mantenimiento**, sin tiendas (Play Store / App Store) y con deploy automático.
+4. **Continuidad histórica**: Importador constante desde `LOLONMEBOL.xlsx` (2025, 2026 y futuras cargas).
+5. **Identidad visual propia**: Basada en el **logo oficial de LOLONMEBOL** (ubicado en `assets/` del repositorio) y la codificación visual del torneo (Liga, Copa, Fechas Especiales y Final LOLONMEBOL).
 
 ---
 
-## 2. Roles y Matriz de Permisos
+## 2. Roles y Matriz de Permisos (Definitiva)
 
-El **Admin es a su vez Jugador** (participa en el torneo y tiene sus propias estadísticas). Además, el Admin puede delegar permisos de carga de partidos a **Jugadores Autorizados**.
+El **Admin es a su vez Jugador**. Además, puede designar **Jugadores Autorizados** con permisos ampliados de operación semanal.
 
 | Funcionalidad / Módulo | Admin *(también Jugador)* | Jugador Autorizado | Jugador | Invitado *(sin cuenta)* |
 | :--- | :---: | :---: | :---: | :---: |
@@ -27,109 +28,90 @@ El **Admin es a su vez Jugador** (participa en el torneo y tiene sus propias est
 | Leer el Blog de jugadores | Sí | Sí | Sí | **Sí (solo lectura)** |
 | Crear tópicos y participar/comentar en el Blog | Sí + Moderar | Sí | Sí | No |
 | Editar su propio perfil y elegir **club preferido** | Sí | Sí | Sí | No |
-| Votar **MVP** y **calificaciones** de un partido | Sí | Sí | Sí | No |
-| Confirmar asistencia a eventos *(cuando se habilite)* | Sí | Sí | Sí | No |
-| Subir **fotos** (y clips cortos en fase futura) a partidos | Sí + Moderar | Sí | Sí | No |
-| Cargar/editar **partidos** (formaciones, resultados, G/A, notas, MVP) | Sí | **Sí** | No | No |
-| Gestionar **jugadores** (crear con email, roles, delegar permisos) | **Sí** | No | No | No |
-| Gestionar **Anuncios, Calendario, Fechas Especiales y Copas** | **Sí** | No *(a validar)* | No | No |
+| Votar **MVP** y **calificaciones** *(solo si jugó el partido)* | Sí | Sí | Sí | No |
+| Subir **fotos** (5–15/partido; clips en fase posterior) | Sí + Moderar | Sí | Sí | No |
+| Cargar/editar **partidos y rendimientos** (formaciones, goles, notas) | Sí | **Sí** | No | No |
+| Gestionar **Tablero de Anuncios y Calendario de Eventos** | Sí | **Sí** | No | No |
+| Cerrar votaciones y asignar **MVP oficial** *(con override)* | **Sí** | No | No | No |
+| Generar y **editar manualmente el cuadro de Copa** (todas las rondas) | **Sí** | No | No | No |
+| Gestionar **jugadores** (alta con email, roles, estrellas/títulos) | **Sí** | No | No | No |
 | **Importador constante desde Excel** | **Sí** | No | No | No |
 | **Pozo y Premios** (cuotas, gastos, rendimientos, saldo) | **Sí (exclusivo)** | No | No | No |
 
 ### Flujo de alta y vinculación de jugadores
-
-```mermaid
-flowchart LR
-    A["Admin crea ficha de jugador<br/>(Nombre + Email)"] --> B["Ficha guardada con<br/>historial 2025/2026"]
-    B --> C["Jugador ingresa a la PWA<br/>y crea su cuenta con ese Email"]
-    C --> D["Vinculación automática<br/>con su perfil y stats"]
-    D --> E["Jugador elige su Club Preferido<br/>y completa su perfil"]
-```
-
-- No requiere envío automático de correos de invitación: alcanza con que el jugador se registre (con Google o email/contraseña) usando el mismo mail cargado por el Admin.
+1. El Admin crea la ficha del jugador indicando su **Nombre** y **Email** (asociado a su historial importado de 2025/2026).
+2. El jugador ingresa a la PWA y se registra con ese mismo email (Google o email/contraseña).
+3. El sistema vincula automáticamente su cuenta con su ficha e historial completo.
+4. En su primer ingreso, el jugador elige su **club preferido** y personaliza su perfil.
 
 ---
 
 ## 3. Módulos y Alcance Funcional
 
-### 3.1 Main Page (Inicio)
-Diseñada para consumo rápido desde el celular:
-- **Tablero de Anuncios**: Avisos fijados por el Admin (cambios de cancha, horarios, comunicados del Presidente, recordatorios).
-- **Calendario de Eventos (informativo inicialmente)**: Vista mensual/agenda con **etiquetas de color** por tipo de evento (`Liga`, `Copa`, `Final LOLONMEBOL`, `F11 Especial`, `Descanso`, `Partido Aplazado`).
-- **Tablas de Posiciones**: Selector rápido entre **Tabla Anual** (temporada activa) y **Tabla Histórica** (acumulado total), con zonas visuales de clasificación.
-- **Cruces de Copa y Final LOLONMEBOL**: Cuadro visual interactivo (Fase Previa → Cuartos → Semis → Final → LOLONMEBOL) generado automáticamente según las reglas validadas de la tabla.
-- **Resumen de Clubes Preferidos**: Widget compacto con resultados recientes / próximos partidos de los clubes elegidos por los jugadores.
+### 3.1 Main Page (Inicio Mobile-First)
+- **Header con Logo oficial de LOLONMEBOL** (desde `assets/`).
+- **Tablero de Anuncios**: Comunicados y avisos fijados (gestionado por Admin y Jugadores Autorizados).
+- **Calendario de Eventos (informativo en Fase 1)**: Vista mensual/agenda con etiquetas de color (`Liga`, `Copa`, `Final LOLONMEBOL`, `F11 Especial`, `Descanso`, `Aplazado`).
+- **Tablas de Posiciones**: Selector rápido entre **Tabla Anual** (temporada activa) y **Tabla Histórica** (acumulado total), con desempates oficiales y zonas de clasificación a Copa.
+- **Cruces de Copa y Final LOLONMEBOL**: Cuadro visual interactivo (Fase Previa → Cuartos → Semis → Final → LOLONMEBOL), generado automáticamente y **editable manualmente por el Admin** en todas sus instancias (ida y vuelta, puntajes, bajas y reemplazos).
+- **Clubes Preferidos**: Resumen de resultados recientes / próximos partidos de los clubes elegidos por los jugadores.
 
-### 3.2 Partidos y Fechas Especiales
-- **Detalle de cada fecha (Liga / Copa)**: Fecha, modalidad (`F5`/`F6`/`F7`), formaciones de ambos equipos, resultado, si es Copa (capitanes y marcador global), MVP(s), Goles/Asistencias y Calificaciones.
-- **Sección aparte de Fechas Especiales**: Historial dedicado para eventos fuera de Liga (ej. *F11 Aniversario*, *F11 Oktubre*, *F11 Despedida*), vinculados a su vez con el Calendario mediante etiquetas.
-- **Participación post-partido**:
-  - Votación de **MVP** y **calificaciones** por parte de los jugadores.
-  - Galería del partido: carga de **5 a 15 fotos** por partido (compresión automática). Los **clips cortos de video** quedan planificados para una fase posterior para resguardar el costo \$0.
+### 3.2 Partidos, Votación Transparente y Fechas Especiales
+- **Detalle de fecha (Liga / Copa)**: Fecha, modalidad (`F5`/`F6`/`F7`), equipos, marcador, capitanes de Copa (si aplica), goles, asistencias, calificaciones, MVP y galería de fotos.
+- **Votación de MVP y Calificaciones**:
+  - Habilitada **exclusivamente para los jugadores que disputaron ese partido**.
+  - **Cierre manual por el Admin**.
+  - **Transparencia total**: una vez cerrada, todos pueden ver el detalle/desglose de votos y promedios.
+  - **Override de MVP**: el Admin puede asignar el MVP oficial a un jugador distinto del ganador de la votación si corresponde.
+- **Sección aparte de Fechas Especiales**: Historial dedicado para eventos fuera de Liga (*F11 Aniversario*, *F11 Oktubre*, *F11 Despedida*), con soporte de flag configurable para excepciones como `F11 Aniversario 2025`.
+- **Media del partido**: 5 a 15 fotos por fecha (Fase 2); clips cortos de video (Fase 3).
 
-### 3.3 Hub de Jugadores y Estadísticas
-- **Perfil de Jugador**:
-  - Nombre, apodo, foto/avatar, estrellas/títulos ganados.
-  - **Club preferido** (integrado con API de fútbol): escudo del club, último resultado y próximo partido.
-  - Resumen de temporada e histórico: Posición, `Pts`, `PJ`, `PG%`, `MVPs`, `G`, `A`, `G/A`, promedio de calificación y evolución fecha a fecha.
-- **Estadísticas Grupales con Filtros**:
-  - Comparador y explorador filtrable por **jugador(es)**, **temporada** y **modalidad (`F5`/`F6`/`F7`)**:
-    - **Química (%)** y **Consistencia Wilson (`CT%`)** con cada compañero.
-    - **Mejores y peores duplas** (con filtro de mínimo de partidos compartidos).
-    - **Historial mano a mano (`V - D`)** enfrentándose como rivales.
-    - Rendimiento de subgrupos específicos (ej. *"¿Cómo nos fue cuando jugamos juntos A, B y C?"*).
+### 3.3 Hub de Jugadores y Estadísticas Grupales
+- **Perfil de Jugador**: Avatar, estrellas (`⭐`), **club preferido** (escudo, último resultado y próximo partido vía API), estadísticas de temporada e históricas (`Pts`, `PJ`, `PG%`, `MVPs`, `G`, `A`, `G/A`, calificación promedio y evolución).
+- **Filtros Grupales**: Por **jugador(es)**, **temporada / histórico** y **modalidad (`F5`/`F6`/`F7`)**:
+  - **Química (%)** y **Consistencia Wilson (`CT%`)** entre compañeros (más toggle opcional de efectividad `3/1/0`).
+  - **Historial mano a mano (`V − D`)** como rivales.
+  - Análisis de subgrupos (ej. rendimiento cuando juegan juntos 2, 3 o más jugadores específicos).
 
 ### 3.4 Blog de Jugadores
-- **Una sola pestaña/sección global** (no un muro individual por jugador).
-- Organizado en **tópicos creados por los propios usuarios** (ej. *Crónicas de fechas*, *Debates de reglamento*, *Cargadas y memes*, *Mercado de pases*, *Asados / F11*).
-- Los jugadores crean tópicos y responden; los invitados pueden leer todo sin participar; el Admin tiene permisos de moderación.
+- **Una sola pestaña global** con **tópicos creados por los usuarios** (sin feed individual por jugador).
+- Los jugadores crean tópicos y comentan; invitados leen sin participar; el Admin modera.
 
-### 3.5 Panel de Administración
-- **Gestión de Partidos** *(Admin + Jugadores Autorizados)*: Carga rápida mobile-first de equipos, goles/asistencias, marcador, MVP y calificaciones; recálculo inmediato de todas las tablas y matrices.
-- **Gestión de Jugadores y Roles** *(solo Admin)*: Alta con email, asignación de permisos (`admin`, `autorizado`, `jugador`), gestión de estrellas/títulos y fusión de invitados ocasionales.
-- **Pozo y Premios** *(solo Admin)*: Control de cuotas mensuales por jugador, registro de gastos/premios, rendimientos y cálculo automático del saldo total.
-- **Importador Constante desde Excel** *(solo Admin)*:
-  - Permite subir `LOLONMEBOL.xlsx` de forma recurrente (tanto para la migración inicial de 2025/2026 como para sincronizaciones futuras).
-  - **Normalización inteligente**: limpia inconsistencias de texto/emojis (ej. `B. Aguzzi ⭐⭐⭐` vs `B. Aguzzi ⭐️⭐️⭐️`, que en Excel generan desvíos) y mapea contra los IDs internos de jugadores.
-  - **Pantalla de vista previa (dry-run)**: muestra partidos nuevos, modificados o con conflictos antes de confirmar la importación.
+### 3.5 Panel de Administración y Operación
+- **Carga de partidos y rendimientos** *(Admin + Jugadores Autorizados)*.
+- **Anuncios y Calendario** *(Admin + Jugadores Autorizados)*.
+- **Editor completo de Cuadro de Copa** *(solo Admin)*: generar llaves por tabla + editar cruces, ida/vuelta, puntajes y reemplazos por baja.
+- **Pozo y Premios** *(solo Admin)*: cuotas mensuales con monto configurable por mes, gastos/premios, rendimientos y saldo automático.
+- **Importador Constante desde Excel** *(solo Admin)*: carga recurrente de `LOLONMEBOL.xlsx` con normalización automática de nombres/emojis y pantalla de vista previa (diff) antes de confirmar cambios.
 
 ---
 
-## 4. Propuesta Tecnológica (Costo \$0/mes)
+## 4. Stack Tecnológico (Costo \$0/mes)
 
-| Componente | Tecnología | Plan y estrategia para garantizar costo \$0 |
+| Capa | Tecnología | Plan gratuito y estrategia |
 | :--- | :--- | :--- |
-| **App Mobile-First (PWA)** | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | Instalable en Android/iOS sin tiendas (evita US\$99/año Apple + US\$25 Google). |
-| **Hosting & Deploy** | Vercel (Hobby Plan) | \$0/mes, deploy continuo directo desde `LucaOlivieri03/LolonmeApp` en GitHub. |
-| **Base de Datos + Auth** | Supabase (Free Tier — PostgreSQL) | 500 MB DB + Auth + Row Level Security para roles. Un cron semanal gratuito de GitHub Actions evita la pausa por inactividad. |
-| **Imágenes (5–15 fotos/partido)** | Cloudinary (Free Tier) | 25 créditos/mes con compresión automática a WebP y redimensionado mobile. |
-| **Clips de video (Fase 3)** | Cloudflare R2 (10 GB gratis, \$0 egreso) o links YouTube No Listado | Evita costos por ancho de banda cuando se incorporen clips cortos. |
-| **API de Fútbol (Club preferido)** | API-Football (API-Sports Free: 100 req/día) | Cubre Liga Argentina, Libertadores y ligas del mundo. Se **cachea en Supabase** (1–2 consultas/día solo para los clubes elegidos por jugadores), consumiendo muy por debajo del límite gratuito. |
+| **App Mobile-First (PWA)** | Next.js (App Router) + TypeScript + Tailwind CSS + shadcn/ui | Instalable en Android/iOS sin costos de tiendas. |
+| **Hosting & Deploy** | Vercel (Hobby Plan) | \$0/mes, deploy automático desde GitHub (`LucaOlivieri03/LolonmeApp`). |
+| **Base de Datos + Auth** | Supabase (Free Tier — PostgreSQL) | 500 MB DB + Auth + RLS por roles. Cron semanal gratuito en GitHub Actions para evitar pausa por inactividad. |
+| **Fotos (Fase 2)** | Cloudinary (Free Tier) | 25 créditos/mes con compresión WebP automática (ideal para 5–15 fotos/partido). |
+| **Videos cortos (Fase 3)** | Cloudflare R2 (10 GB gratis, \$0 egreso) o embeds YouTube No Listado | Cero costos de ancho de banda. |
+| **API de Fútbol** | API-Football (API-Sports Free: 100 req/día) | Liga Argentina, Libertadores y ligas mundiales, **cacheado en Supabase** (1–2 consultas/día por clubes activos). |
 
 ---
 
-## 5. Hoja de Ruta Sugerida por Fases
+## 5. Hoja de Ruta por Fases
 
-```mermaid
-flowchart LR
-    F1["Fase 1: MVP Core<br/>• Auth, Roles e Invitados<br/>• Importador Excel 2025/2026<br/>• Main Page, Tablas y Copa<br/>• Carga de partidos + Stats + Química<br/>• Fechas Especiales + Pozo (Admin)"] --> F2["Fase 2: Comunidad y API<br/>• Blog por tópicos<br/>• Votación MVP y Calificaciones<br/>• API Club Preferido<br/>• Galería de fotos (5-15/fecha)"]
-    F2 --> F3["Fase 3: Media y Extra<br/>• Clips cortos de video<br/>• Confirmación de asistencia<br/>• Asistente de armado de equipos"]
-```
-
----
-
-## 6. Checklist de Decisiones de Negocio a Validar
-
-Puntos operativos para confirmar antes de pasar al diseño de base de datos y pantallas:
-
-- [ ] **Votación de MVP y Calificaciones**:
-  - ¿Pueden votar todos los jugadores registrados o **solo los que jugaron esa fecha**?
-  - ¿Un jugador puede votarse a sí mismo?
-  - ¿El promedio de votos se publica automáticamente al cerrar una ventana de tiempo (ej. 48 hs) o requiere **cierre/aprobación del Admin**?
-- [ ] **Alcance de los Jugadores Autorizados**: Confirmar si solo cargan/editan **partidos y rendimientos**, o si también pueden crear eventos en el calendario y publicar anuncios.
-- [ ] **Conflictos en el Importador constante de Excel**: Si un partido se edita en la app y luego se importa un Excel más nuevo, ¿qué debe suceder? *(Recomendación: mostrar pantalla de comparación y que el Admin elija si sobrescribir o mantener lo de la app).*
-- [ ] **Pozo y Premios**: Confirmar que el Pozo es **100% invisible** para jugadores e invitados, o si conviene mostrarle a cada jugador únicamente su propio estado de cuotas (sin ver montos ni gastos globales).
-- [ ] **Clubes preferidos (API de fútbol)**: Confirmar si el catálogo debe incluir **clubes de todo el mundo** o acotarse a **Argentina / Sudamérica + principales ligas europeas**, y si el jugador puede cambiar su club luego o solo una vez.
-- [ ] **Confirmación de asistencia en Calendario**: Dado que se indicó calendario **informativo por ahora** (punto 12) pero asistencia deseada a futuro (punto 8), confirmar si dejamos **solo informativo en Fase 1** y sumamos **"Voy / No voy"** en Fase 2 o 3.
-- [ ] **Subida de fotos por partido**: ¿Puede subir fotos cualquier jugador logueado o solo quienes jugaron ese partido / autorizados? ¿Con límite automático de 15 fotos por partido?
-- [ ] **Estética / Identidad visual**: ¿LOLONMEBOL ya tiene logo, paleta de colores (en el Excel predominan violeta para Liga, azul para Copa, rosa para F11 y rojo para LOLONMEBOL) o tipografía que quieran respetar en la app?
+1. **Fase 1 — MVP Core**:
+   - Auth + Roles (`admin`, `autorizado`, `jugador`, `invitado` público) + vinculación automática por email.
+   - Identidad visual con logo oficial (`assets/`).
+   - Importador constante desde `LOLONMEBOL.xlsx` (migración inicial 2025/2026 + re-importaciones).
+   - Main Page (Anuncios, Calendario con etiquetas, Tabla Anual e Histórica, Cruces de Copa editables).
+   - Carga/edición de partidos, rendimientos, Fechas Especiales, Hub de Jugadores, Química/Consistencia/Historial y Pozo (Admin).
+2. **Fase 2 — Comunidad, Votaciones, API y Fotos**:
+   - Votación transparente de MVP y Calificaciones (solo participantes, cierre y override del Admin).
+   - Blog global por tópicos.
+   - Integración de Club Preferido (API-Football con caché en Supabase).
+   - Galería de fotos por partido (5–15 fotos en Cloudinary).
+3. **Fase 3 — Media avanzada y Extras**:
+   - Clips cortos de video por partido (Cloudflare R2 / YouTube).
+   - Confirmación de asistencia en calendario ("Voy / No voy") y asistente de armado de equipos.
