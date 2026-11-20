@@ -51,7 +51,11 @@ interface TournamentContextValue {
   addPlayer: (input: { displayName: string; email?: string; role: Exclude<PlayerRole, "guest"> }) => string;
   updatePlayerRole: (playerId: string, role: Exclude<PlayerRole, "guest">) => void;
   addPlayerTitle: (playerId: string, seasonId: string, titleType: TitleType) => void;
-  addSeason: (input: { year: number; defaultFee?: number; cupCutoffDate?: string }) => string;
+  addSeason: (input: {
+    year: number;
+    defaultFee?: number;
+    cupCutoffDate?: string;
+  }) => { ok: boolean; seasonId: string; error?: string };
   addPlayerToPozo: (seasonId: string, playerId: string) => void;
   toggleFundPayment: (fundMonthId: string, playerId: string) => void;
   updateFundMonthFee: (fundMonthId: string, feeAmount: number) => void;
@@ -343,9 +347,18 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     year: number;
     defaultFee?: number;
     cupCutoffDate?: string;
-  }): string => {
+  }): { ok: boolean; seasonId: string; error?: string } => {
     const year = Math.round(input.year);
     const seasonId = `season-${year}`;
+
+    if (dataset.seasons.some((s) => s.id === seasonId || s.year === year)) {
+      return {
+        ok: false,
+        seasonId,
+        error: `La temporada ${year} ya existe en el sistema.`,
+      };
+    }
+
     const fee =
       typeof input.defaultFee === "number" && Number.isFinite(input.defaultFee)
         ? Math.max(0, input.defaultFee)
@@ -400,7 +413,7 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       };
     });
 
-    return seasonId;
+    return { ok: true, seasonId };
   };
 
   const addPlayerToPozo = (seasonId: string, playerId: string) => {

@@ -19,6 +19,7 @@ import {
 import { useTournament } from "@/components/providers/TournamentProvider";
 import { filterMatches, resolveDefaultSeasonId } from "@/lib/engine";
 import { MatchEditModal } from "@/components/tournament/MatchEditModal";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { AdminPozoTab } from "@/components/admin/AdminPozoTab";
 import { AdminCupTab } from "@/components/admin/AdminCupTab";
 import { AdminExcelTab } from "@/components/admin/AdminExcelTab";
@@ -103,6 +104,12 @@ export default function AdminPage() {
     `${nextSuggestedYear}-07-01`
   );
   const [seasonCreatedMsg, setSeasonCreatedMsg] = useState<string | null>(null);
+  const [seasonErrorMsg, setSeasonErrorMsg] = useState<string | null>(null);
+
+  const parsedNewSeasonYear = Number(newSeasonYear);
+  const isDuplicateSeasonYear =
+    Number.isFinite(parsedNewSeasonYear) &&
+    dataset.seasons.some((s) => s.year === Math.round(parsedNewSeasonYear));
   const [mType, setMType] = useState<MatchType>("league");
   const [mModality, setMModality] = useState<MatchModality>("F5");
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
@@ -118,6 +125,7 @@ export default function AdminPage() {
   const [adminMatchSeasonFilter, setAdminMatchSeasonFilter] =
     useState<string>("ALL");
   const [adminMatchNumberQuery, setAdminMatchNumberQuery] = useState("");
+  const [adminMatchPlayerFilter, setAdminMatchPlayerFilter] = useState("ALL");
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   // Announcement form state
@@ -143,11 +151,7 @@ export default function AdminPage() {
   const isAdmin = role === "admin";
   const isOperator = role === "admin" || role === "authorized";
 
-  const filteredTeamPlayers = useMemo(() => {
-    const q = teamSearch.trim().toLowerCase();
-    if (!q) return dataset.players;
-    return dataset.players.filter((p) => p.displayName.toLowerCase().includes(q));
-  }, [dataset.players, teamSearch]);
+  const filteredTeamPlayers = dataset.players;
 
   const filteredRolePlayers = useMemo(() => {
     const q = roleSearch.trim().toLowerCase();
@@ -161,8 +165,28 @@ export default function AdminPage() {
         seasonId: adminMatchSeasonFilter,
         matchType: "ALL",
         matchNumberQuery: adminMatchNumberQuery,
+        playerId: adminMatchPlayerFilter,
       }),
-    [dataset.matches, adminMatchSeasonFilter, adminMatchNumberQuery]
+    [
+      dataset.matches,
+      adminMatchSeasonFilter,
+      adminMatchNumberQuery,
+      adminMatchPlayerFilter,
+    ]
+  );
+
+  const adminPlayerFilterOptions = useMemo(
+    () => [
+      {
+        id: "ALL",
+        displayName: `Todos los jugadores (${dataset.players.length})`,
+      },
+      ...dataset.players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+      })),
+    ],
+    [dataset.players]
   );
 
   const availableTabs: Array<{
@@ -297,16 +321,39 @@ export default function AdminPage() {
   const handleCreateSeason = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
-    const yearNum = Number(newSeasonYear);
+    const yearNum = Math.round(Number(newSeasonYear));
     if (!Number.isFinite(yearNum) || yearNum < 2020 || yearNum > 2100) return;
+
+    if (dataset.seasons.some((s) => s.year === yearNum)) {
+      setSeasonCreatedMsg(null);
+      setSeasonErrorMsg(
+        `La temporada ${yearNum} ya está habilitada. Elegí un año nuevo.`
+      );
+      return;
+    }
+
     const feeNum = Number(newSeasonFee);
-    const createdId = addSeason({
+    const res = addSeason({
       year: yearNum,
       defaultFee: Number.isFinite(feeNum) ? feeNum : 3000,
       cupCutoffDate: newSeasonCutoff || `${yearNum}-07-01`,
     });
-    setMSeasonId(createdId);
-    const nextY = yearNum + 1;
+
+    if (!res.ok) {
+      setSeasonCreatedMsg(null);
+      setSeasonErrorMsg(
+        res.error ?? `La temporada ${yearNum} ya existe en el sistema.`
+      );
+      return;
+    }
+
+    setSeasonErrorMsg(null);
+    setMSeasonId(res.seasonId);
+    const maxAfterCreate = Math.max(
+      yearNum,
+      ...dataset.seasons.map((s) => s.year)
+    );
+    const nextY = maxAfterCreate + 1;
     setNewSeasonYear(String(nextY));
     setNewSeasonCutoff(`${nextY}-07-01`);
     setSeasonCreatedMsg(
@@ -423,11 +470,18 @@ export default function AdminPage() {
                       value={newSeasonYear}
                       onChange={(e) => {
                         setNewSeasonYear(e.target.value);
+                        setSeasonErrorMsg(null);
+                        setSeasonCreatedMsg(null);
                         if (/^\d{4}$/.test(e.target.value)) {
                           setNewSeasonCutoff(`${e.target.value}-07-01`);
                         }
                       }}
-                      className="font-display mt-1 min-h-10 w-24 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
+                      className={cn(
+                        "font-display mt-1 min-h-10 w-24 rounded-md border bg-paper px-2.5 text-base font-bold text-ink",
+                        isDuplicateSeasonYear
+                          ? "border-crimson-600 text-crimson-700"
+                          : "border-rule"
+                      )}
                       required
                     />
                   </div>
@@ -464,13 +518,24 @@ export default function AdminPage() {
                   </div>
                   <button
                     type="submit"
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700"
+                    disabled={isDuplicateSeasonYear}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <PlusCircle className="h-4 w-4" />
                     Habilitar Año
                   </button>
                 </form>
               </div>
+              {isDuplicateSeasonYear && !seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  La temporada {Math.round(parsedNewSeasonYear)} ya existe en el sistema ({sortedSeasons.map((s) => s.year).join(", ")}). Ingresá un año que no esté cargado.
+                </p>
+              )}
+              {seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  {seasonErrorMsg}
+                </p>
+              )}
               {seasonCreatedMsg && (
                 <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
                   {seasonCreatedMsg}
@@ -576,14 +641,44 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-2.5">
-                  <div className="relative max-w-xs">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      type="search"
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <PlayerCombobox
+                      label="Buscar y sumar/quitar en Equipo A"
+                      options={dataset.players.map((p) => ({
+                        id: p.id,
+                        displayName: p.displayName,
+                        subtitle: teamAIds.includes(p.id)
+                          ? "En Equipo A"
+                          : teamBIds.includes(p.id)
+                            ? "En Equipo B"
+                            : undefined,
+                      }))}
                       value={teamSearch}
-                      onChange={(e) => setTeamSearch(e.target.value)}
-                      placeholder="Filtrar jugadores para armar equipos..."
-                      className="min-h-10 w-full rounded-md border border-rule bg-paper pr-3 pl-9 text-base text-ink placeholder:text-ink-muted sm:text-sm"
+                      onChange={(id) => {
+                        setTeamSearch(id);
+                        toggleTeamPlayer(id, "A");
+                      }}
+                      placeholder="Buscar jugador para Equipo A..."
+                      searchPlaceholder="Buscar jugador..."
+                    />
+                    <PlayerCombobox
+                      label="Buscar y sumar/quitar en Equipo B"
+                      options={dataset.players.map((p) => ({
+                        id: p.id,
+                        displayName: p.displayName,
+                        subtitle: teamBIds.includes(p.id)
+                          ? "En Equipo B"
+                          : teamAIds.includes(p.id)
+                            ? "En Equipo A"
+                            : undefined,
+                      }))}
+                      value={teamSearch}
+                      onChange={(id) => {
+                        setTeamSearch(id);
+                        toggleTeamPlayer(id, "B");
+                      }}
+                      placeholder="Buscar jugador para Equipo B..."
+                      searchPlaceholder="Buscar jugador..."
                     />
                   </div>
 
@@ -638,20 +733,25 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    aria-label="MVP del partido"
-                    value={mvpId}
-                    onChange={(e) => setMvpId(e.target.value)}
-                    className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-                  >
-                    <option value="">Sin MVP asignado aún</option>
-                    {[...teamAIds, ...teamBIds].map((id) => (
-                      <option key={id} value={id}>
-                        MVP: {dataset.players.find((p) => p.id === id)?.displayName}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-[230px] flex-1 sm:max-w-xs">
+                    <PlayerCombobox
+                      label="MVP del partido (opcional)"
+                      options={[
+                        { id: "", displayName: "Sin MVP asignado aún" },
+                        ...[...teamAIds, ...teamBIds].map((id) => ({
+                          id,
+                          displayName:
+                            dataset.players.find((p) => p.id === id)
+                              ?.displayName ?? id,
+                        })),
+                      ]}
+                      value={mvpId}
+                      onChange={setMvpId}
+                      placeholder="Sin MVP asignado aún"
+                      searchPlaceholder="Buscar jugador del partido..."
+                    />
+                  </div>
 
                   <button
                     type="submit"
@@ -675,11 +775,20 @@ export default function AdminPage() {
                     Todos los Partidos ({adminFilteredMatches.length})
                   </h3>
                   <div className="flex flex-wrap items-center gap-2">
+                    <div className="w-56">
+                      <PlayerCombobox
+                        options={adminPlayerFilterOptions}
+                        value={adminMatchPlayerFilter}
+                        onChange={setAdminMatchPlayerFilter}
+                        placeholder="Filtrar por jugador..."
+                        searchPlaceholder="Buscar jugador..."
+                      />
+                    </div>
                     <select
                       aria-label="Filtrar temporada en admin"
                       value={adminMatchSeasonFilter}
                       onChange={(e) => setAdminMatchSeasonFilter(e.target.value)}
-                      className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink"
+                      className="min-h-11 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink"
                     >
                       <option value="ALL">Todas las temporadas</option>
                       {sortedSeasons.map((s) => (
@@ -694,7 +803,7 @@ export default function AdminPage() {
                       placeholder="N° Fecha (ej. 12)"
                       value={adminMatchNumberQuery}
                       onChange={(e) => setAdminMatchNumberQuery(e.target.value)}
-                      className="min-h-9 w-36 rounded-md border border-rule bg-paper px-2.5 text-xs text-ink"
+                      className="min-h-11 w-36 rounded-md border border-rule bg-paper px-2.5 text-xs text-ink"
                     />
                   </div>
                 </div>
@@ -1056,17 +1165,17 @@ export default function AdminPage() {
                       </option>
                     ))}
                   </select>
-                  <select
+                  <PlayerCombobox
+                    label="Jugador a premiar"
+                    options={dataset.players.map((p) => ({
+                      id: p.id,
+                      displayName: p.displayName,
+                    }))}
                     value={titlePlayerId}
-                    onChange={(e) => setTitlePlayerId(e.target.value)}
-                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-                  >
-                    {dataset.players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.displayName}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setTitlePlayerId}
+                    placeholder="Seleccionar jugador..."
+                    searchPlaceholder="Buscar jugador..."
+                  />
                   <select
                     value={titleType}
                     onChange={(e) => setTitleType(e.target.value as TitleType)}
@@ -1090,23 +1199,25 @@ export default function AdminPage() {
               </div>
 
               <section className="rounded-lg border border-rule bg-surface p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-ink">
                     Gestión de Roles ({dataset.players.length} jugadores)
                   </h3>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      type="search"
-                      value={roleSearch}
-                      onChange={(e) => setRoleSearch(e.target.value)}
-                      placeholder="Buscar jugador..."
-                      className="min-h-10 w-52 rounded-md border border-rule bg-paper pr-3 pl-9 text-base text-ink placeholder:text-ink-muted sm:text-sm"
+                  <div className="w-full sm:w-72">
+                    <PlayerCombobox
+                      label="Filtrar jugador por nombre"
+                      options={adminPlayerFilterOptions}
+                      value={roleSearch || "ALL"}
+                      onChange={(id) => setRoleSearch(id === "ALL" ? "" : id)}
+                      placeholder="Todos los jugadores..."
+                      searchPlaceholder="Buscar jugador..."
                     />
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {filteredRolePlayers.map((p) => (
+                  {dataset.players
+                    .filter((p) => !roleSearch || p.id === roleSearch)
+                    .map((p) => (
                     <div
                       key={p.id}
                       className="flex items-center justify-between gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm"

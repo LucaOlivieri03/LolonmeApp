@@ -130,21 +130,21 @@ export default function HomePage() {
 
       {/* Announcements Ledger (Tactical Chalkboard) & Quick Navigation — Above Standings */}
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="tactical-chalkboard overflow-hidden rounded-lg border border-pitch-900 text-paper md:col-span-2">
-          <div className="flex items-center justify-between border-b border-white/15 bg-pitch-950/35 px-4 py-3">
+        <div className="tactical-chalkboard overflow-hidden rounded-lg border-2 border-neutral-800 text-paper md:col-span-2">
+          <div className="flex items-center justify-between border-b border-dashed border-white/20 bg-black/35 px-4 py-3">
             <h2 className="font-display flex items-center gap-2 text-lg font-extrabold tracking-wider text-white uppercase">
               <Megaphone className="h-4 w-4 text-gold-400" />
-              Tablero de Anuncios · Pizarra Táctica
+              Tablero de Anuncios · Pizarrón de Tiza
             </h2>
-            <span className="rounded-sm border border-white/20 bg-pitch-900/70 px-2 py-0.5 text-xs font-bold text-gold-400">
+            <span className="rounded-sm border border-dashed border-white/30 bg-white/10 px-2 py-0.5 text-xs font-bold text-gold-400">
               {sortedAnnouncements.length} aviso
               {sortedAnnouncements.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {sortedAnnouncements.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-pitch-100">
-              No hay comunicados oficiales escritos en la pizarra por el momento.
+            <p className="px-4 py-6 text-sm text-neutral-300">
+              No hay comunicados oficiales escritos en el pizarrón por el momento.
             </p>
           ) : (
             <ul className="space-y-2.5 p-3.5">
@@ -154,7 +154,7 @@ export default function HomePage() {
                   className={cn(
                     "tactical-chalk-card rounded-md px-3.5 py-2.5 transition-colors",
                     ann.isPinned &&
-                      "border-gold-400/55 bg-pitch-950/65 shadow-sm"
+                      "border-gold-400/65 bg-white/[0.07]"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -165,12 +165,12 @@ export default function HomePage() {
                       <span>{ann.title}</span>
                     </div>
                     {ann.isPinned && (
-                      <span className="font-display rounded-sm border border-gold-400/40 bg-gold-400/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-gold-400 uppercase">
+                      <span className="font-display rounded-sm border border-dashed border-gold-400/50 bg-gold-400/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-gold-400 uppercase">
                         Fijado
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed text-pitch-100">
+                  <p className="mt-1 text-sm leading-relaxed text-neutral-200">
                     {ann.body}
                   </p>
                 </li>
