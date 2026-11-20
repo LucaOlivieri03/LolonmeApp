@@ -41,3 +41,7 @@ next-env.d.ts
 
 # local source spreadsheets (keep private/local unless explicitly committed)
 docs/LOLONMEBOL.xlsx
+
+# local agent/tool machine state
+.gemini/
+.impeccable/config.local.json

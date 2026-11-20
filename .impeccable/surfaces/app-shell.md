@@ -1,0 +1,14 @@
+# Surface Brief: LolonmeApp Global Shell & Tournament Routes
+
+- **Scope:** Global shell (`layout.tsx`, `globals.css`, `AppHeader`, `BottomNav`, `AnthemPlayer`) and all 6 routes (`/`, `/partidos`, `/stats`, `/calendario`, `/blog`, `/admin`).
+- **Visitor Mode:** Operate (fast post-match one-handed mobile tournament hub, plus full desktop responsive navigation).
+- **Audience & Job:** LOLONMEBOL league players, guests, authorized operators, and Admin checking standings, Cup brackets, match results, chemistry/H2H stats, calendar, and managing matchdays/Pozo/Excel imports.
+
+## Direction contract
+
+- **THESIS:** LolonmeApp looks and operates like an official South American football federation matchday dossier grounded on the pitch — refusing the generic white-cards-on-gray AI SaaS dashboard and putting the live standings table and horizontal Cup bracket front and center on mobile.
+- **OWN-WORLD:** Light-mode technical ivory paper ground (`#F6F5F0`), crisp white work surfaces (`#FFFFFF`) divided by `1px` architectural hairlines (`#D8D5CB`) and subtle pitch-chalk tactical geometry (center-circle arcs, touchline rules, half-line hairlines) instead of shadowed boxes; committed **Federation Pitch Green** shell (`#0A4A28`) anchored by a **Tournament Gold** (`#E5A00D`) lower rule; **Leather Orange** (`#D97719`, sampled from `Logo.svg`) for active selection and primary actions; **Referee Crimson** (`#C4202B`) only for alerts, tiebreakers, and destructive states. Typography pairs `Archivo` (UI/tables, `tabular-nums`) with `Barlow Condensed` (dorsal positions, scores, matchday numbers, section headers).
+- **STORY:** A player opening the app right after full time immediately sees the current leader, next matchday, and full annual standings without scrolling past KPI filler; switches cleanly between Annual, Historical, and the real horizontal Cup bracket; inspects matches, visual chemistry/H2H charts, and calendar dates in natural Spanish; and operates Admin workflows with one-handed precision and safe confirmations.
+- **FIRST VIEWPORT:** Committed Federation Green top bar (`Logo.svg` clean crest, brand wordmark, compact `AnthemPlayer`, desktop inline nav on `md+`, and Admin status entry), followed immediately by a slim pitch-line matchday ticker (current leader + next scheduled event) and the primary competition tabs (`Tabla Anual` | `Histórica` | `Copa`) with the full standings table visible above the fold on mobile, sticky `Jugador` column, and crisp zone indicators. On mobile, a 5-item bottom bar sits in the thumb zone; on desktop (`md+`), navigation moves cleanly into the top bar.
+- **FORM:** Boletín Oficial de Federación with tactical pitch-line geometry — user-selected Direction A (enhanced with football/pitch references), `seed: none (unavailable)`.
+- **FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.

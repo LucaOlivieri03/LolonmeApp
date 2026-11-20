@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-20T20:53:00Z",
+  "title": "Design System: LolonmeApp — LOLONMEBOL",
+  "extensions": {
+    "colorMeta": {
+      "federation-pitch": {
+        "role": "primary",
+        "displayName": "Federation Pitch",
+        "canonical": "#0a4a28",
+        "tonalRamp": ["#042212", "#07361d", "#0a4a28", "#0d5930", "#136b3b", "#188047", "#a9d8bb", "#edf7f1"]
+      },
+      "leather-orange": {
+        "role": "secondary",
+        "displayName": "Leather Orange",
+        "canonical": "#c86e0e",
+        "tonalRamp": ["#5e3003", "#804205", "#9f5206", "#c86e0e", "#e68e23", "#f1b160", "#fae3c7", "#fdf4e9"]
+      },
+      "tournament-gold": {
+        "role": "secondary",
+        "displayName": "Tournament Gold",
+        "canonical": "#e5a00d",
+        "tonalRamp": ["#5c3c00", "#8c5c00", "#b87b00", "#e5a00d", "#f4be1e", "#f9d66b", "#fdeeb8", "#fef9e6"]
+      },
+      "ivory-paper": {
+        "role": "neutral",
+        "displayName": "Ivory Paper",
+        "canonical": "#f6f5f0",
+        "tonalRamp": ["#111c15", "#2d3b32", "#4c5d52", "#78877d", "#b8b4a5", "#d6d3c7", "#efece3", "#f6f5f0"]
+      },
+      "referee-crimson": {
+        "role": "semantic",
+        "displayName": "Referee Crimson",
+        "canonical": "#c4202b",
+        "tonalRamp": ["#5c0c12", "#7d1119", "#9e1620", "#c4202b", "#dd4a54", "#ee868d", "#fad8db", "#fdf1f2"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display & Scoreboard",
+        "purpose": "Page titles, match scores, table points, and dorsal rankings with tabular-nums."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Panel titles, bracket round headings, and monthly calendar headers."
+      },
+      "body": {
+        "displayName": "UI Body & Tables",
+        "purpose": "Dense standings rows, announcements, forms, and player metadata."
+      },
+      "label": {
+        "displayName": "Technical Label",
+        "purpose": "Table column headers, filter group captions, and status badges."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "Fast state feedback on tabs, filters, and buttons without decorative choreography."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary federation action button for saving matches, confirming imports, and submitting forms.",
+      "html": "<button class=\"ds-btn-primary\">Guardar Partido</button>",
+      "css": ".ds-btn-primary { min-height: 44px; padding: 0 20px; border: 1px solid #0a4a28; border-radius: 6px; background: #0a4a28; color: #ffffff; font-family: Archivo, system-ui, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: #07361d; } .ds-btn-primary:focus-visible { outline: 2px solid #c86e0e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Season Toggle (Active)",
+      "kind": "chip",
+      "refersTo": "button-season-active",
+      "description": "Active season year selector in Leather Orange.",
+      "html": "<button class=\"ds-season-btn\">2026</button>",
+      "css": ".ds-season-btn { min-height: 40px; padding: 0 14px; border: 1px solid #c86e0e; border-radius: 6px; background: #c86e0e; color: #ffffff; font-family: 'Barlow Condensed', Archivo, sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; cursor: pointer; } .ds-season-btn:hover { background: #9f5206; }"
+    },
+    {
+      "name": "Dossier Panel",
+      "kind": "card",
+      "refersTo": "dossier-panel",
+      "description": "Flat architectural surface bounded by a 1px hairline rule on ivory paper.",
+      "html": "<div class=\"ds-panel\"><strong>Tablero de Anuncios</strong><p>Comunicados oficiales de la fecha.</p></div>",
+      "css": ".ds-panel { background: #ffffff; color: #111c15; border: 1px solid #d6d3c7; border-radius: 8px; padding: 16px; font-family: Archivo, system-ui, sans-serif; font-size: 14px; } .ds-panel p { margin: 6px 0 0; color: #4c5d52; }"
+    },
+    {
+      "name": "Form Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "16px mobile-safe input on technical ivory paper.",
+      "html": "<input class=\"ds-input\" placeholder=\"Buscar jugador...\" />",
+      "css": ".ds-input { min-height: 44px; padding: 0 12px; border: 1px solid #d6d3c7; border-radius: 6px; background: #f6f5f0; color: #111c15; font-family: Archivo, system-ui, sans-serif; font-size: 16px; } .ds-input:focus-visible { outline: 2px solid #c86e0e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Scoreboard Pill",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "Condensed tabular score block used across matchday ledgers.",
+      "html": "<span class=\"ds-score\">8 – 6</span>",
+      "css": ".ds-score { display: inline-block; min-width: 68px; padding: 6px 12px; border-radius: 6px; background: #0a4a28; color: #ffffff; text-align: center; font-family: 'Barlow Condensed', Archivo, sans-serif; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.03em; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Boletín Oficial de Federación en Cancha",
+    "overview": "LolonmeApp treats an amateur friends' football league with the structural authority of a South American football federation matchday dossier grounded on the pitch. Rather than floating shadowed SaaS cards on generic gray backgrounds, the interface rests on crisp technical ivory paper divided by 1px architectural hairlines, anchored by a committed Federation Pitch Green shell with subtle chalk-line geometry and Tournament Gold trims.",
+    "keyCharacteristics": [
+      "Committed Federation Pitch Green (#0a4a28) header and matchday strips with subtle white chalk-line geometry (.pitch-chalk-surface).",
+      "Flat, crisp 1px structural hairlines (#d6d3c7) on technical ivory paper (#f6f5f0) instead of blurred drop shadows.",
+      "Leather Orange (#c86e0e / #e68e23, sampled from the official Logo.svg ball) reserved for active selection, focus rings, and season toggles.",
+      "Condensed tabular dorsal typography (Barlow Condensed) paired with a clean workhorse UI sans (Archivo)."
+    ],
+    "rules": [
+      {
+        "name": "The Flat Dossier Rule",
+        "body": "Depth is communicated through 1px architectural hairlines (#d6d3c7) and subtle tonal shifts (#f6f5f0 paper vs. #ffffff surface vs. #0a4a28 committed shell), never blurred drop shadows or glassmorphism.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Logo.svg for header/small icons and reserve LogoLOLONMEBOL.svg for large display contexts where the wordmark is legible.",
+      "Do format all dates and currencies through formatDateEs, formatMonthKeyEs, and formatArs in src/lib/utils.ts.",
+      "Do keep form inputs at 16px (text-base) on mobile and touch targets at >= 40px."
+    ],
+    "donts": [
+      "Don't place eyebrows or kicker labels above headings.",
+      "Don't nest bordered cards inside other cards or reintroduce generic KPI metric tile grids.",
+      "Don't use mowed-grass stripes, neon glows, gradient text, or border-l-4 bars on rounded containers."
+    ]
+  }
+}
