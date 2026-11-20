@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Shield } from "lucide-react";
+import { BookOpen, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
 
@@ -11,12 +11,14 @@ const DESKTOP_NAV = [
   { href: "/partidos", label: "Partidos" },
   { href: "/stats", label: "Stats" },
   { href: "/calendario", label: "Calendario" },
+  { href: "/reglas", label: "Reglas" },
   { href: "/blog", label: "Blog" },
 ];
 
 export function AppHeader() {
   const pathname = usePathname();
   const isAdminActive = pathname.startsWith("/admin");
+  const isReglasActive = pathname.startsWith("/reglas");
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-gold-500 bg-pitch-800 text-paper">
@@ -63,6 +65,20 @@ export function AppHeader() {
 
         <div className="flex items-center gap-2">
           <AnthemPlayer />
+          <Link
+            href="/reglas"
+            aria-label="Reglamento Oficial"
+            aria-current={isReglasActive ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors md:hidden",
+              isReglasActive
+                ? "border-gold-400 bg-gold-500/20 text-gold-400"
+                : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
+            )}
+          >
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="hidden xs:inline">Reglas</span>
+          </Link>
           <Link
             href="/admin"
             aria-label="Panel de Administración"
