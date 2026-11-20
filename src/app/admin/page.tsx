@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Lock,
   Megaphone,
+  Pencil,
   PlusCircle,
   Search,
   Shield,
@@ -16,7 +17,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
-import { resolveDefaultSeasonId } from "@/lib/engine";
+import { filterMatches, resolveDefaultSeasonId } from "@/lib/engine";
+import { MatchEditModal } from "@/components/tournament/MatchEditModal";
 import { AdminPozoTab } from "@/components/admin/AdminPozoTab";
 import { AdminCupTab } from "@/components/admin/AdminCupTab";
 import { AdminExcelTab } from "@/components/admin/AdminExcelTab";
@@ -67,6 +69,7 @@ export default function AdminPage() {
     isLocalMode,
     setRole,
     addMatch,
+    updateMatch,
     deleteMatch,
     addAnnouncement,
     deleteAnnouncement,
@@ -112,6 +115,10 @@ export default function AdminPage() {
   const [teamSearch, setTeamSearch] = useState("");
   const [mvpId, setMvpId] = useState<string>("");
   const [matchSavedMsg, setMatchSavedMsg] = useState<string | null>(null);
+  const [adminMatchSeasonFilter, setAdminMatchSeasonFilter] =
+    useState<string>("ALL");
+  const [adminMatchNumberQuery, setAdminMatchNumberQuery] = useState("");
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   // Announcement form state
   const [annTitle, setAnnTitle] = useState("");
@@ -145,6 +152,16 @@ export default function AdminPage() {
     if (!q) return dataset.players;
     return dataset.players.filter((p) => p.displayName.toLowerCase().includes(q));
   }, [dataset.players, roleSearch]);
+
+  const adminFilteredMatches = useMemo(
+    () =>
+      filterMatches(dataset.matches, {
+        seasonId: adminMatchSeasonFilter,
+        matchType: "ALL",
+        matchNumberQuery: adminMatchNumberQuery,
+      }),
+    [dataset.matches, adminMatchSeasonFilter, adminMatchNumberQuery]
+  );
 
   const availableTabs: Array<{
     id: AdminTab;
@@ -647,11 +664,36 @@ export default function AdminPage() {
               </form>
 
               <section className="rounded-lg border border-rule bg-surface p-4">
-                <h3 className="font-display mb-2 text-lg font-bold tracking-wide text-ink">
-                  Últimos partidos cargados
-                </h3>
-                <ul className="divide-y divide-rule text-sm">
-                  {dataset.matches.slice(0, 8).map((m) => {
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-bold tracking-wide text-ink">
+                    Todos los Partidos ({adminFilteredMatches.length})
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      aria-label="Filtrar temporada en admin"
+                      value={adminMatchSeasonFilter}
+                      onChange={(e) => setAdminMatchSeasonFilter(e.target.value)}
+                      className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink"
+                    >
+                      <option value="ALL">Todas las temporadas</option>
+                      {sortedSeasons.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="search"
+                      aria-label="Filtrar por número de fecha en admin"
+                      placeholder="N° Fecha (ej. 12)"
+                      value={adminMatchNumberQuery}
+                      onChange={(e) => setAdminMatchNumberQuery(e.target.value)}
+                      className="min-h-9 w-36 rounded-md border border-rule bg-paper px-2.5 text-xs text-ink"
+                    />
+                  </div>
+                </div>
+                <ul className="max-h-96 divide-y divide-rule overflow-y-auto text-sm">
+                  {adminFilteredMatches.map((m) => {
                     const delKey = `match:${m.id}`;
                     return (
                       <li
@@ -670,37 +712,50 @@ export default function AdminPage() {
                             {m.teamAScore ?? "—"}–{m.teamBScore ?? "—"}
                           </span>
                         </span>
-                        {pendingDeleteKey === delKey ? (
-                          <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {isAdmin && (
                             <button
                               type="button"
-                              onClick={() => {
-                                deleteMatch(m.id);
-                                setPendingDeleteKey(null);
-                              }}
-                              className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white hover:bg-crimson-700"
+                              onClick={() => setEditingMatch(m)}
+                              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-rule bg-paper px-2.5 text-xs font-bold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-pitch-50"
+                              title="Editar partido completo"
                             >
-                              Borrar
+                              <Pencil className="h-3.5 w-3.5" />
+                              Editar
                             </button>
+                          )}
+                          {pendingDeleteKey === delKey ? (
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteMatch(m.id);
+                                  setPendingDeleteKey(null);
+                                }}
+                                className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white hover:bg-crimson-700"
+                              >
+                                Borrar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDeleteKey(null)}
+                                className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => setPendingDeleteKey(null)}
-                              className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                              onClick={() => setPendingDeleteKey(delKey)}
+                              className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
+                              title="Eliminar partido"
+                              aria-label="Eliminar partido"
                             >
-                              No
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setPendingDeleteKey(delKey)}
-                            className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
-                            title="Eliminar partido"
-                            aria-label="Eliminar partido"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -1055,6 +1110,22 @@ export default function AdminPage() {
 
           {/* TAB 6: EXCEL IMPORTER (ADMIN ONLY) */}
           {safeTab === "excel" && isAdmin && <AdminExcelTab />}
+
+          {editingMatch && isAdmin && (
+            <MatchEditModal
+              match={editingMatch}
+              seasons={sortedSeasons}
+              players={dataset.players}
+              onSave={(updated) => {
+                updateMatch(updated);
+                setEditingMatch(null);
+                setMatchSavedMsg(
+                  "Partido editado. Tablas y estadísticas recalculadas automáticamente."
+                );
+              }}
+              onClose={() => setEditingMatch(null)}
+            />
+          )}
         </>
       )}
     </div>
