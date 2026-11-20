@@ -29,30 +29,30 @@ export function AdminCupTab() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-pitch-700/15 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-gold-600" />
+      <section className="rounded-lg border border-rule bg-surface p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <Trophy className="mt-0.5 h-5 w-5 shrink-0 text-gold-600" />
             <div>
-              <h2 className="text-sm font-black text-navy-900">
-                Editor Manual de Copa (100% Editable)
+              <h2 className="font-display text-xl font-bold tracking-wide text-ink">
+                Editor Manual de Copa
               </h2>
-              <p className="text-[11px] text-slate-500">
-                Generá el cuadro automático por tabla o editá jugadores, puntajes globales y ganadores por baja/reemplazo.
+              <p className="text-xs text-ink-muted">
+                Generá el cuadro automático por tabla o editá jugadores, puntajes globales y ganadores por baja o reemplazo.
               </p>
             </div>
           </div>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5" role="group" aria-label="Temporada de Copa">
             {sortedSeasons.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => setSeasonId(s.id)}
                 className={cn(
-                  "rounded-lg border px-2.5 py-1 text-xs font-bold",
+                  "font-display min-h-10 rounded-md border px-3.5 text-base font-bold transition-colors",
                   seasonId === s.id
-                    ? "border-navy-800 bg-navy-800 text-white"
-                    : "border-slate-200 bg-white text-slate-600"
+                    ? "border-leather-600 bg-leather-600 text-white"
+                    : "border-rule bg-paper text-ink-muted hover:text-ink"
                 )}
               >
                 {s.year}
@@ -61,15 +61,15 @@ export function AdminCupTab() {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-500">
+        <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-rule pt-4">
+          <div className="min-w-[180px] flex-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
               Finalista LOLONMEBOL ant. #1
             </label>
             <select
               value={finalist1}
               onChange={(e) => setFinalist1(e.target.value)}
-              className="mt-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-navy-900"
+              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
             >
               {dataset.players.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -78,14 +78,14 @@ export function AdminCupTab() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase text-slate-500">
+          <div className="min-w-[180px] flex-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
               Finalista LOLONMEBOL ant. #2
             </label>
             <select
               value={finalist2}
               onChange={(e) => setFinalist2(e.target.value)}
-              className="mt-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-navy-900"
+              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
             >
               {dataset.players.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -97,127 +97,136 @@ export function AdminCupTab() {
           <button
             type="button"
             onClick={() => regenerateCupBracket(seasonId, [finalist1, finalist2])}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-pitch-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-pitch-800"
+            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-4 w-4" />
             Generar / Regenerar Cuadro
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="space-y-3">
-        {ties.map((tie) => (
-          <div
-            key={tie.id}
-            className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-navy-800">
-                {ROUND_LABELS[tie.round]} #{tie.slotOrder}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Seeds: {tie.seedA ?? "—"} vs {tie.seedB ?? "—"}
-              </span>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="flex items-center gap-2">
-                <select
-                  value={tie.playerAId ?? ""}
-                  onChange={(e) =>
-                    updateCupTie(tie.id, { playerAId: e.target.value || null })
-                  }
-                  className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-navy-900"
-                >
-                  <option value="">-- Jugador A --</option>
-                  {dataset.players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.displayName}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  placeholder="Glob A"
-                  value={tie.overrideScoreA ?? ""}
-                  onChange={(e) =>
-                    updateCupTie(tie.id, {
-                      overrideScoreA:
-                        e.target.value === "" ? null : Number(e.target.value),
-                    })
-                  }
-                  className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-xs font-bold"
-                />
+      {ties.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-rule-strong bg-surface p-8 text-center text-sm text-ink-muted">
+          No hay llaves generadas para esta temporada. Usá &ldquo;Generar / Regenerar Cuadro&rdquo; arriba.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-rule bg-surface divide-y divide-rule">
+          {ties.map((tie) => (
+            <div key={tie.id} className="space-y-3 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-display rounded-sm border border-pitch-200 bg-pitch-50 px-2.5 py-0.5 text-sm font-bold uppercase tracking-wider text-pitch-800">
+                  {ROUND_LABELS[tie.round]} #{tie.slotOrder}
+                </span>
+                <span className="text-xs font-medium text-ink-muted">
+                  Seeds: {tie.seedA ?? "—"} vs {tie.seedB ?? "—"}
+                </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Jugador A"
+                    value={tie.playerAId ?? ""}
+                    onChange={(e) =>
+                      updateCupTie(tie.id, { playerAId: e.target.value || null })
+                    }
+                    className="min-h-11 flex-1 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
+                  >
+                    <option value="">— Jugador A —</option>
+                    {dataset.players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    aria-label="Global Jugador A"
+                    placeholder="Glob A"
+                    value={tie.overrideScoreA ?? ""}
+                    onChange={(e) =>
+                      updateCupTie(tie.id, {
+                        overrideScoreA:
+                          e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className="font-display min-h-11 w-20 rounded-md border border-rule bg-paper px-2 text-center text-base font-bold text-ink"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Jugador B"
+                    value={tie.playerBId ?? ""}
+                    onChange={(e) =>
+                      updateCupTie(tie.id, { playerBId: e.target.value || null })
+                    }
+                    className="min-h-11 flex-1 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
+                  >
+                    <option value="">— Jugador B —</option>
+                    {dataset.players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    aria-label="Global Jugador B"
+                    placeholder="Glob B"
+                    value={tie.overrideScoreB ?? ""}
+                    onChange={(e) =>
+                      updateCupTie(tie.id, {
+                        overrideScoreB:
+                          e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className="font-display min-h-11 w-20 rounded-md border border-rule bg-paper px-2 text-center text-base font-bold text-ink"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <select
-                  value={tie.playerBId ?? ""}
-                  onChange={(e) =>
-                    updateCupTie(tie.id, { playerBId: e.target.value || null })
-                  }
-                  className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-navy-900"
-                >
-                  <option value="">-- Jugador B --</option>
-                  {dataset.players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.displayName}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  placeholder="Glob B"
-                  value={tie.overrideScoreB ?? ""}
+                  aria-label="Override ganador"
+                  value={tie.winnerPlayerId ?? ""}
                   onChange={(e) =>
                     updateCupTie(tie.id, {
-                      overrideScoreB:
-                        e.target.value === "" ? null : Number(e.target.value),
+                      winnerPlayerId: e.target.value || null,
                     })
                   }
-                  className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-center font-mono text-xs font-bold"
+                  className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
+                >
+                  <option value="">Ganador automático (global / ventaja)</option>
+                  {tie.playerAId && (
+                    <option value={tie.playerAId}>
+                      Override ganador:{" "}
+                      {dataset.players.find((p) => p.id === tie.playerAId)?.displayName}
+                    </option>
+                  )}
+                  {tie.playerBId && (
+                    <option value={tie.playerBId}>
+                      Override ganador:{" "}
+                      {dataset.players.find((p) => p.id === tie.playerBId)?.displayName}
+                    </option>
+                  )}
+                </select>
+
+                <input
+                  type="text"
+                  aria-label="Nota de la llave"
+                  placeholder="Nota (ej. Baja por lesión, ingresa reemplazo)"
+                  value={tie.notes ?? ""}
+                  onChange={(e) =>
+                    updateCupTie(tie.id, { notes: e.target.value || null })
+                  }
+                  className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base text-ink placeholder:text-ink-muted sm:text-sm"
                 />
               </div>
             </div>
-
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <select
-                value={tie.winnerPlayerId ?? ""}
-                onChange={(e) =>
-                  updateCupTie(tie.id, {
-                    winnerPlayerId: e.target.value || null,
-                  })
-                }
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700"
-              >
-                <option value="">Ganador automático (por global / ventaja)</option>
-                {tie.playerAId && (
-                  <option value={tie.playerAId}>
-                    Override ganador:{" "}
-                    {dataset.players.find((p) => p.id === tie.playerAId)?.displayName}
-                  </option>
-                )}
-                {tie.playerBId && (
-                  <option value={tie.playerBId}>
-                    Override ganador:{" "}
-                    {dataset.players.find((p) => p.id === tie.playerBId)?.displayName}
-                  </option>
-                )}
-              </select>
-
-              <input
-                type="text"
-                placeholder="Nota (ej. Baja por lesión, ingresa reemplazo)"
-                value={tie.notes ?? ""}
-                onChange={(e) =>
-                  updateCupTie(tie.id, { notes: e.target.value || null })
-                }
-                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs"
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
