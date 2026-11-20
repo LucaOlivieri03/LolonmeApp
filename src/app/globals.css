@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-pitch-50: #effaf3;
+  --color-pitch-100: #d9f2e2;
+  --color-pitch-500: #009c3b;
+  --color-pitch-600: #008a38;
+  --color-pitch-700: #007934;
+  --color-pitch-800: #005c27;
+  --color-pitch-900: #003f1b;
+
+  --color-navy-50: #eef3fb;
+  --color-navy-100: #d5e2f5;
+  --color-navy-600: #034ea2;
+  --color-navy-700: #003893;
+  --color-navy-800: #002776;
+  --color-navy-900: #001c55;
+
+  --color-gold-100: #fef5d4;
+  --color-gold-400: #fcd116;
+  --color-gold-500: #f6b40e;
+  --color-gold-600: #d99400;
+  --color-gold-700: #b87800;
+
+  --color-sky-400: #74acdf;
+  --color-crimson-600: #ce1126;
+
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  --background: #f4f7f4;
+  --foreground: #0f1c14;
+  --card: #ffffff;
+  --border: #dce6df;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle mowed football pitch pattern for hero banners */
+.pitch-stripes {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 121, 52, 0.96) 0px,
+    rgba(0, 121, 52, 0.96) 28px,
+    rgba(0, 138, 56, 0.96) 28px,
+    rgba(0, 138, 56, 0.96) 56px
+  );
+}
+
+.pitch-stripes-subtle {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 121, 52, 0.04) 0px,
+    rgba(0, 121, 52, 0.04) 32px,
+    transparent 32px,
+    transparent 64px
+  );
+}

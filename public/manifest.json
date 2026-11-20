@@ -1,0 +1,23 @@
+{
+  "name": "LolonmeApp — LOLONMEBOL",
+  "short_name": "LOLONMEBOL",
+  "description": "Hub oficial mobile-first del torneo de fútbol LOLONMEBOL: tablas, Copa, estadísticas, calendario y gestión.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F8F5",
+  "theme_color": "#007934",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/LogoLOLONMEBOL.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/Logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
