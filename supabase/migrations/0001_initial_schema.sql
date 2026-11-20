@@ -291,7 +291,7 @@ AS $$
   SELECT COALESCE(public.current_player_role() IN ('admin', 'authorized'), false);
 $$;
 
--- Automatically link newly registered Supabase Auth user to pre-created player by email
+-- Automatically link confirmed Supabase Auth user to pre-created player by email
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -299,7 +299,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NEW.email IS NOT NULL THEN
+  IF NEW.email IS NOT NULL AND NEW.email_confirmed_at IS NOT NULL THEN
     UPDATE public.players
     SET user_id = NEW.id
     WHERE lower(email) = lower(NEW.email)
@@ -311,10 +311,11 @@ $$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
+  AFTER INSERT OR UPDATE OF email_confirmed_at ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
--- Prevent non-admin users from escalating their own role or modifying protected columns
+-- Prevent non-admin authenticated users from escalating their own role or modifying protected columns
+-- (auth.uid() IS NULL only for privileged DB triggers / service_role since anon has no UPDATE policy)
 CREATE OR REPLACE FUNCTION public.guard_player_self_update()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -322,7 +323,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT public.is_admin() THEN
+  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
     IF NEW.role IS DISTINCT FROM OLD.role
        OR NEW.email IS DISTINCT FROM OLD.email
        OR NEW.user_id IS DISTINCT FROM OLD.user_id
@@ -363,6 +364,9 @@ ALTER TABLE public.match_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.clubs_cache ENABLE ROW LEVEL SECURITY;
 
 -- Public read-only access (guests + all authenticated users)
+-- Protect email column from public/anonymous exposure
+REVOKE SELECT (email) ON public.players FROM anon, authenticated;
+
 CREATE POLICY "public_read_players" ON public.players FOR SELECT USING (true);
 CREATE POLICY "public_read_player_aliases" ON public.player_aliases FOR SELECT USING (true);
 CREATE POLICY "public_read_player_titles" ON public.player_titles FOR SELECT USING (true);
@@ -409,6 +413,21 @@ CREATE POLICY "update_match_votes_participants" ON public.match_votes
     AND EXISTS (
       SELECT 1 FROM public.matches m
       WHERE m.id = match_votes.match_id AND m.voting_status = 'open'
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.match_players mp
+      WHERE mp.match_id = match_votes.match_id AND mp.player_id = public.current_player_id()
+    )
+  )
+  WITH CHECK (
+    voter_player_id = public.current_player_id()
+    AND EXISTS (
+      SELECT 1 FROM public.matches m
+      WHERE m.id = match_votes.match_id AND m.voting_status = 'open'
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.match_players mp
+      WHERE mp.match_id = match_votes.match_id AND mp.player_id = public.current_player_id()
     )
   );
 
