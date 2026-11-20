@@ -23,6 +23,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import {
   computePairwiseStats,
   computeStandings,
@@ -31,7 +32,7 @@ import {
 import type { MatchModality } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 
-type StatsTab = "profile" | "lab";
+type StatsTab = "player" | "lab";
 type MetricKey =
   | "chemistry"
   | "wilson"
@@ -165,7 +166,7 @@ function MetricFormulaToggle({
 }
 
 export default function StatsPage() {
-  const { dataset } = useTournament();
+  const { dataset, loggedPlayerId } = useTournament();
   const sortedSeasons = useMemo(
     () => [...dataset.seasons].sort((a, b) => b.year - a.year),
     [dataset.seasons]
@@ -208,7 +209,20 @@ export default function StatsPage() {
   }, [activePlayers, labSearch]);
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>(
-    activePlayers[0]?.playerId ?? dataset.players[0]?.id ?? ""
+    loggedPlayerId ?? activePlayers[0]?.playerId ?? dataset.players[0]?.id ?? ""
+  );
+
+  const playerComboboxOptions = useMemo(
+    () =>
+      activePlayers.map((p) => ({
+        id: p.playerId,
+        displayName: p.displayName,
+        position: p.position,
+        points: p.points,
+        pj: p.pj,
+        stars: p.stars,
+      })),
+    [activePlayers]
   );
 
   const [labPlayerIds, setLabPlayerIds] = useState<string[]>(() =>
@@ -366,17 +380,17 @@ export default function StatsPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={tab === "profile"}
-            onClick={() => setTab("profile")}
+            aria-selected={tab === "player"}
+            onClick={() => setTab("player")}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3.5 text-sm font-semibold transition-colors",
-              tab === "profile"
+              tab === "player"
                 ? "bg-pitch-800 text-white"
                 : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
             )}
           >
             <User className="h-4 w-4" />
-            Perfil
+            Stats por Jugador
           </button>
         </div>
       </header>
@@ -700,24 +714,30 @@ export default function StatsPage() {
       ) : (
         <div className="space-y-4">
           <section className="rounded-lg border border-rule bg-surface p-4">
-            <label
-              htmlFor="profile-player-select"
-              className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
-            >
-              Seleccionar Jugador
-            </label>
-            <select
-              id="profile-player-select"
-              value={selectedProfileId}
-              onChange={(e) => setSelectedProfileId(e.target.value)}
-              className="mt-1.5 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:max-w-sm"
-            >
-              {activePlayers.map((p) => (
-                <option key={p.playerId} value={p.playerId}>
-                  {p.displayName} ({p.points} pts hist.)
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <PlayerCombobox
+                label="Explorar Ficha Estadística de Jugador"
+                options={playerComboboxOptions}
+                value={selectedProfileId}
+                onChange={setSelectedProfileId}
+                placeholder="Elegir jugador del padrón..."
+                searchPlaceholder="Buscar jugador por nombre..."
+                className="sm:max-w-md"
+              />
+
+              {loggedPlayerId &&
+                activePlayers.some((p) => p.playerId === loggedPlayerId) &&
+                selectedProfileId !== loggedPlayerId && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProfileId(loggedPlayerId)}
+                    className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md border border-pitch-800 bg-pitch-50 px-3.5 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Ver mis stats
+                  </button>
+                )}
+            </div>
 
             {profileRow && (
               <div className="mt-4 space-y-3">
