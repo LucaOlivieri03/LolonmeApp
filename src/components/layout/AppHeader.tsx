@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Shield } from "lucide-react";
+import { BookOpen, Shield, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
 
@@ -19,6 +19,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const isAdminActive = pathname.startsWith("/admin");
   const isReglasActive = pathname.startsWith("/reglas");
+  const isPerfilActive = pathname.startsWith("/perfil");
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-gold-500 bg-pitch-800 text-paper">
@@ -78,6 +79,20 @@ export function AppHeader() {
           >
             <BookOpen className="h-4 w-4 shrink-0" />
             <span className="hidden xs:inline">Reglas</span>
+          </Link>
+          <Link
+            href="/perfil"
+            aria-label="Mi Perfil"
+            aria-current={isPerfilActive ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+              isPerfilActive
+                ? "border-gold-400 bg-gold-500/20 text-gold-400"
+                : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
+            )}
+          >
+            <UserCircle2 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Perfil</span>
           </Link>
           <Link
             href="/admin"

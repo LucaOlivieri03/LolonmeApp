@@ -28,12 +28,15 @@ import type {
 
 const STORAGE_KEY = "lolonmeapp_dataset_v1";
 const ROLE_STORAGE_KEY = "lolonmeapp_role_v1";
+const LOGGED_PLAYER_STORAGE_KEY = "lolonmeapp_logged_player_v1";
 
 interface TournamentContextValue {
   dataset: TournamentDataset;
   role: PlayerRole;
+  loggedPlayerId: string | null;
   isLocalMode: boolean;
   setRole: (role: PlayerRole) => void;
+  setLoggedPlayerId: (playerId: string | null) => void;
   resetToSeed: () => void;
   applyDataset: (next: TournamentDataset) => void;
   addMatch: (match: Match) => void;
@@ -63,6 +66,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const isLocalMode = !isSupabaseConfigured();
   const [dataset, setDataset] = useState<TournamentDataset>(INITIAL_DATASET);
   const [role, setRoleState] = useState<PlayerRole>(isLocalMode ? "admin" : "guest");
+  const [loggedPlayerId, setLoggedPlayerIdState] = useState<string | null>(
+    isLocalMode ? "b-aguzzi" : null
+  );
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -78,6 +84,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         const savedRole = localStorage.getItem(ROLE_STORAGE_KEY) as PlayerRole | null;
         if (savedRole && ["admin", "authorized", "player", "guest"].includes(savedRole)) {
           setRoleState(savedRole);
+          if (savedRole === "guest") {
+            setLoggedPlayerIdState(null);
+          }
+        }
+        const savedPlayerId = localStorage.getItem(LOGGED_PLAYER_STORAGE_KEY);
+        if (savedPlayerId) {
+          setLoggedPlayerIdState(savedPlayerId === "NONE" ? null : savedPlayerId);
         }
       }
     } catch {
@@ -92,13 +105,17 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         supabase.auth.getUser().then(async ({ data }) => {
           if (!data.user) {
             setRoleState("guest");
+            setLoggedPlayerIdState(null);
             return;
           }
           const { data: player } = await supabase
             .from("players")
-            .select("role")
+            .select("id, role")
             .eq("user_id", data.user.id)
             .single();
+          if (player?.id) {
+            setLoggedPlayerIdState(player.id as string);
+          }
           if (player?.role && ["admin", "authorized", "player"].includes(player.role)) {
             setRoleState(player.role as PlayerRole);
           } else {
@@ -122,8 +139,23 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     // Role simulation is strictly disabled when Supabase Auth is configured
     if (!isLocalMode) return;
     setRoleState(nextRole);
+    if (nextRole === "guest") {
+      setLoggedPlayerIdState(null);
+    } else if (!loggedPlayerId) {
+      setLoggedPlayerIdState(dataset.players[0]?.id ?? "b-aguzzi");
+    }
     try {
       localStorage.setItem(ROLE_STORAGE_KEY, nextRole);
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const setLoggedPlayerId = (nextPlayerId: string | null) => {
+    if (!isLocalMode) return;
+    setLoggedPlayerIdState(nextPlayerId);
+    try {
+      localStorage.setItem(LOGGED_PLAYER_STORAGE_KEY, nextPlayerId ?? "NONE");
     } catch {
       // Ignore storage errors
     }
@@ -461,8 +493,10 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       value={{
         dataset,
         role,
+        loggedPlayerId,
         isLocalMode,
         setRole,
+        setLoggedPlayerId,
         resetToSeed,
         applyDataset,
         addMatch,
