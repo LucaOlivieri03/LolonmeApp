@@ -1,7 +1,7 @@
-# Reglamento y Reglas de Cálculo — LOLONMEBOL
+# Reglamento Oficial y Reglas de Cálculo — LOLONMEBOL (v3 — Definitivo)
 
-> [!IMPORTANT]
-> **Propósito de este documento**: Consolidar todas las reglas deportivas, fórmulas de cálculo y criterios vigentes relevados de `LOLONMEBOL.xlsx` junto con las definiciones preliminares de la app, para ser **revisado y validado por el Presidente de LOLONMEBOL** antes de iniciar el desarrollo.
+> [!NOTE]
+> **Estado del documento**: Validado integralmente con el Presidente de LOLONMEBOL. Especificación deportiva definitiva para el motor de cálculo y reglas de **LolonmeApp**.
 
 ---
 
@@ -12,9 +12,9 @@ Cada temporada anual (ej. 2025, 2026, 2027) se compone de cuatro tipos de instan
 | Competencia / Evento | Descripción | Modalidad habitual | ¿Suma en Tabla Anual? |
 | :--- | :--- | :--- | :--- |
 | **Liga Anual** | Partidos semanales con equipos armados de forma rotativa cada fecha. Puntaje individual. | F5 (base), F6 o F7 | **Sí** |
-| **Copa Anual** | Eliminación directa **1 vs 1 entre capitanes** (ida y vuelta), disputada dentro de las fechas semanales con equipos rotativos. | F5 / F6 / F7 | **Sí, solo compañeros** *(capitanes no suman)* |
-| **Final LOLONMEBOL** | Superfinal anual entre el **Campeón de Liga** y el **Campeón de Copa**. | Partido definitorio | **A validar** |
-| **Fechas Especiales** | Eventos conmemorativos (ej. *F11 Aniversario*, *F11 Oktubre*, *F11 Despedida*), descansos y fechas aplazadas. | F11 u otros | **No** (sección aparte) |
+| **Copa Anual** | Eliminación directa **1 vs 1 entre capitanes** (ida y vuelta), disputada dentro de las fechas semanales. | F5 / F6 / F7 | **Sí, solo compañeros** *(capitanes no suman)* |
+| **Final LOLONMEBOL** | Supercopa anual entre el **Campeón de Liga** y el **Campeón de Copa**, disputada con la tabla ya cerrada. | Partido definitorio | **No** *(tabla ya cerrada)* |
+| **Fechas Especiales** | Eventos conmemorativos (ej. *F11 Aniversario*, *F11 Oktubre*, *F11 Despedida*), descansos y fechas aplazadas. | F11 u otros | **No** *(salvo excepción histórica configurable: F11 Aniversario 2025)* |
 
 ---
 
@@ -22,128 +22,120 @@ Cada temporada anual (ej. 2025, 2026, 2027) se compone de cuatro tipos de instan
 
 ### 2.1 Tabla de puntos por resultado y rol
 
-De acuerdo con las fórmulas vigentes en `Liga 26 y Copa 26` y las aclaraciones del torneo:
-
 | Tipo de partido | Rol del jugador | Victoria | Empate | Derrota | ¿Suma PJ en Liga? |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | **Liga** | Cualquier jugador | **3 pts** | **1 pt** | **0 pts** | Sí |
 | **Copa** | Compañero de equipo | **4 pts** | **2 pts** | **0 pts** | Sí |
 | **Copa** | Capitán del cruce | **0 pts** | **0 pts** | **0 pts** | **No** |
-| **Fecha Especial (F11)** | Cualquier jugador | — | — | — | No |
+| **Final LOLONMEBOL** | Cualquier jugador | **0 pts** | **0 pts** | **0 pts** | **No** |
+| **Fecha Especial (F11)** | Cualquier jugador | — | — | — | **No** *(configurable por partido)* |
 
 > [!NOTE]
-> **Motivo de la regla de Copa (`4 / 2 / 0`)**: Los puntos extra para los compañeros que acompañan a los capitanes existen para fomentar la asistencia y competitividad durante las fechas de Copa. Los dos capitanes no suman puntos ni PJ en la Tabla de Liga en sus partidos de Copa porque están compitiendo directamente por avanzar en el cuadro de Copa.
+> **Regla de Copa (`4 / 2 / 0`)**: Los puntos extra para los compañeros existen para fomentar la asistencia y competitividad durante las fechas de Copa. Los dos capitanes no suman puntos ni PJ en Liga en sus partidos de Copa.
 
 ### 2.2 Criterios de desempate en la Tabla Anual e Histórica
 
-Fórmula actual del Excel: `PuntajeOrden = Pts × 1.000.000 − PJ × 10.000 − ID_orden`.
+En orden estricto de prioridad:
 
 1. **Mayor cantidad de Puntos (`Pts`)**.
-2. **Menor cantidad de Partidos Jugados (`PJ`)** *(premia mayor efectividad por partido)*.
-3. **Tercer criterio** *(a validar — actualmente el Excel desempata por orden alfabético)*.
+2. **Menor cantidad de Partidos Jugados (`PJ`)**.
+3. **Historial directo entre ambos (`V − D`)**.
+4. **Mayor porcentaje de victorias (`PG%`)**.
+5. **Mayor cantidad de `MVPs`**.
+6. **Orden alfabético**.
+
+> [!IMPORTANT]
+> **Excepción por el 1.° puesto de la Liga**: Si al finalizar el año hay **empate en puntos entre el 1.° y el 2.° puesto**, se desestiman todos los criterios automáticos anteriores y se disputa un **partido desempate** con el mismo formato de elección de equipos que la Copa *(ej. Pipo vs. Franchini, fecha 45 de la Liga 25)*. Este partido **cuenta como un partido más de Liga**.
 
 ### 2.3 Tabla Histórica
 
-Acumula de forma continua las estadísticas de todas las temporadas disputadas (`2025 + 2026 + futuras`):
-- **Columnas base**: Posición, Jugador, `Pts`, `PJ`, `MVPs` (y palmarés/estrellas).
-- **Criterio de orden**: Idéntico a la Tabla Anual (`Pts` descendente, luego `PJ` ascendente).
+Acumula de forma continua todas las temporadas (`2025 + 2026 + futuras`) con las columnas **Posición, Jugador, Pts, PJ, MVPs y Estrellas (⭐)**, usando los mismos criterios de ordenamiento.
 
 ---
 
 ## 3. Formato de la Copa Anual y Final LOLONMEBOL
 
-### 3.1 Dinámica de cada llave de Copa
-- Cada cruce enfrenta a **2 jugadores clasificados**, quienes actúan como **capitanes** de equipos rotativos en dos fechas (Ida y Vuelta).
-- El marcador del cruce es el **resultado global de goles** de los equipos capitaneados por cada jugador entre la ida y la vuelta *(ej. Copa 26 — Cuartos: Fausto `10 + 11 = 21` vs Gaspi `12 + 5 = 17` → avanza Fausto)*.
-- Los demás jugadores que participan en la fecha de Copa reciben el puntaje especial (`4 / 2 / 0`) en la Liga.
+### 3.1 Clasificación a la Copa (9 clasificados)
+- **Momento de corte**: A mitad de año (habitualmente **primera semana de julio**).
+- **Cupos (9 en total)**:
+  - Los **2 finalistas de la LOLONMEBOL anterior** clasifican **siempre**.
+  - Los **mejores 7 de la Tabla Anual** al momento del corte.
+  - **Liberación de cupos**: Si uno o ambos finalistas de la LOLONMEBOL anterior ya se encuentran dentro del Top 7, liberan su(s) cupo(s) a los siguientes mejores ubicados en la tabla hasta completar los **9 clasificados**.
+- **Distribución (7 a Cuartos + 2 a Fase Previa)**:
+  - **Fase Previa (2 jugadores)**: La disputan los **2 últimos clasificados de la tabla que NO sean los 2 finalistas de la LOLONMEBOL anterior**.
+  - **Cuartos de Final (7 directos + Ganador de Fase Previa)**: Los 7 restantes acceden directo a Cuartos.
 
-### 3.2 Estructura general del cuadro
+### 3.2 Armado automático de llaves y edición manual
+- **Cuartos de Final (Ida y Vuelta)**:
+  - `1.°` vs `Ganador de Fase Previa`
+  - `2.°` vs `7.°`
+  - `3.°` vs `6.°`
+  - `4.°` vs `5.°`
+- **Semifinales y Final**: Ida y vuelta por marcador global de goles.
+- **Edición completa por el Admin**: Tanto el cuadro inicial como **Fase Previa, Cuartos, Semifinales y Final (ida y vuelta)** deben poder ser **editados manualmente por el Admin** en cualquier momento (para ajustes de puntaje/goles globales, bajas por lesión y selección manual del jugador reemplazante, reprogramaciones, etc.).
 
 ```mermaid
 flowchart LR
-    T["Tabla Anual<br/>(Corte clasificatorio)"] --> FP["Fase Previa<br/>(Ida y Vuelta)"]
-    T --> CF["Cuartos de Final<br/>(Ida y Vuelta)"]
+    T["Corte Mitad de Año<br/>(Top 7 + 2 Finalistas LOLONMEBOL ant.)"] --> FP["Fase Previa (Ida y Vuelta)<br/>2 últimos de tabla (no finalistas)"]
+    T --> CF["Cuartos de Final (Ida y Vuelta)<br/>1° vs GFP | 2° vs 7°<br/>3° vs 6° | 4° vs 5°"]
     FP --> CF
-    CF --> SF["Semifinales<br/>(Ida y Vuelta)"]
-    SF --> F["Final Copa<br/>(Ida y Vuelta)"]
+    CF --> SF["Semifinales<br/>Ida y Vuelta"]
+    SF --> F["Final Copa<br/>Ida y Vuelta"]
     F --> L["Final LOLONMEBOL<br/>Campeón Liga vs Campeón Copa"]
     T -->|"1.° de la Liga"| L
 ```
 
-> [!WARNING]
-> **Reglas de Copa pendientes de definición formal**: En el Excel se observan diferencias entre ediciones (*Copa 25* tuvo 8 clasificados directo a Cuartos; *Copa 26* tuvo 9 clasificados con 1 llave de Fase Previa; y existe una mención de posible clasificación de los 12 primeros). Como la app debe **armar los cruces automáticamente según la tabla**, es indispensable validar los puntos de la Sección 6 antes de implementar el motor de llaves.
+### 3.3 Desempates y bajas en Copa
+- **Empate en el global (Ida y Vuelta)**: Avanza el jugador con **ventaja deportiva por mejor ubicación en la tabla al comenzar la Copa**.
+- **Bajas / ausencias**:
+  - **Antes de iniciar la Copa**: Ingresa el siguiente mejor ubicado en la tabla.
+  - **En instancias iniciadas (ej. Semifinales)**: Ocupa su lugar el **rival eliminado en la instancia anterior (Cuartos)** *(ej. Copa 26: baja de Porpo por lesión → ingresó Pedro)*.
+
+### 3.4 Final LOLONMEBOL y Sistema de Estrellas (⭐)
+- **Participantes**: **Campeón de Liga** vs. **Campeón de Copa**.
+- **Si un mismo jugador gana Liga y Copa**: Enfrenta al **subcampeón de Liga**.
+- **Puntaje**: No suma puntos en la Tabla Anual (es una supercopa disputada con la Liga ya cerrada).
+- **Estrellas (⭐)**: Se otorga **1 estrella por cada título oficial ganado**:
+  - `⭐` por **Liga**
+  - `⭐` por **Copa**
+  - `⭐` por **Final LOLONMEBOL**
+  - *(Referencia validada: `B. Aguzzi ⭐⭐⭐` = Copa 25 + LOLONMEBOL 25 + Liga 26; `Pipo ⭐` = Liga 25).*
 
 ---
 
 ## 4. Rendimientos, MVPs y Estadísticas Avanzadas
 
-### 4.1 Rendimientos partido a partido (`Rendimientos 26`)
+### 4.1 Rendimientos partido a partido
+- **Goles (`G`)**, **Asistencias (`A`)** y **Participaciones (`G/A = G + A`)**.
+- **Calificaciones**: Notas numéricas con decimales por partido, con **Promedio** y **Total acumulado**.
+- **Votación de MVP y Calificaciones**:
+  - Votan **únicamente los jugadores que participaron en ese partido**.
+  - El **Admin cierra la votación** manualmente cuando corresponda.
+  - El resultado completo de la votación es **transparente para todos**.
+  - El **Admin tiene facultad de override** para asignar el MVP oficial a un jugador aunque no haya ganado la votación (pudiendo existir también MVP compartido).
 
-Por cada fecha disputada se registran para cada participante:
-- **Goles (`G`)** y **Asistencias (`A`)**.
-- **Participaciones de gol (`G/A`)**: $\text{G/A} = G + A$.
-- **Calificación del partido**: Escala numérica con decimales (ej. `6.5`, `7.25`, `8.5`), mostrando **Promedio** y **Total acumulado** por temporada.
-- **MVP de la fecha**: 1 jugador destacado por fecha (puede haber **empate / MVP compartido** entre 2 o más jugadores). En el historial del Excel también se distinguía si el MVP perteneció al equipo ganador, perdedor, empate o si fue capitán de Copa.
-
-### 4.2 Impacto de los Capitanes de Copa en las estadísticas
-
-Relevamiento exacto del comportamiento actual en `LOLONMEBOL.xlsx`:
+### 4.2 Impacto de los Capitanes de Copa en estadísticas
 
 | Métrica | ¿Cuenta para el Capitán en su partido de Copa? |
 | :--- | :---: |
-| Puntos (`Pts`) y Partidos Jugados (`PJ`) en **Tabla de Liga** | **No** |
+| `Pts` y `PJ` en **Tabla de Liga** | **No** |
 | **Goles (`G`), Asistencias (`A`) y Calificaciones** | **Sí** |
 | **MVP de la fecha** | **Sí** |
-| **PJ Totales, Química, Consistencia e Historial (`V - D`)** | **Sí** |
+| **PJ Totales, Química, Consistencia e Historial (`V − D`)** | **Sí** |
 
-### 4.3 Fórmulas de Química, Consistencia e Historial (`Estadísticas 26`)
+### 4.3 Química, Consistencia e Historial (con filtro por temporada y modalidad `F5` / `F6` / `F7` / `Todas`)
 
-Todas estas métricas se calculan automáticamente a partir de las formaciones y resultados de cada partido, permitiendo filtrar por modalidad (**F5**, **F6**, **F7** o **Todas**):
-
-1. **Partidos Jugados Juntos ($n_{AB}$)**: Cantidad de partidos en los que el Jugador A y el Jugador B integraron el **mismo equipo**.
-2. **Victorias Juntos ($w_{AB}$)**: Cantidad de esos partidos en los que su equipo **ganó**.
-3. **Química (%)**: Porcentaje de victorias compartiendo equipo (también aplica a nivel individual como `PG%`):
+1. **Química (%)**: Porcentaje de victorias compartiendo equipo (empates cuentan en `PJ`, no en victorias):
    $$\text{Química}(A, B) = \frac{w_{AB}}{n_{AB}} \times 100$$
-4. **Consistencia (`CT%`)**: Límite inferior del **intervalo de confianza de Wilson al 80%** ($z = 1.28$, $z^2 = 1.6384$). Sirve para rankear duplas y jugadores de forma justa, evitando que alguien con 1 victoria en 1 partido (`100%`) supere a una dupla probada con 9 victorias en 13 partidos (`69.2%`):
+   *(Se incluye además un toggle opcional en la app para consultar Efectividad unificada `3/1/0` como métrica secundaria).*
+2. **Consistencia (`CT%`)**: Límite inferior de Wilson al 80% ($z = 1.28$):
    $$\text{CT}(p, n) = 100 \times \frac{\left(p + \frac{0.8192}{n}\right) - 1.28 \sqrt{\frac{p(1 - p)}{n} + \frac{0.4096}{n^2}}}{1 + \frac{1.6384}{n}}$$
-   donde $p = \frac{w}{n}$ y $n = \text{PJ}$.
-5. **Historial en contra (`V - D`)**: Balance neto enfrentándose en **equipos rivales** (victoria = `+1`, derrota = `-1`, empate = `0`). Es antisimétrico: si $A$ está `+7` sobre $B$, entonces $B$ está `-7` frente a $A$.
+3. **Historial en contra (`V − D`)**: Balance neto enfrentándose en equipos rivales (`+1` victoria, `-1` derrota, `0` empate).
 
 ---
 
 ## 5. Pozo y Premios (Uso exclusivo Admin)
 
-Regla de cálculo actual (`Pozo y premios 26`):
+$$\text{Saldo Total} = \sum (\text{Cuotas pagas del mes} \times \text{Valor cuota del mes}) - \sum \text{Gastos / Premios} + \text{Rendimientos}$$
 
-$$\text{Saldo Total} = (\text{Cantidad de cuotas pagas} \times \text{Valor de cuota}) - \sum \text{Gastos / Premios} + \text{Rendimientos}$$
-
-- Permite llevar el estado mensual de pago (`Pagó` / pendiente) por jugador adherido, el detalle de compras/premios (ej. bebidas, trofeos) y rendimientos financieros.
-- El valor de cuota puede variar entre temporadas (ej. \$2.000 en 2025, \$3.000 en 2026) o incluso por mes si cambia durante el año.
-
----
-
-## 6. Checklist de Validación para el Presidente de LOLONMEBOL
-
-Marcar o completar cada definición para cerrar la configuración oficial de la app:
-
-### A. Clasificación y armado automático de la Copa
-- [ ] **Cantidad de clasificados**: ¿Cuántos jugadores clasifican a la Copa? (¿8, 9, 12 u otro número?).
-- [ ] **Cuándo se hace el corte de tabla**: ¿Se clasifica por la **Tabla Anual del año anterior** (como sugiere la leyenda `Copa 27 - Fase Previa`), o por la **Tabla Anual del año en curso** al llegar a una fecha/mes específico (ej. fin de junio)?
-- [ ] **Formato exacto de llaves según clasificados**: Si clasifican 12, ¿quiénes pasan directo a Cuartos (ej. 1.° al 4.°) y quiénes juegan Fase Previa (ej. 5.° vs 12.°, 6.° vs 11.°, 7.° vs 10.°, 8.° vs 9.°)? ¿Cómo se ordenan los cruces de Cuartos y Semifinales (llave fija o re-seeding por tabla)?
-- [ ] **Bajas o ausencias en Copa**: Si un jugador clasificado no puede jugar la Copa, ¿entra el siguiente en la tabla (13.°) antes del sorteo/inicio?
-- [ ] **Desempate en cruces de Copa**: Si el marcador global ida y vuelta termina empatado, ¿cómo se define al ganador? (ventaja deportiva por mejor ubicación en tabla, penales, gol de oro / partido desempate).
-
-### B. Final LOLONMEBOL y Estrellas (⭐)
-- [ ] **Mismo campeón de Liga y Copa**: Si un mismo jugador gana la Liga y la Copa el mismo año, ¿gana automáticamente la LOLONMEBOL o enfrenta al subcampeón de Liga o de Copa?
-- [ ] **Puntaje de la Final LOLONMEBOL**: ¿Los compañeros que juegan la Final LOLONMEBOL suman puntos de Liga (`3/1/0` o `4/2/0`) o es un partido fuera de la tabla anual?
-- [ ] **Criterio de Estrellas (⭐)**: ¿Qué campeonatos otorgan una estrella en el perfil del jugador? (¿1 estrella por cada Liga, Copa y LOLONMEBOL, o solo por algunos de ellos? Confirmar con las estrellas actuales de `B. Aguzzi ⭐⭐⭐` y `Pipo ⭐`).
-
-### C. Criterios de Desempate y Estadísticas
-- [ ] **Tercer criterio de desempate en Tabla**: Si dos jugadores empatan exactamente en `Pts` y en `PJ`, ¿cómo se desempata? (ej. más MVPs, mayor porcentaje de victorias, mejor promedio de calificación, más G/A, o duelo directo).
-- [ ] **Capitanes de Copa en estadísticas**: Confirmar que en partidos de Copa los capitanes **NO** suman `Pts`/`PJ` en Tabla de Liga, pero **SÍ** suman en `Goles`, `Asistencias`, `Calificaciones`, `MVPs`, `Química`, `Consistencia` e `Historial`.
-- [ ] **Empates en Química y Consistencia**: Confirmar si se mantiene el criterio del Excel (los empates suman en `PJ` pero no en `Victorias`) o si se desea mostrar aparte el porcentaje de efectividad con empates.
-- [ ] **Horizonte de Química/Consistencia/Historial**: ¿Queremos poder verlas filtradas **por temporada** (ej. solo 2026) y también en modo **histórico acumulado** (2025 + 2026 + futuras)?
-- [ ] **Fechas Especiales (F11)**: Confirmar que los partidos F11 **no** impactan en Liga, Química, Consistencia ni Historial, y solo se muestran en su sección propia y en el perfil como participaciones especiales.
-
-### D. Pozo y Premios
-- [ ] **Cuota variable**: ¿El sistema debe soportar cambiar el monto de la cuota mensual durante el año (con historial por mes) para no alterar meses ya cerrados?
+Soporta **valor de cuota configurable por mes/período** para evitar alterar meses ya cerrados ante cambios de monto.
