@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Lock,
   Megaphone,
+  Pencil,
   PlusCircle,
   Search,
   Shield,
@@ -16,6 +17,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { filterMatches, resolveDefaultSeasonId } from "@/lib/engine";
+import { MatchEditModal } from "@/components/tournament/MatchEditModal";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { AdminPozoTab } from "@/components/admin/AdminPozoTab";
 import { AdminCupTab } from "@/components/admin/AdminCupTab";
 import { AdminExcelTab } from "@/components/admin/AdminExcelTab";
@@ -66,6 +70,7 @@ export default function AdminPage() {
     isLocalMode,
     setRole,
     addMatch,
+    updateMatch,
     deleteMatch,
     addAnnouncement,
     deleteAnnouncement,
@@ -74,17 +79,37 @@ export default function AdminPage() {
     addPlayer,
     updatePlayerRole,
     addPlayerTitle,
+    addSeason,
   } = useTournament();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("matches");
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
 
-  // Match form state
+  // Match & Season state
   const sortedSeasons = useMemo(
     () => [...dataset.seasons].sort((a, b) => b.year - a.year),
     [dataset.seasons]
   );
-  const [mSeasonId, setMSeasonId] = useState(sortedSeasons[0]?.id ?? "season-2026");
+  const [rawMSeasonId, setMSeasonId] = useState(() =>
+    resolveDefaultSeasonId(dataset.seasons)
+  );
+  const mSeasonId = resolveDefaultSeasonId(sortedSeasons, rawMSeasonId);
+
+  // New Season form state (Admin only)
+  const nextSuggestedYear =
+    (sortedSeasons[0]?.year ?? new Date().getFullYear()) + 1;
+  const [newSeasonYear, setNewSeasonYear] = useState(String(nextSuggestedYear));
+  const [newSeasonFee, setNewSeasonFee] = useState("3000");
+  const [newSeasonCutoff, setNewSeasonCutoff] = useState(
+    `${nextSuggestedYear}-07-01`
+  );
+  const [seasonCreatedMsg, setSeasonCreatedMsg] = useState<string | null>(null);
+  const [seasonErrorMsg, setSeasonErrorMsg] = useState<string | null>(null);
+
+  const parsedNewSeasonYear = Number(newSeasonYear);
+  const isDuplicateSeasonYear =
+    Number.isFinite(parsedNewSeasonYear) &&
+    dataset.seasons.some((s) => s.year === Math.round(parsedNewSeasonYear));
   const [mType, setMType] = useState<MatchType>("league");
   const [mModality, setMModality] = useState<MatchModality>("F5");
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
@@ -97,6 +122,11 @@ export default function AdminPage() {
   const [teamSearch, setTeamSearch] = useState("");
   const [mvpId, setMvpId] = useState<string>("");
   const [matchSavedMsg, setMatchSavedMsg] = useState<string | null>(null);
+  const [adminMatchSeasonFilter, setAdminMatchSeasonFilter] =
+    useState<string>("ALL");
+  const [adminMatchNumberQuery, setAdminMatchNumberQuery] = useState("");
+  const [adminMatchPlayerFilter, setAdminMatchPlayerFilter] = useState("ALL");
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   // Announcement form state
   const [annTitle, setAnnTitle] = useState("");
@@ -105,6 +135,8 @@ export default function AdminPage() {
 
   // Calendar event form state
   const [evTitle, setEvTitle] = useState("");
+  const [evDesc, setEvDesc] = useState("");
+  const [evMatchId, setEvMatchId] = useState("");
   const [evDate, setEvDate] = useState(new Date().toISOString().slice(0, 10));
   const [evType, setEvType] = useState<CalendarEventType>("league");
 
@@ -119,17 +151,43 @@ export default function AdminPage() {
   const isAdmin = role === "admin";
   const isOperator = role === "admin" || role === "authorized";
 
-  const filteredTeamPlayers = useMemo(() => {
-    const q = teamSearch.trim().toLowerCase();
-    if (!q) return dataset.players;
-    return dataset.players.filter((p) => p.displayName.toLowerCase().includes(q));
-  }, [dataset.players, teamSearch]);
+  const filteredTeamPlayers = dataset.players;
 
   const filteredRolePlayers = useMemo(() => {
     const q = roleSearch.trim().toLowerCase();
     if (!q) return dataset.players;
     return dataset.players.filter((p) => p.displayName.toLowerCase().includes(q));
   }, [dataset.players, roleSearch]);
+
+  const adminFilteredMatches = useMemo(
+    () =>
+      filterMatches(dataset.matches, {
+        seasonId: adminMatchSeasonFilter,
+        matchType: "ALL",
+        matchNumberQuery: adminMatchNumberQuery,
+        playerId: adminMatchPlayerFilter,
+      }),
+    [
+      dataset.matches,
+      adminMatchSeasonFilter,
+      adminMatchNumberQuery,
+      adminMatchPlayerFilter,
+    ]
+  );
+
+  const adminPlayerFilterOptions = useMemo(
+    () => [
+      {
+        id: "ALL",
+        displayName: `Todos los jugadores (${dataset.players.length})`,
+      },
+      ...dataset.players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+      })),
+    ],
+    [dataset.players]
+  );
 
   const availableTabs: Array<{
     id: AdminTab;
@@ -242,10 +300,14 @@ export default function AdminPage() {
     addCalendarEvent({
       seasonId: mSeasonId,
       title: evTitle.trim(),
+      description: evDesc.trim() || null,
+      matchId: evMatchId || null,
       eventDate: evDate,
       eventType: evType,
     });
     setEvTitle("");
+    setEvDesc("");
+    setEvMatchId("");
   };
 
   const handleAddPlayer = (e: React.FormEvent) => {
@@ -254,6 +316,49 @@ export default function AdminPage() {
     addPlayer({ displayName: pName, email: pEmail, role: pRole });
     setPName("");
     setPEmail("");
+  };
+
+  const handleCreateSeason = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const yearNum = Math.round(Number(newSeasonYear));
+    if (!Number.isFinite(yearNum) || yearNum < 2020 || yearNum > 2100) return;
+
+    if (dataset.seasons.some((s) => s.year === yearNum)) {
+      setSeasonCreatedMsg(null);
+      setSeasonErrorMsg(
+        `La temporada ${yearNum} ya está habilitada. Elegí un año nuevo.`
+      );
+      return;
+    }
+
+    const feeNum = Number(newSeasonFee);
+    const res = addSeason({
+      year: yearNum,
+      defaultFee: Number.isFinite(feeNum) ? feeNum : 3000,
+      cupCutoffDate: newSeasonCutoff || `${yearNum}-07-01`,
+    });
+
+    if (!res.ok) {
+      setSeasonCreatedMsg(null);
+      setSeasonErrorMsg(
+        res.error ?? `La temporada ${yearNum} ya existe en el sistema.`
+      );
+      return;
+    }
+
+    setSeasonErrorMsg(null);
+    setMSeasonId(res.seasonId);
+    const maxAfterCreate = Math.max(
+      yearNum,
+      ...dataset.seasons.map((s) => s.year)
+    );
+    const nextY = maxAfterCreate + 1;
+    setNewSeasonYear(String(nextY));
+    setNewSeasonCutoff(`${nextY}-07-01`);
+    setSeasonCreatedMsg(
+      `Temporada ${yearNum} habilitada con su Copa y 12 meses de Pozo.`
+    );
   };
 
   return (
@@ -332,6 +437,112 @@ export default function AdminPage() {
               </button>
             ))}
           </nav>
+
+          {/* Admin Season Management Bar */}
+          {isAdmin && (
+            <section className="rounded-lg border border-rule bg-surface p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="font-display text-lg font-bold tracking-wide text-ink">
+                    Temporadas Habilitadas ({sortedSeasons.map((s) => s.year).join(" · ")})
+                  </h2>
+                  <p className="text-xs text-ink-muted">
+                    Habilitá un nuevo año para que aparezca en todos los selectores, tablas, Copa y Pozo.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={handleCreateSeason}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-year"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Año
+                    </label>
+                    <input
+                      id="admin-new-season-year"
+                      type="number"
+                      min={2020}
+                      max={2100}
+                      value={newSeasonYear}
+                      onChange={(e) => {
+                        setNewSeasonYear(e.target.value);
+                        setSeasonErrorMsg(null);
+                        setSeasonCreatedMsg(null);
+                        if (/^\d{4}$/.test(e.target.value)) {
+                          setNewSeasonCutoff(`${e.target.value}-07-01`);
+                        }
+                      }}
+                      className={cn(
+                        "font-display mt-1 min-h-10 w-24 rounded-md border bg-paper px-2.5 text-base font-bold text-ink",
+                        isDuplicateSeasonYear
+                          ? "border-crimson-600 text-crimson-700"
+                          : "border-rule"
+                      )}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-fee"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Cuota Pozo ($)
+                    </label>
+                    <input
+                      id="admin-new-season-fee"
+                      type="number"
+                      min={0}
+                      value={newSeasonFee}
+                      onChange={(e) => setNewSeasonFee(e.target.value)}
+                      className="font-display mt-1 min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-cutoff"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Corte Copa
+                    </label>
+                    <input
+                      id="admin-new-season-cutoff"
+                      type="date"
+                      value={newSeasonCutoff}
+                      onChange={(e) => setNewSeasonCutoff(e.target.value)}
+                      className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isDuplicateSeasonYear}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Habilitar Año
+                  </button>
+                </form>
+              </div>
+              {isDuplicateSeasonYear && !seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  La temporada {Math.round(parsedNewSeasonYear)} ya existe en el sistema ({sortedSeasons.map((s) => s.year).join(", ")}). Ingresá un año que no esté cargado.
+                </p>
+              )}
+              {seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  {seasonErrorMsg}
+                </p>
+              )}
+              {seasonCreatedMsg && (
+                <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
+                  {seasonCreatedMsg}
+                </p>
+              )}
+            </section>
+          )}
 
           {/* TAB 1: MATCHES */}
           {safeTab === "matches" && (
@@ -430,14 +641,44 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-2.5">
-                  <div className="relative max-w-xs">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      type="search"
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    <PlayerCombobox
+                      label="Buscar y sumar/quitar en Equipo A"
+                      options={dataset.players.map((p) => ({
+                        id: p.id,
+                        displayName: p.displayName,
+                        subtitle: teamAIds.includes(p.id)
+                          ? "En Equipo A"
+                          : teamBIds.includes(p.id)
+                            ? "En Equipo B"
+                            : undefined,
+                      }))}
                       value={teamSearch}
-                      onChange={(e) => setTeamSearch(e.target.value)}
-                      placeholder="Filtrar jugadores para armar equipos..."
-                      className="min-h-10 w-full rounded-md border border-rule bg-paper pr-3 pl-9 text-base text-ink placeholder:text-ink-muted sm:text-sm"
+                      onChange={(id) => {
+                        setTeamSearch(id);
+                        toggleTeamPlayer(id, "A");
+                      }}
+                      placeholder="Buscar jugador para Equipo A..."
+                      searchPlaceholder="Buscar jugador..."
+                    />
+                    <PlayerCombobox
+                      label="Buscar y sumar/quitar en Equipo B"
+                      options={dataset.players.map((p) => ({
+                        id: p.id,
+                        displayName: p.displayName,
+                        subtitle: teamBIds.includes(p.id)
+                          ? "En Equipo B"
+                          : teamAIds.includes(p.id)
+                            ? "En Equipo A"
+                            : undefined,
+                      }))}
+                      value={teamSearch}
+                      onChange={(id) => {
+                        setTeamSearch(id);
+                        toggleTeamPlayer(id, "B");
+                      }}
+                      placeholder="Buscar jugador para Equipo B..."
+                      searchPlaceholder="Buscar jugador..."
                     />
                   </div>
 
@@ -492,20 +733,25 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    aria-label="MVP del partido"
-                    value={mvpId}
-                    onChange={(e) => setMvpId(e.target.value)}
-                    className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-                  >
-                    <option value="">Sin MVP asignado aún</option>
-                    {[...teamAIds, ...teamBIds].map((id) => (
-                      <option key={id} value={id}>
-                        MVP: {dataset.players.find((p) => p.id === id)?.displayName}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-[230px] flex-1 sm:max-w-xs">
+                    <PlayerCombobox
+                      label="MVP del partido (opcional)"
+                      options={[
+                        { id: "", displayName: "Sin MVP asignado aún" },
+                        ...[...teamAIds, ...teamBIds].map((id) => ({
+                          id,
+                          displayName:
+                            dataset.players.find((p) => p.id === id)
+                              ?.displayName ?? id,
+                        })),
+                      ]}
+                      value={mvpId}
+                      onChange={setMvpId}
+                      placeholder="Sin MVP asignado aún"
+                      searchPlaceholder="Buscar jugador del partido..."
+                    />
+                  </div>
 
                   <button
                     type="submit"
@@ -524,11 +770,45 @@ export default function AdminPage() {
               </form>
 
               <section className="rounded-lg border border-rule bg-surface p-4">
-                <h3 className="font-display mb-2 text-lg font-bold tracking-wide text-ink">
-                  Últimos partidos cargados
-                </h3>
-                <ul className="divide-y divide-rule text-sm">
-                  {dataset.matches.slice(0, 8).map((m) => {
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-bold tracking-wide text-ink">
+                    Todos los Partidos ({adminFilteredMatches.length})
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="w-56">
+                      <PlayerCombobox
+                        options={adminPlayerFilterOptions}
+                        value={adminMatchPlayerFilter}
+                        onChange={setAdminMatchPlayerFilter}
+                        placeholder="Filtrar por jugador..."
+                        searchPlaceholder="Buscar jugador..."
+                      />
+                    </div>
+                    <select
+                      aria-label="Filtrar temporada en admin"
+                      value={adminMatchSeasonFilter}
+                      onChange={(e) => setAdminMatchSeasonFilter(e.target.value)}
+                      className="min-h-11 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink"
+                    >
+                      <option value="ALL">Todas las temporadas</option>
+                      {sortedSeasons.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="search"
+                      aria-label="Filtrar por número de fecha en admin"
+                      placeholder="N° Fecha (ej. 12)"
+                      value={adminMatchNumberQuery}
+                      onChange={(e) => setAdminMatchNumberQuery(e.target.value)}
+                      className="min-h-11 w-36 rounded-md border border-rule bg-paper px-2.5 text-xs text-ink"
+                    />
+                  </div>
+                </div>
+                <ul className="max-h-96 divide-y divide-rule overflow-y-auto text-sm">
+                  {adminFilteredMatches.map((m) => {
                     const delKey = `match:${m.id}`;
                     return (
                       <li
@@ -547,37 +827,50 @@ export default function AdminPage() {
                             {m.teamAScore ?? "—"}–{m.teamBScore ?? "—"}
                           </span>
                         </span>
-                        {pendingDeleteKey === delKey ? (
-                          <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {isAdmin && (
                             <button
                               type="button"
-                              onClick={() => {
-                                deleteMatch(m.id);
-                                setPendingDeleteKey(null);
-                              }}
-                              className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white hover:bg-crimson-700"
+                              onClick={() => setEditingMatch(m)}
+                              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-rule bg-paper px-2.5 text-xs font-bold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-pitch-50"
+                              title="Editar partido completo"
                             >
-                              Borrar
+                              <Pencil className="h-3.5 w-3.5" />
+                              Editar
                             </button>
+                          )}
+                          {pendingDeleteKey === delKey ? (
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  deleteMatch(m.id);
+                                  setPendingDeleteKey(null);
+                                }}
+                                className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white hover:bg-crimson-700"
+                              >
+                                Borrar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDeleteKey(null)}
+                                className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => setPendingDeleteKey(null)}
-                              className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                              onClick={() => setPendingDeleteKey(delKey)}
+                              className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
+                              title="Eliminar partido"
+                              aria-label="Eliminar partido"
                             >
-                              No
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setPendingDeleteKey(delKey)}
-                            className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
-                            title="Eliminar partido"
-                            aria-label="Eliminar partido"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -679,6 +972,18 @@ export default function AdminPage() {
                   Nuevo Evento de Calendario
                 </h2>
                 <form onSubmit={handleAddEvent} className="space-y-2.5">
+                  <select
+                    aria-label="Temporada del evento"
+                    value={mSeasonId}
+                    onChange={(e) => setMSeasonId(e.target.value)}
+                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
+                  >
+                    {sortedSeasons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="text"
                     placeholder="Ej. Fecha 40 - Liga / Descanso"
@@ -710,6 +1015,31 @@ export default function AdminPage() {
                       <option value="postponed">Aplazado</option>
                     </select>
                   </div>
+                  <textarea
+                    placeholder="Descripción / Notas opcionales (ej. Cancha 2, 21:00 hs)"
+                    value={evDesc}
+                    onChange={(e) => setEvDesc(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-base text-ink sm:text-sm"
+                  />
+                  <select
+                    aria-label="Vincular partido opcional"
+                    value={evMatchId}
+                    onChange={(e) => setEvMatchId(e.target.value)}
+                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
+                  >
+                    <option value="">Sin partido vinculado (opcional)</option>
+                    {dataset.matches
+                      .filter((m) => m.seasonId === mSeasonId)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {MATCH_TYPE_LABELS[m.matchType]}
+                          {m.matchNumber !== null ? ` #${m.matchNumber}` : ""} ·{" "}
+                          {formatDateEs(m.matchDate)} (
+                          {m.teamAScore ?? "—"}–{m.teamBScore ?? "—"})
+                        </option>
+                      ))}
+                  </select>
                   <button
                     type="submit"
                     className="min-h-11 rounded-md bg-navy-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-navy-900"
@@ -824,16 +1154,28 @@ export default function AdminPage() {
                     Otorgar Estrella / Título Oficial
                   </h2>
                   <select
-                    value={titlePlayerId}
-                    onChange={(e) => setTitlePlayerId(e.target.value)}
+                    aria-label="Temporada del título"
+                    value={mSeasonId}
+                    onChange={(e) => setMSeasonId(e.target.value)}
                     className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
                   >
-                    {dataset.players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.displayName}
+                    {sortedSeasons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
                       </option>
                     ))}
                   </select>
+                  <PlayerCombobox
+                    label="Jugador a premiar"
+                    options={dataset.players.map((p) => ({
+                      id: p.id,
+                      displayName: p.displayName,
+                    }))}
+                    value={titlePlayerId}
+                    onChange={setTitlePlayerId}
+                    placeholder="Seleccionar jugador..."
+                    searchPlaceholder="Buscar jugador..."
+                  />
                   <select
                     value={titleType}
                     onChange={(e) => setTitleType(e.target.value as TitleType)}
@@ -857,23 +1199,25 @@ export default function AdminPage() {
               </div>
 
               <section className="rounded-lg border border-rule bg-surface p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-ink">
                     Gestión de Roles ({dataset.players.length} jugadores)
                   </h3>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                    <input
-                      type="search"
-                      value={roleSearch}
-                      onChange={(e) => setRoleSearch(e.target.value)}
-                      placeholder="Buscar jugador..."
-                      className="min-h-10 w-52 rounded-md border border-rule bg-paper pr-3 pl-9 text-base text-ink placeholder:text-ink-muted sm:text-sm"
+                  <div className="w-full sm:w-72">
+                    <PlayerCombobox
+                      label="Filtrar jugador por nombre"
+                      options={adminPlayerFilterOptions}
+                      value={roleSearch || "ALL"}
+                      onChange={(id) => setRoleSearch(id === "ALL" ? "" : id)}
+                      placeholder="Todos los jugadores..."
+                      searchPlaceholder="Buscar jugador..."
                     />
                   </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {filteredRolePlayers.map((p) => (
+                  {dataset.players
+                    .filter((p) => !roleSearch || p.id === roleSearch)
+                    .map((p) => (
                     <div
                       key={p.id}
                       className="flex items-center justify-between gap-2 rounded-md border border-rule bg-paper px-3 py-2 text-sm"
@@ -908,6 +1252,22 @@ export default function AdminPage() {
 
           {/* TAB 6: EXCEL IMPORTER (ADMIN ONLY) */}
           {safeTab === "excel" && isAdmin && <AdminExcelTab />}
+
+          {editingMatch && isAdmin && (
+            <MatchEditModal
+              match={editingMatch}
+              seasons={sortedSeasons}
+              players={dataset.players}
+              onSave={(updated) => {
+                updateMatch(updated);
+                setEditingMatch(null);
+                setMatchSavedMsg(
+                  "Partido editado. Tablas y estadísticas recalculadas automáticamente."
+                );
+              }}
+              onClose={() => setEditingMatch(null)}
+            />
+          )}
         </>
       )}
     </div>

@@ -1,9 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
+  Trophy,
+  X,
+} from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
-import type { CalendarEventType } from "@/lib/types/domain";
+import type { CalendarEvent, CalendarEventType } from "@/lib/types/domain";
 import { cn, formatDateEs, formatMonthKeyEs } from "@/lib/utils";
 
 const EVENT_TYPE_META: Record<
@@ -42,6 +52,44 @@ const EVENT_TYPE_META: Record<
   },
 };
 
+const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function shiftMonthKey(yyyyMm: string, deltaMonths: number): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(yyyyMm);
+  if (!m) return new Date().toISOString().slice(0, 7);
+  const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1 + deltaMonths, 1));
+  const y = date.getUTCFullYear();
+  const mo = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${mo}`;
+}
+
+function buildMonthGrid(yyyyMm: string): Array<{ dateStr: string; dayNumber: number } | null> {
+  const m = /^(\d{4})-(\d{2})$/.exec(yyyyMm);
+  if (!m) return [];
+  const year = Number(m[1]);
+  const monthIdx = Number(m[2]) - 1;
+  const firstDay = new Date(Date.UTC(year, monthIdx, 1));
+  const daysInMonth = new Date(Date.UTC(year, monthIdx + 1, 0)).getUTCDate();
+  // Convert Sunday (0) .. Saturday (6) into Monday (0) .. Sunday (6)
+  const leadingBlanks = (firstDay.getUTCDay() + 6) % 7;
+
+  const cells: Array<{ dateStr: string; dayNumber: number } | null> = [];
+  for (let i = 0; i < leadingBlanks; i++) {
+    cells.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayStr = String(d).padStart(2, "0");
+    cells.push({
+      dateStr: `${yyyyMm}-${dayStr}`,
+      dayNumber: d,
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return cells;
+}
+
 export default function CalendarioPage() {
   const { dataset } = useTournament();
   const sortedSeasons = useMemo(
@@ -49,10 +97,15 @@ export default function CalendarioPage() {
     [dataset.seasons]
   );
 
-  const [seasonId, setSeasonId] = useState<string>(
-    sortedSeasons[0]?.id ?? "ALL"
+  const [rawSeasonId, setSeasonId] = useState<string>(
+    () => sortedSeasons[0]?.id ?? "ALL"
   );
+  const seasonId =
+    rawSeasonId === "ALL" || sortedSeasons.some((s) => s.id === rawSeasonId)
+      ? rawSeasonId
+      : (sortedSeasons[0]?.id ?? "ALL");
   const [typeFilter, setTypeFilter] = useState<CalendarEventType | "ALL">("ALL");
+  const [viewMode, setViewMode] = useState<"grid" | "agenda">("grid");
 
   const filtered = useMemo(() => {
     return dataset.calendarEvents.filter((ev) => {
@@ -61,6 +114,32 @@ export default function CalendarioPage() {
       return true;
     });
   }, [dataset.calendarEvents, seasonId, typeFilter]);
+
+  const initialMonth = useMemo(() => {
+    if (filtered.length > 0) return filtered[0].eventDate.slice(0, 7);
+    const activeSeason = sortedSeasons.find((s) => s.id === seasonId);
+    if (activeSeason) return `${activeSeason.year}-07`;
+    return new Date().toISOString().slice(0, 7);
+  }, [filtered, sortedSeasons, seasonId]);
+
+  const [currentMonth, setCurrentMonth] = useState<string>(initialMonth);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const ev of filtered) {
+      const list = map.get(ev.eventDate) ?? [];
+      list.push(ev);
+      map.set(ev.eventDate, list);
+    }
+    return map;
+  }, [filtered]);
+
+  const matchMap = useMemo(
+    () => new Map(dataset.matches.map((m) => [m.id, m])),
+    [dataset.matches]
+  );
 
   const groupedByMonth = useMemo(() => {
     const map = new Map<string, typeof filtered>();
@@ -73,6 +152,49 @@ export default function CalendarioPage() {
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [filtered]);
 
+  const monthCells = useMemo(
+    () => buildMonthGrid(currentMonth),
+    [currentMonth]
+  );
+
+  const selectedDayEvents = useMemo(() => {
+    if (selectedEventId) {
+      const ev = filtered.find((e) => e.id === selectedEventId);
+      return ev ? [ev] : [];
+    }
+    if (selectedDate) {
+      return eventsByDate.get(selectedDate) ?? [];
+    }
+    return [];
+  }, [selectedEventId, selectedDate, filtered, eventsByDate]);
+
+  const handleSelectSeason = (nextId: string) => {
+    setSeasonId(nextId);
+    setSelectedDate(null);
+    setSelectedEventId(null);
+    const seasonEvents = dataset.calendarEvents.filter(
+      (ev) => nextId === "ALL" || ev.seasonId === nextId
+    );
+    if (seasonEvents.length > 0) {
+      setCurrentMonth(seasonEvents[0].eventDate.slice(0, 7));
+    }
+  };
+
+  const handleGoToday = () => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayMonth = todayIso.slice(0, 7);
+    if (filtered.some((e) => e.eventDate.startsWith(todayMonth))) {
+      setCurrentMonth(todayMonth);
+      setSelectedDate(todayIso);
+    } else if (filtered.length > 0) {
+      setCurrentMonth(filtered[0].eventDate.slice(0, 7));
+      setSelectedDate(filtered[0].eventDate);
+    } else {
+      setCurrentMonth(todayMonth);
+    }
+    setSelectedEventId(null);
+  };
+
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-3 border-b border-rule pb-4 sm:flex-row sm:items-end sm:justify-between">
@@ -82,38 +204,69 @@ export default function CalendarioPage() {
             Calendario Oficial
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Agenda de Liga, Copa, Final LOLONMEBOL, F11 Especiales y descansos
+            Grilla mensual interactiva y agenda de Liga, Copa, Final LOLONMEBOL, F11 y descansos
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Temporada">
-          {sortedSeasons.map((s) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-md border border-rule bg-surface p-0.5" role="group" aria-label="Modo de vista">
             <button
-              key={s.id}
               type="button"
-              onClick={() => setSeasonId(s.id)}
+              onClick={() => setViewMode("grid")}
               className={cn(
-                "font-display min-h-10 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
-                seasonId === s.id
+                "inline-flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+                viewMode === "grid"
+                  ? "bg-pitch-800 text-white"
+                  : "text-ink-muted hover:text-ink"
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Mes
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("agenda")}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+                viewMode === "agenda"
+                  ? "bg-pitch-800 text-white"
+                  : "text-ink-muted hover:text-ink"
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              Agenda
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Temporada">
+            {sortedSeasons.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => handleSelectSeason(s.id)}
+                className={cn(
+                  "font-display min-h-10 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
+                  seasonId === s.id
+                    ? "border-leather-600 bg-leather-600 text-white"
+                    : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
+                )}
+              >
+                {s.year}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleSelectSeason("ALL")}
+              className={cn(
+                "min-h-10 rounded-md border px-3.5 text-sm font-semibold transition-colors",
+                seasonId === "ALL"
                   ? "border-leather-600 bg-leather-600 text-white"
                   : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
               )}
             >
-              {s.year}
+              Todas
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setSeasonId("ALL")}
-            className={cn(
-              "min-h-10 rounded-md border px-3.5 text-sm font-semibold transition-colors",
-              seasonId === "ALL"
-                ? "border-leather-600 bg-leather-600 text-white"
-                : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
-            )}
-          >
-            Todas
-          </button>
+          </div>
         </div>
       </header>
 
@@ -157,7 +310,261 @@ export default function CalendarioPage() {
         })}
       </div>
 
-      {/* Monthly Agenda Ledger */}
+      {/* Selected Day / Event Detail Drawer / Panel */}
+      {selectedDayEvents.length > 0 && (
+        <section
+          aria-label="Detalle del evento seleccionado"
+          className="pitch-chalk-surface rounded-lg border border-pitch-900 p-4 text-paper shadow-md"
+        >
+          <div className="flex items-start justify-between gap-2 border-b border-white/15 pb-2.5">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
+                Detalle de Fecha · {formatDateEs(selectedDayEvents[0].eventDate)}
+              </span>
+              <h2 className="font-display text-xl font-extrabold tracking-wide text-white">
+                {selectedDayEvents.length === 1
+                  ? selectedDayEvents[0].title
+                  : `${selectedDayEvents.length} eventos en este día`}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(null);
+                setSelectedEventId(null);
+              }}
+              aria-label="Cerrar detalle"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/20 bg-pitch-900/60 text-white hover:bg-pitch-900"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {selectedDayEvents.map((ev) => {
+              const meta = EVENT_TYPE_META[ev.eventType];
+              const linkedMatch = ev.matchId ? matchMap.get(ev.matchId) : null;
+              return (
+                <div
+                  key={ev.id}
+                  className="flex flex-col justify-between rounded-md border border-white/20 bg-pitch-950/55 p-3.5"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={cn(
+                          "rounded-sm border px-2 py-0.5 text-xs font-bold",
+                          meta.badge
+                        )}
+                      >
+                        {meta.label}
+                      </span>
+                      <span className="text-xs font-semibold text-pitch-100">
+                        {formatDateEs(ev.eventDate)}
+                      </span>
+                    </div>
+                    <h3 className="font-display mt-2 text-lg font-bold tracking-wide text-white">
+                      {ev.title}
+                    </h3>
+                    <p className="mt-1 text-xs leading-relaxed text-pitch-100">
+                      {ev.description || "Sin notas adicionales para esta jornada."}
+                    </p>
+
+                    {linkedMatch && (
+                      <div className="mt-2.5 flex items-center justify-between rounded border border-white/15 bg-pitch-900/70 px-2.5 py-1.5 text-xs">
+                        <span className="flex items-center gap-1.5 font-semibold text-gold-400">
+                          <Trophy className="h-3.5 w-3.5" />
+                          Modalidad {linkedMatch.modality}
+                          {linkedMatch.matchNumber !== null
+                            ? ` · Fecha #${linkedMatch.matchNumber}`
+                            : ""}
+                        </span>
+                        <span className="font-display text-sm font-extrabold text-white">
+                          {linkedMatch.teamAScore ?? "—"} –{" "}
+                          {linkedMatch.teamBScore ?? "—"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {ev.matchId && (
+                    <Link
+                      href="/partidos"
+                      className="mt-3 inline-flex min-h-9 items-center justify-between rounded-md bg-gold-400 px-3 text-xs font-extrabold text-ink transition-colors hover:bg-gold-500"
+                    >
+                      <span>Ver planilla del partido asociado</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* VIEW MODE 1: INTERACTIVE MONTHLY GRID */}
+      {viewMode === "grid" ? (
+        <section className="overflow-hidden rounded-lg border border-rule bg-surface">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule bg-surface-subtle px-4 py-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentMonth((m) => shiftMonthKey(m, -1))}
+                aria-label="Mes anterior"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <h2 className="font-display min-w-[140px] text-center text-xl font-extrabold tracking-wide text-pitch-800">
+                {formatMonthKeyEs(currentMonth)}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setCurrentMonth((m) => shiftMonthKey(m, 1))}
+                aria-label="Mes siguiente"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGoToday}
+                className="min-h-9 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
+              >
+                Hoy / Último mes activo
+              </button>
+              <select
+                aria-label="Saltar a mes con actividad"
+                value={currentMonth}
+                onChange={(e) => setCurrentMonth(e.target.value)}
+                className="min-h-9 rounded-md border border-rule bg-surface px-2.5 text-xs font-semibold text-ink"
+              >
+                {!groupedByMonth.some(([k]) => k === currentMonth) && (
+                  <option value={currentMonth}>
+                    {formatMonthKeyEs(currentMonth)} (0 eventos)
+                  </option>
+                )}
+                {groupedByMonth.map(([monthKey, evs]) => (
+                  <option key={monthKey} value={monthKey}>
+                    {formatMonthKeyEs(monthKey)} ({evs.length})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 border-b border-rule bg-paper text-center text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+            {WEEKDAY_LABELS.map((d) => (
+              <div key={d} className="py-2">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 divide-x divide-y divide-rule bg-surface">
+            {monthCells.map((cell, idx) => {
+              if (!cell) {
+                return (
+                  <div
+                    key={`empty-${idx}`}
+                    className="min-h-24 bg-paper/45 p-1.5 sm:min-h-28"
+                  />
+                );
+              }
+              const dayEvents = eventsByDate.get(cell.dateStr) ?? [];
+              const hasEvents = dayEvents.length > 0;
+              const isSelected = selectedDate === cell.dateStr;
+
+              return (
+                <div
+                  key={cell.dateStr}
+                  onClick={() => {
+                    if (hasEvents) {
+                      setSelectedEventId(null);
+                      setSelectedDate(cell.dateStr);
+                    }
+                  }}
+                  role={hasEvents ? "button" : undefined}
+                  tabIndex={hasEvents ? 0 : undefined}
+                  onKeyDown={(e) => {
+                    if (hasEvents && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      setSelectedEventId(null);
+                      setSelectedDate(cell.dateStr);
+                    }
+                  }}
+                  className={cn(
+                    "min-h-24 p-1.5 transition-colors sm:min-h-28 sm:p-2",
+                    hasEvents
+                      ? "cursor-pointer bg-pitch-50/35 hover:bg-pitch-50"
+                      : "bg-surface",
+                    isSelected && "ring-2 ring-inset ring-leather-600 bg-gold-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={cn(
+                        "font-display inline-flex h-6 w-6 items-center justify-center rounded-sm text-xs font-extrabold",
+                        hasEvents
+                          ? "bg-pitch-800 text-white"
+                          : "text-ink-muted"
+                      )}
+                    >
+                      {cell.dayNumber}
+                    </span>
+                    {hasEvents && (
+                      <div className="flex items-center gap-1">
+                        {dayEvents.map((ev) => (
+                          <span
+                            key={ev.id}
+                            className={cn(
+                              "h-2 w-2 rounded-full",
+                              EVENT_TYPE_META[ev.eventType].dot
+                            )}
+                            title={EVENT_TYPE_META[ev.eventType].label}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {hasEvents && (
+                    <div className="mt-1.5 space-y-1">
+                      {dayEvents.map((ev) => {
+                        const meta = EVENT_TYPE_META[ev.eventType];
+                        return (
+                          <button
+                            key={ev.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(cell.dateStr);
+                              setSelectedEventId(ev.id);
+                            }}
+                            className={cn(
+                              "block w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-bold transition-transform hover:scale-[1.01]",
+                              meta.badge
+                            )}
+                            title={ev.title}
+                          >
+                            {ev.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {/* VIEW MODE 2 (or bottom agenda list): Monthly Agenda Ledger */}
       {groupedByMonth.length === 0 ? (
         <div className="rounded-lg border border-dashed border-rule-strong bg-surface p-8 text-center">
           <p className="text-sm font-semibold text-ink">
@@ -169,7 +576,7 @@ export default function CalendarioPage() {
           <button
             type="button"
             onClick={() => {
-              setSeasonId("ALL");
+              handleSelectSeason("ALL");
               setTypeFilter("ALL");
             }}
             className="mt-4 inline-flex min-h-11 items-center rounded-md border border-pitch-800 bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
@@ -177,7 +584,7 @@ export default function CalendarioPage() {
             Mostrar agenda completa
           </button>
         </div>
-      ) : (
+      ) : viewMode === "agenda" ? (
         <div className="space-y-4">
           {groupedByMonth.map(([monthKey, events]) => (
             <section
@@ -193,7 +600,11 @@ export default function CalendarioPage() {
                   return (
                     <li
                       key={ev.id}
-                      className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                      onClick={() => {
+                        setSelectedDate(ev.eventDate);
+                        setSelectedEventId(ev.id);
+                      }}
+                      className="flex cursor-pointer flex-col gap-2 px-4 py-3 transition-colors hover:bg-pitch-50/40 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex items-start gap-3">
                         <span className="font-display min-w-[4.5rem] shrink-0 rounded-sm bg-paper px-2 py-1 text-center text-sm font-bold text-ink">
@@ -225,7 +636,7 @@ export default function CalendarioPage() {
             </section>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

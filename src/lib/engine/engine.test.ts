@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeStandings } from "./standings";
+import { filterMatches, replaceMatchInDataset } from "./outcome";
 import {
   generateCupBracket,
   resolveCupTieWinner,
@@ -10,7 +11,11 @@ import {
   computeSubgroupStats,
   computeWilsonConsistency,
 } from "./stats";
-import { computeFundSummary } from "./fund";
+import {
+  computeFundSummary,
+  enrollPlayerInSeasonFund,
+  resolveDefaultSeasonId,
+} from "./fund";
 import type {
   CupTie,
   FundMonth,
@@ -19,6 +24,7 @@ import type {
   Match,
   Player,
   PlayerTitle,
+  Season,
 } from "@/lib/types/domain";
 
 const makePlayer = (id: string, displayName: string): Player => ({
@@ -312,5 +318,105 @@ describe("Fund (Pozo) Engine", () => {
     expect(summary.totalExpenses).toBe(1500);
     expect(summary.totalYields).toBe(500);
     expect(summary.balance).toBe(6000);
+  });
+
+  it("resolves default season dynamically from active/latest season and syncs missing selected IDs", () => {
+    const seasons: Season[] = [
+      { id: "season-2025", year: 2025, name: "Temporada 2025", status: "finished", cupCutoffDate: "2025-07-01" },
+      { id: "season-2027", year: 2027, name: "Temporada 2027", status: "active", cupCutoffDate: "2027-07-01" },
+    ];
+    expect(resolveDefaultSeasonId(seasons)).toBe("season-2027");
+    expect(resolveDefaultSeasonId(seasons, "season-2025")).toBe("season-2025");
+    expect(resolveDefaultSeasonId(seasons, "non-existent-id")).toBe("season-2027");
+  });
+
+  it("enrolls a player in all fund months of a season without duplicating existing payments", () => {
+    const months: FundMonth[] = [
+      { id: "fm-2026-1", seasonId: "season-2026", monthNumber: 1, monthLabel: "Enero", feeAmount: 3000 },
+      { id: "fm-2026-2", seasonId: "season-2026", monthNumber: 2, monthLabel: "Febrero", feeAmount: 3000 },
+    ];
+    const existing: FundPayment[] = [
+      { id: "fp-fm-2026-1-p1", fundMonthId: "fm-2026-1", playerId: "p1", paid: true },
+    ];
+    const next = enrollPlayerInSeasonFund(months, existing, "season-2026", "p1");
+    expect(next).toHaveLength(2);
+    expect(next.find((p) => p.fundMonthId === "fm-2026-1")?.paid).toBe(true);
+    expect(next.find((p) => p.fundMonthId === "fm-2026-2")?.paid).toBe(false);
+  });
+});
+
+describe("Match Updating & Filtering (Issue #7)", () => {
+  const sampleMatches: Match[] = [
+    {
+      id: "m1",
+      seasonId: "season-2026",
+      matchNumber: 12,
+      matchDate: "2026-04-15",
+      matchType: "league",
+      modality: "F5",
+      teamAScore: 5,
+      teamBScore: 4,
+      countsForLeague: true,
+      countsForStats: true,
+      votingStatus: "closed",
+      players: [],
+    },
+    {
+      id: "m2",
+      seasonId: "season-2026",
+      matchNumber: 13,
+      matchDate: "2026-05-02",
+      matchType: "cup",
+      modality: "F5",
+      teamAScore: 7,
+      teamBScore: 7,
+      countsForLeague: true,
+      countsForStats: true,
+      votingStatus: "closed",
+      players: [],
+    },
+  ];
+
+  it("replaces an existing match in dataset sorted by matchDate desc and syncs resultOutcome", () => {
+    const edited: Match = {
+      ...sampleMatches[0],
+      matchDate: "2026-05-10",
+      teamAScore: 3,
+      teamBScore: 8,
+    };
+    const updated = replaceMatchInDataset(sampleMatches, edited);
+    expect(updated).toHaveLength(2);
+    expect(updated[0].id).toBe("m1");
+    expect(updated[0].teamBScore).toBe(8);
+    expect(updated[0].resultOutcome).toBe("B");
+  });
+
+  it("filters matches combinably by season, type, calendar date/month, and matchNumber", () => {
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "season-2026",
+        matchType: "ALL",
+        dateFilter: "2026-04",
+        matchNumberQuery: "",
+      }).map((m) => m.id)
+    ).toEqual(["m1"]);
+
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "ALL",
+        matchType: "ALL",
+        dateFilter: "",
+        matchNumberQuery: "13",
+      }).map((m) => m.id)
+    ).toEqual(["m2"]);
+
+    expect(
+      filterMatches(sampleMatches, {
+        seasonId: "season-2026",
+        matchType: "league",
+        dateFilter: "2026-04-15",
+        matchNumberQuery: "12",
+      }).map((m) => m.id)
+    ).toEqual(["m1"]);
   });
 });

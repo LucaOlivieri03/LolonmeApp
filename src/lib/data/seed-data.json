@@ -137,12 +137,6 @@
       "isActive": true
     },
     {
-      "id": "gastos",
-      "displayName": "Gastos",
-      "role": "player",
-      "isActive": true
-    },
-    {
       "id": "gena",
       "displayName": "Gena",
       "role": "player",
@@ -323,12 +317,6 @@
       "isActive": true
     },
     {
-      "id": "rendimientos",
-      "displayName": "Rendimientos",
-      "role": "player",
-      "isActive": true
-    },
-    {
       "id": "rocco",
       "displayName": "Rocco",
       "role": "player",
@@ -367,12 +355,6 @@
     {
       "id": "tiago",
       "displayName": "Tiago",
-      "role": "player",
-      "isActive": true
-    },
-    {
-      "id": "total",
-      "displayName": "Total",
       "role": "player",
       "isActive": true
     },
@@ -749,21 +731,6 @@
       "id": "alias-72",
       "playerId": "toto",
       "rawName": "Toto"
-    },
-    {
-      "id": "alias-73",
-      "playerId": "gastos",
-      "rawName": "Gastos"
-    },
-    {
-      "id": "alias-74",
-      "playerId": "rendimientos",
-      "rawName": "Rendimientos"
-    },
-    {
-      "id": "alias-75",
-      "playerId": "total",
-      "rawName": "Total"
     }
   ],
   "titles": [
@@ -13392,7 +13359,7 @@
       "title": "Bienvenidos a LolonmeApp Oficial",
       "body": "Ya están cargadas las temporadas 2025 y 2026 directamente desde LOLONMEBOL.xlsx. Consultá tablas, Copa, química y consistencia desde el celular.",
       "isPinned": true,
-      "createdAt": "2026-11-20T19:11:39.738Z"
+      "createdAt": "2026-11-20T22:41:55.148Z"
     }
   ],
   "cupEditions": [
@@ -14068,30 +14035,6 @@
       "paid": false
     },
     {
-      "id": "fp-fm-2026-2-gastos",
-      "fundMonthId": "fm-2026-2",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-2-gastos",
-      "fundMonthId": "fm-2026-2",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-2-rendimientos",
-      "fundMonthId": "fm-2026-2",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-2-total",
-      "fundMonthId": "fm-2026-2",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-3-b-aguzzi",
       "fundMonthId": "fm-2026-3",
       "playerId": "b-aguzzi",
@@ -14173,30 +14116,6 @@
       "id": "fp-fm-2026-3-porpo",
       "fundMonthId": "fm-2026-3",
       "playerId": "porpo",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-3-gastos",
-      "fundMonthId": "fm-2026-3",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-3-gastos",
-      "fundMonthId": "fm-2026-3",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-3-rendimientos",
-      "fundMonthId": "fm-2026-3",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-3-total",
-      "fundMonthId": "fm-2026-3",
-      "playerId": "total",
       "paid": false
     },
     {
@@ -14284,30 +14203,6 @@
       "paid": true
     },
     {
-      "id": "fp-fm-2026-4-gastos",
-      "fundMonthId": "fm-2026-4",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-4-gastos",
-      "fundMonthId": "fm-2026-4",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-4-rendimientos",
-      "fundMonthId": "fm-2026-4",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-4-total",
-      "fundMonthId": "fm-2026-4",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-5-b-aguzzi",
       "fundMonthId": "fm-2026-5",
       "playerId": "b-aguzzi",
@@ -14392,30 +14287,6 @@
       "paid": true
     },
     {
-      "id": "fp-fm-2026-5-gastos",
-      "fundMonthId": "fm-2026-5",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-5-gastos",
-      "fundMonthId": "fm-2026-5",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-5-rendimientos",
-      "fundMonthId": "fm-2026-5",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-5-total",
-      "fundMonthId": "fm-2026-5",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-6-b-aguzzi",
       "fundMonthId": "fm-2026-6",
       "playerId": "b-aguzzi",
@@ -14497,30 +14368,6 @@
       "id": "fp-fm-2026-6-porpo",
       "fundMonthId": "fm-2026-6",
       "playerId": "porpo",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-6-gastos",
-      "fundMonthId": "fm-2026-6",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-6-gastos",
-      "fundMonthId": "fm-2026-6",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-6-rendimientos",
-      "fundMonthId": "fm-2026-6",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-6-total",
-      "fundMonthId": "fm-2026-6",
-      "playerId": "total",
       "paid": false
     },
     {
@@ -14608,30 +14455,6 @@
       "paid": false
     },
     {
-      "id": "fp-fm-2026-7-gastos",
-      "fundMonthId": "fm-2026-7",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-7-gastos",
-      "fundMonthId": "fm-2026-7",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-7-rendimientos",
-      "fundMonthId": "fm-2026-7",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-7-total",
-      "fundMonthId": "fm-2026-7",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-8-b-aguzzi",
       "fundMonthId": "fm-2026-8",
       "playerId": "b-aguzzi",
@@ -14713,30 +14536,6 @@
       "id": "fp-fm-2026-8-porpo",
       "fundMonthId": "fm-2026-8",
       "playerId": "porpo",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-8-gastos",
-      "fundMonthId": "fm-2026-8",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-8-gastos",
-      "fundMonthId": "fm-2026-8",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-8-rendimientos",
-      "fundMonthId": "fm-2026-8",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-8-total",
-      "fundMonthId": "fm-2026-8",
-      "playerId": "total",
       "paid": false
     },
     {
@@ -14824,30 +14623,6 @@
       "paid": false
     },
     {
-      "id": "fp-fm-2026-9-gastos",
-      "fundMonthId": "fm-2026-9",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-9-gastos",
-      "fundMonthId": "fm-2026-9",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-9-rendimientos",
-      "fundMonthId": "fm-2026-9",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-9-total",
-      "fundMonthId": "fm-2026-9",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-10-b-aguzzi",
       "fundMonthId": "fm-2026-10",
       "playerId": "b-aguzzi",
@@ -14929,30 +14704,6 @@
       "id": "fp-fm-2026-10-porpo",
       "fundMonthId": "fm-2026-10",
       "playerId": "porpo",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-10-gastos",
-      "fundMonthId": "fm-2026-10",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-10-gastos",
-      "fundMonthId": "fm-2026-10",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-10-rendimientos",
-      "fundMonthId": "fm-2026-10",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-10-total",
-      "fundMonthId": "fm-2026-10",
-      "playerId": "total",
       "paid": false
     },
     {
@@ -15040,30 +14791,6 @@
       "paid": false
     },
     {
-      "id": "fp-fm-2026-11-gastos",
-      "fundMonthId": "fm-2026-11",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-11-gastos",
-      "fundMonthId": "fm-2026-11",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-11-rendimientos",
-      "fundMonthId": "fm-2026-11",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-11-total",
-      "fundMonthId": "fm-2026-11",
-      "playerId": "total",
-      "paid": false
-    },
-    {
       "id": "fp-fm-2026-12-b-aguzzi",
       "fundMonthId": "fm-2026-12",
       "playerId": "b-aguzzi",
@@ -15145,30 +14872,6 @@
       "id": "fp-fm-2026-12-porpo",
       "fundMonthId": "fm-2026-12",
       "playerId": "porpo",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-12-gastos",
-      "fundMonthId": "fm-2026-12",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-12-gastos",
-      "fundMonthId": "fm-2026-12",
-      "playerId": "gastos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-12-rendimientos",
-      "fundMonthId": "fm-2026-12",
-      "playerId": "rendimientos",
-      "paid": false
-    },
-    {
-      "id": "fp-fm-2026-12-total",
-      "fundMonthId": "fm-2026-12",
-      "playerId": "total",
       "paid": false
     }
   ],

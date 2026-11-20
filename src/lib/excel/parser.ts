@@ -98,9 +98,13 @@ class PlayerRegistry {
     const norm = normalizePlayerName(trimmed);
     if (!norm.canonicalName) return null;
 
-    // Filter out non-player header/score noise
+    // Filter out non-player header/score/summary noise
     if (isIntegerString(norm.canonicalName)) return null;
-    if (/^(f11|liga|copa|lolonmebol|descanso|partido|mvp)/i.test(norm.canonicalName)) {
+    if (
+      /^(f11|liga|copa|lolonmebol|descanso|partido|mvp|total|totales|subtotal|subtotales|rendimiento|rendimientos|gasto|gastos|premio|premios|saldo|pozo|cuota|cuotas|mes|jugador|jugadores|promedio|calificaciones)/i.test(
+        norm.canonicalName
+      )
+    ) {
       return null;
     }
 
@@ -682,40 +686,43 @@ export async function parseLolonmebolWorkbook(
 
   // Official validated titles from Reglamento Oficial §3.4
   const titles: PlayerTitle[] = [];
-  if (registry.players.has("b-aguzzi") && seasons.some((s) => s.year === 2025)) {
+  const s2025 = seasons.find((s) => s.year === 2025);
+  const s2026 = seasons.find((s) => s.year === 2026);
+
+  if (registry.players.has("b-aguzzi") && s2025) {
     titles.push(
       {
-        id: "title-2025-cup-aguzzi",
+        id: `title-${s2025.year}-cup-aguzzi`,
         playerId: "b-aguzzi",
-        seasonId: "season-2025",
+        seasonId: s2025.id,
         titleType: "cup",
-        awardedAt: "2025-11-30",
+        awardedAt: `${s2025.year}-11-30`,
       },
       {
-        id: "title-2025-lolonmebol-aguzzi",
+        id: `title-${s2025.year}-lolonmebol-aguzzi`,
         playerId: "b-aguzzi",
-        seasonId: "season-2025",
+        seasonId: s2025.id,
         titleType: "lolonmebol",
-        awardedAt: "2025-12-22",
+        awardedAt: `${s2025.year}-12-22`,
       }
     );
   }
-  if (registry.players.has("b-aguzzi") && seasons.some((s) => s.year === 2026)) {
+  if (registry.players.has("b-aguzzi") && s2026) {
     titles.push({
-      id: "title-2026-league-aguzzi",
+      id: `title-${s2026.year}-league-aguzzi`,
       playerId: "b-aguzzi",
-      seasonId: "season-2026",
+      seasonId: s2026.id,
       titleType: "league",
-      awardedAt: "2026-12-01",
+      awardedAt: `${s2026.year}-12-01`,
     });
   }
-  if (registry.players.has("pipo") && seasons.some((s) => s.year === 2025)) {
+  if (registry.players.has("pipo") && s2025) {
     titles.push({
-      id: "title-2025-league-pipo",
+      id: `title-${s2025.year}-league-pipo`,
       playerId: "pipo",
-      seasonId: "season-2025",
+      seasonId: s2025.id,
       titleType: "league",
-      awardedAt: "2025-12-10",
+      awardedAt: `${s2025.year}-12-10`,
     });
   }
 

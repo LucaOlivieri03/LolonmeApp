@@ -2,32 +2,45 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import seedData from "@/lib/data/seed-data.json";
-import { computeStandings, generateCupBracket } from "@/lib/engine";
+import {
+  SPANISH_MONTH_LABELS,
+  computeStandings,
+  enrollPlayerInSeasonFund,
+  generateCupBracket,
+  replaceMatchInDataset,
+} from "@/lib/engine";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   Announcement,
   CalendarEvent,
+  CupEdition,
   CupTie,
+  FundMonth,
   FundTransaction,
   Match,
   Player,
   PlayerRole,
+  Season,
   TitleType,
   TournamentDataset,
 } from "@/lib/types/domain";
 
 const STORAGE_KEY = "lolonmeapp_dataset_v1";
 const ROLE_STORAGE_KEY = "lolonmeapp_role_v1";
+const LOGGED_PLAYER_STORAGE_KEY = "lolonmeapp_logged_player_v1";
 
 interface TournamentContextValue {
   dataset: TournamentDataset;
   role: PlayerRole;
+  loggedPlayerId: string | null;
   isLocalMode: boolean;
   setRole: (role: PlayerRole) => void;
+  setLoggedPlayerId: (playerId: string | null) => void;
   resetToSeed: () => void;
   applyDataset: (next: TournamentDataset) => void;
   addMatch: (match: Match) => void;
+  updateMatch: (match: Match) => void;
   deleteMatch: (matchId: string) => void;
   addAnnouncement: (ann: Omit<Announcement, "id" | "createdAt">) => void;
   deleteAnnouncement: (id: string) => void;
@@ -35,9 +48,15 @@ interface TournamentContextValue {
   deleteCalendarEvent: (id: string) => void;
   updateCupTie: (tieId: string, patch: Partial<CupTie>) => void;
   regenerateCupBracket: (seasonId: string, finalistIds: string[]) => void;
-  addPlayer: (input: { displayName: string; email?: string; role: Exclude<PlayerRole, "guest"> }) => void;
+  addPlayer: (input: { displayName: string; email?: string; role: Exclude<PlayerRole, "guest"> }) => string;
   updatePlayerRole: (playerId: string, role: Exclude<PlayerRole, "guest">) => void;
   addPlayerTitle: (playerId: string, seasonId: string, titleType: TitleType) => void;
+  addSeason: (input: {
+    year: number;
+    defaultFee?: number;
+    cupCutoffDate?: string;
+  }) => { ok: boolean; seasonId: string; error?: string };
+  addPlayerToPozo: (seasonId: string, playerId: string) => void;
   toggleFundPayment: (fundMonthId: string, playerId: string) => void;
   updateFundMonthFee: (fundMonthId: string, feeAmount: number) => void;
   addFundTransaction: (tx: Omit<FundTransaction, "id">) => void;
@@ -51,6 +70,9 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
   const isLocalMode = !isSupabaseConfigured();
   const [dataset, setDataset] = useState<TournamentDataset>(INITIAL_DATASET);
   const [role, setRoleState] = useState<PlayerRole>(isLocalMode ? "admin" : "guest");
+  const [loggedPlayerId, setLoggedPlayerIdState] = useState<string | null>(
+    isLocalMode ? "b-aguzzi" : null
+  );
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -66,6 +88,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         const savedRole = localStorage.getItem(ROLE_STORAGE_KEY) as PlayerRole | null;
         if (savedRole && ["admin", "authorized", "player", "guest"].includes(savedRole)) {
           setRoleState(savedRole);
+          if (savedRole === "guest") {
+            setLoggedPlayerIdState(null);
+          }
+        }
+        const savedPlayerId = localStorage.getItem(LOGGED_PLAYER_STORAGE_KEY);
+        if (savedPlayerId) {
+          setLoggedPlayerIdState(savedPlayerId === "NONE" ? null : savedPlayerId);
         }
       }
     } catch {
@@ -80,13 +109,17 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         supabase.auth.getUser().then(async ({ data }) => {
           if (!data.user) {
             setRoleState("guest");
+            setLoggedPlayerIdState(null);
             return;
           }
           const { data: player } = await supabase
             .from("players")
-            .select("role")
+            .select("id, role")
             .eq("user_id", data.user.id)
             .single();
+          if (player?.id) {
+            setLoggedPlayerIdState(player.id as string);
+          }
           if (player?.role && ["admin", "authorized", "player"].includes(player.role)) {
             setRoleState(player.role as PlayerRole);
           } else {
@@ -110,8 +143,23 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     // Role simulation is strictly disabled when Supabase Auth is configured
     if (!isLocalMode) return;
     setRoleState(nextRole);
+    if (nextRole === "guest") {
+      setLoggedPlayerIdState(null);
+    } else if (!loggedPlayerId) {
+      setLoggedPlayerIdState(dataset.players[0]?.id ?? "b-aguzzi");
+    }
     try {
       localStorage.setItem(ROLE_STORAGE_KEY, nextRole);
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const setLoggedPlayerId = (nextPlayerId: string | null) => {
+    if (!isLocalMode) return;
+    setLoggedPlayerIdState(nextPlayerId);
+    try {
+      localStorage.setItem(LOGGED_PLAYER_STORAGE_KEY, nextPlayerId ?? "NONE");
     } catch {
       // Ignore storage errors
     }
@@ -136,6 +184,13 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       matches: [match, ...prev.matches].sort((a, b) =>
         b.matchDate.localeCompare(a.matchDate)
       ),
+    }));
+  };
+
+  const updateMatch = (match: Match) => {
+    setDataset((prev) => ({
+      ...prev,
+      matches: replaceMatchInDataset(prev.matches, match),
     }));
   };
 
@@ -229,26 +284,31 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     displayName: string;
     email?: string;
     role: Exclude<PlayerRole, "guest">;
-  }) => {
+  }): string => {
     const slug = input.displayName
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
+    const playerId = slug || `player-${Date.now()}`;
     const created: Player = {
-      id: slug || `player-${Date.now()}`,
+      id: playerId,
       displayName: input.displayName.trim(),
       email: input.email?.trim() || null,
       role: input.role,
       isActive: true,
     };
-    setDataset((prev) => ({
-      ...prev,
-      players: [...prev.players, created].sort((a, b) =>
-        a.displayName.localeCompare(b.displayName, "es")
-      ),
-    }));
+    setDataset((prev) => {
+      if (prev.players.some((p) => p.id === playerId)) return prev;
+      return {
+        ...prev,
+        players: [...prev.players, created].sort((a, b) =>
+          a.displayName.localeCompare(b.displayName, "es")
+        ),
+      };
+    });
+    return playerId;
   };
 
   const updatePlayerRole = (
@@ -281,6 +341,110 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         },
       ],
     }));
+  };
+
+  const addSeason = (input: {
+    year: number;
+    defaultFee?: number;
+    cupCutoffDate?: string;
+  }): { ok: boolean; seasonId: string; error?: string } => {
+    const year = Math.round(input.year);
+    const seasonId = `season-${year}`;
+
+    if (dataset.seasons.some((s) => s.id === seasonId || s.year === year)) {
+      return {
+        ok: false,
+        seasonId,
+        error: `La temporada ${year} ya existe en el sistema.`,
+      };
+    }
+
+    const fee =
+      typeof input.defaultFee === "number" && Number.isFinite(input.defaultFee)
+        ? Math.max(0, input.defaultFee)
+        : 3000;
+    const cutoff = input.cupCutoffDate?.trim() || `${year}-07-01`;
+
+    setDataset((prev) => {
+      if (prev.seasons.some((s) => s.id === seasonId || s.year === year)) {
+        return prev;
+      }
+
+      const maxExistingYear = prev.seasons.reduce(
+        (max, s) => Math.max(max, s.year),
+        0
+      );
+      const isNewest = year >= maxExistingYear;
+
+      const updatedSeasons: Season[] = prev.seasons.map((s) =>
+        isNewest && s.status === "active" ? { ...s, status: "finished" } : s
+      );
+
+      const newSeason: Season = {
+        id: seasonId,
+        year,
+        name: `Temporada ${year}`,
+        status: isNewest ? "active" : "finished",
+        cupCutoffDate: cutoff,
+      };
+
+      const newCupEdition: CupEdition = {
+        id: `cup-${year}`,
+        seasonId,
+        name: `Copa LOLONMEBOL ${year}`,
+        cutoffSnapshotPlayerIds: [],
+      };
+
+      const newFundMonths: FundMonth[] = SPANISH_MONTH_LABELS.map(
+        ({ monthNumber, monthLabel }) => ({
+          id: `fm-${year}-${monthNumber}`,
+          seasonId,
+          monthNumber,
+          monthLabel,
+          feeAmount: fee,
+        })
+      );
+
+      return {
+        ...prev,
+        seasons: [...updatedSeasons, newSeason].sort((a, b) => a.year - b.year),
+        cupEditions: [...prev.cupEditions, newCupEdition],
+        fundMonths: [...prev.fundMonths, ...newFundMonths],
+      };
+    });
+
+    return { ok: true, seasonId };
+  };
+
+  const addPlayerToPozo = (seasonId: string, playerId: string) => {
+    if (!seasonId || !playerId) return;
+    setDataset((prev) => {
+      const season = prev.seasons.find((s) => s.id === seasonId);
+      let fundMonths = prev.fundMonths;
+      if (season && !fundMonths.some((m) => m.seasonId === seasonId)) {
+        const createdMonths: FundMonth[] = SPANISH_MONTH_LABELS.map(
+          ({ monthNumber, monthLabel }) => ({
+            id: `fm-${season.year}-${monthNumber}`,
+            seasonId,
+            monthNumber,
+            monthLabel,
+            feeAmount: 3000,
+          })
+        );
+        fundMonths = [...fundMonths, ...createdMonths];
+      }
+      const nextPayments = enrollPlayerInSeasonFund(
+        fundMonths,
+        prev.fundPayments,
+        seasonId,
+        playerId
+      );
+      return {
+        ...prev,
+        fundMonths,
+        fundPayments: nextPayments,
+      };
+    });
   };
 
   const toggleFundPayment = (fundMonthId: string, playerId: string) => {
@@ -342,11 +506,14 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
       value={{
         dataset,
         role,
+        loggedPlayerId,
         isLocalMode,
         setRole,
+        setLoggedPlayerId,
         resetToSeed,
         applyDataset,
         addMatch,
+        updateMatch,
         deleteMatch,
         addAnnouncement,
         deleteAnnouncement,
@@ -357,6 +524,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         addPlayer,
         updatePlayerRole,
         addPlayerTitle,
+        addSeason,
+        addPlayerToPozo,
         toggleFundPayment,
         updateFundMonthFee,
         addFundTransaction,

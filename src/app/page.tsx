@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Megaphone, Pin } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
-import { computeStandings } from "@/lib/engine";
+import { computeStandings, resolveDefaultSeasonId } from "@/lib/engine";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
 import { CupBracketView } from "@/components/tournament/CupBracketView";
 import { cn, formatDateEs } from "@/lib/utils";
@@ -18,13 +18,17 @@ export default function HomePage() {
     [dataset.seasons]
   );
 
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(
-    sortedSeasons[0]?.id ?? "season-2026"
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(() =>
+    resolveDefaultSeasonId(dataset.seasons)
   );
   const [activeTab, setActiveTab] = useState<HomeTab>("annual");
 
+  const resolvedSeasonId = resolveDefaultSeasonId(
+    sortedSeasons,
+    selectedSeasonId
+  );
   const activeSeason =
-    sortedSeasons.find((s) => s.id === selectedSeasonId) ?? sortedSeasons[0];
+    sortedSeasons.find((s) => s.id === resolvedSeasonId) ?? sortedSeasons[0];
 
   const annualStandings = useMemo(
     () =>
@@ -124,7 +128,93 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Primary Competition Surface — Above the Fold */}
+      {/* Announcements Ledger (Tactical Chalkboard) & Quick Navigation — Above Standings */}
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="tactical-chalkboard overflow-hidden rounded-lg border-2 border-neutral-800 text-paper md:col-span-2">
+          <div className="flex items-center justify-between border-b border-dashed border-white/20 bg-black/35 px-4 py-3">
+            <h2 className="font-display flex items-center gap-2 text-lg font-extrabold tracking-wider text-white uppercase">
+              <Megaphone className="h-4 w-4 text-gold-400" />
+              Tablero de Anuncios · Pizarrón de Tiza
+            </h2>
+            <span className="rounded-sm border border-dashed border-white/30 bg-white/10 px-2 py-0.5 text-xs font-bold text-gold-400">
+              {sortedAnnouncements.length} aviso
+              {sortedAnnouncements.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {sortedAnnouncements.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-neutral-300">
+              No hay comunicados oficiales escritos en el pizarrón por el momento.
+            </p>
+          ) : (
+            <ul className="space-y-2.5 p-3.5">
+              {sortedAnnouncements.slice(0, 4).map((ann) => (
+                <li
+                  key={ann.id}
+                  className={cn(
+                    "tactical-chalk-card rounded-md px-3.5 py-2.5 transition-colors",
+                    ann.isPinned &&
+                      "border-gold-400/65 bg-white/[0.07]"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-bold tracking-wide text-white">
+                      {ann.isPinned && (
+                        <Pin className="h-3.5 w-3.5 shrink-0 text-gold-400" />
+                      )}
+                      <span>{ann.title}</span>
+                    </div>
+                    {ann.isPinned && (
+                      <span className="font-display rounded-sm border border-dashed border-gold-400/50 bg-gold-400/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-gold-400 uppercase">
+                        Fijado
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-neutral-200">
+                    {ann.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <aside className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
+          <div>
+            <h2 className="font-display text-lg font-bold tracking-wide text-ink">
+              Accesos de Fecha
+            </h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              Consultá el historial partido a partido, la química entre compañeros y la agenda de la temporada.
+            </p>
+          </div>
+          <div className="mt-4 flex flex-col gap-2">
+            <Link
+              href="/partidos"
+              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-pitch-700 hover:bg-pitch-50"
+            >
+              <span>Historial de Partidos</span>
+              <ArrowRight className="h-4 w-4 text-pitch-700" />
+            </Link>
+            <Link
+              href="/stats"
+              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-leather-600 hover:bg-leather-50"
+            >
+              <span>Lab Grupal y Química</span>
+              <ArrowRight className="h-4 w-4 text-leather-600" />
+            </Link>
+            <Link
+              href="/calendario"
+              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-navy-700 hover:bg-navy-50"
+            >
+              <span>Calendario Oficial</span>
+              <ArrowRight className="h-4 w-4 text-navy-700" />
+            </Link>
+          </div>
+        </aside>
+      </section>
+
+      {/* Primary Competition Surface */}
       <section className="space-y-3" aria-label="Competencias del torneo">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2.5">
           <div
@@ -183,7 +273,11 @@ export default function HomePage() {
             <StandingsTable result={annualStandings} mode="annual" />
           )}
           {activeTab === "historical" && (
-            <StandingsTable result={historicalStandings} mode="historical" />
+            <StandingsTable
+              result={historicalStandings}
+              mode="historical"
+              initialLimit={15}
+            />
           )}
           {activeTab === "cup" && (
             <CupBracketView
@@ -194,84 +288,6 @@ export default function HomePage() {
             />
           )}
         </div>
-      </section>
-
-      {/* Announcements Ledger & Quick Navigation */}
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-rule bg-surface md:col-span-2">
-          <div className="flex items-center justify-between border-b border-rule px-4 py-3">
-            <h2 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
-              <Megaphone className="h-4 w-4 text-pitch-700" />
-              Tablero de Anuncios
-            </h2>
-            <span className="text-xs font-medium text-ink-muted">
-              {sortedAnnouncements.length} aviso
-              {sortedAnnouncements.length === 1 ? "" : "s"}
-            </span>
-          </div>
-
-          {sortedAnnouncements.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-ink-muted">
-              No hay comunicados oficiales publicados por el momento.
-            </p>
-          ) : (
-            <ul className="divide-y divide-rule">
-              {sortedAnnouncements.slice(0, 4).map((ann) => (
-                <li
-                  key={ann.id}
-                  className={cn(
-                    "px-4 py-3",
-                    ann.isPinned && "bg-gold-50/70"
-                  )}
-                >
-                  <div className="flex items-center gap-2 text-sm font-bold text-ink">
-                    {ann.isPinned && (
-                      <Pin className="h-3.5 w-3.5 shrink-0 text-leather-600" />
-                    )}
-                    <span>{ann.title}</span>
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                    {ann.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <aside className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
-          <div>
-            <h2 className="font-display text-lg font-bold tracking-wide text-ink">
-              Accesos de Fecha
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              Consultá el historial partido a partido, la química entre compañeros y la agenda de la temporada.
-            </p>
-          </div>
-          <div className="mt-4 flex flex-col gap-2">
-            <Link
-              href="/partidos"
-              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-pitch-700 hover:bg-pitch-50"
-            >
-              <span>Historial de Partidos</span>
-              <ArrowRight className="h-4 w-4 text-pitch-700" />
-            </Link>
-            <Link
-              href="/stats"
-              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-leather-600 hover:bg-leather-50"
-            >
-              <span>Lab Grupal y Química</span>
-              <ArrowRight className="h-4 w-4 text-leather-600" />
-            </Link>
-            <Link
-              href="/calendario"
-              className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-navy-700 hover:bg-navy-50"
-            >
-              <span>Calendario Oficial</span>
-              <ArrowRight className="h-4 w-4 text-navy-700" />
-            </Link>
-          </div>
-        </aside>
       </section>
     </div>
   );
