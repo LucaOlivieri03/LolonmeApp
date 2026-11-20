@@ -127,6 +127,8 @@ export default function AdminPage() {
 
   // Calendar event form state
   const [evTitle, setEvTitle] = useState("");
+  const [evDesc, setEvDesc] = useState("");
+  const [evMatchId, setEvMatchId] = useState("");
   const [evDate, setEvDate] = useState(new Date().toISOString().slice(0, 10));
   const [evType, setEvType] = useState<CalendarEventType>("league");
 
@@ -274,10 +276,14 @@ export default function AdminPage() {
     addCalendarEvent({
       seasonId: mSeasonId,
       title: evTitle.trim(),
+      description: evDesc.trim() || null,
+      matchId: evMatchId || null,
       eventDate: evDate,
       eventType: evType,
     });
     setEvTitle("");
+    setEvDesc("");
+    setEvMatchId("");
   };
 
   const handleAddPlayer = (e: React.FormEvent) => {
@@ -900,6 +906,31 @@ export default function AdminPage() {
                       <option value="postponed">Aplazado</option>
                     </select>
                   </div>
+                  <textarea
+                    placeholder="Descripción / Notas opcionales (ej. Cancha 2, 21:00 hs)"
+                    value={evDesc}
+                    onChange={(e) => setEvDesc(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-md border border-rule bg-paper px-3 py-2 text-base text-ink sm:text-sm"
+                  />
+                  <select
+                    aria-label="Vincular partido opcional"
+                    value={evMatchId}
+                    onChange={(e) => setEvMatchId(e.target.value)}
+                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
+                  >
+                    <option value="">Sin partido vinculado (opcional)</option>
+                    {dataset.matches
+                      .filter((m) => m.seasonId === mSeasonId)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {MATCH_TYPE_LABELS[m.matchType]}
+                          {m.matchNumber !== null ? ` #${m.matchNumber}` : ""} ·{" "}
+                          {formatDateEs(m.matchDate)} (
+                          {m.teamAScore ?? "—"}–{m.teamBScore ?? "—"})
+                        </option>
+                      ))}
+                  </select>
                   <button
                     type="submit"
                     className="min-h-11 rounded-md bg-navy-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-navy-900"
