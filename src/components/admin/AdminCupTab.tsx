@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { RefreshCw, Trophy } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { resolveDefaultSeasonId } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 
 const ROUND_LABELS: Record<string, string> = {
@@ -20,7 +21,10 @@ export function AdminCupTab() {
     [dataset.seasons]
   );
 
-  const [seasonId, setSeasonId] = useState(sortedSeasons[0]?.id ?? "season-2026");
+  const [selectedSeasonId, setSeasonId] = useState(() =>
+    resolveDefaultSeasonId(dataset.seasons)
+  );
+  const seasonId = resolveDefaultSeasonId(sortedSeasons, selectedSeasonId);
   const [finalist1, setFinalist1] = useState("b-aguzzi");
   const [finalist2, setFinalist2] = useState("pipo");
 

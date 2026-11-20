@@ -31,7 +31,11 @@ export default function StatsPage() {
   );
 
   const [tab, setTab] = useState<StatsTab>("lab");
-  const [seasonId, setSeasonId] = useState<string>("ALL");
+  const [rawSeasonId, setSeasonId] = useState<string>("ALL");
+  const seasonId =
+    rawSeasonId === "ALL" || sortedSeasons.some((s) => s.id === rawSeasonId)
+      ? rawSeasonId
+      : "ALL";
   const [modality, setModality] = useState<MatchModality | "ALL">("ALL");
   const [showEffectiveness310, setShowEffectiveness310] = useState(false);
   const [labSearch, setLabSearch] = useState("");

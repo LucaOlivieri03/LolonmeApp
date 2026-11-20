@@ -41,9 +41,13 @@ export default function PartidosPage() {
     [dataset.seasons]
   );
 
-  const [seasonFilter, setSeasonFilter] = useState<string>(
-    sortedSeasons[0]?.id ?? "ALL"
+  const [rawSeasonFilter, setSeasonFilter] = useState<string>(
+    () => sortedSeasons[0]?.id ?? "ALL"
   );
+  const seasonFilter =
+    rawSeasonFilter === "ALL" || sortedSeasons.some((s) => s.id === rawSeasonFilter)
+      ? rawSeasonFilter
+      : (sortedSeasons[0]?.id ?? "ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 

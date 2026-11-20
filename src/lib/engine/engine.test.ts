@@ -10,7 +10,11 @@ import {
   computeSubgroupStats,
   computeWilsonConsistency,
 } from "./stats";
-import { computeFundSummary } from "./fund";
+import {
+  computeFundSummary,
+  enrollPlayerInSeasonFund,
+  resolveDefaultSeasonId,
+} from "./fund";
 import type {
   CupTie,
   FundMonth,
@@ -19,6 +23,7 @@ import type {
   Match,
   Player,
   PlayerTitle,
+  Season,
 } from "@/lib/types/domain";
 
 const makePlayer = (id: string, displayName: string): Player => ({
@@ -312,5 +317,29 @@ describe("Fund (Pozo) Engine", () => {
     expect(summary.totalExpenses).toBe(1500);
     expect(summary.totalYields).toBe(500);
     expect(summary.balance).toBe(6000);
+  });
+
+  it("resolves default season dynamically from active/latest season and syncs missing selected IDs", () => {
+    const seasons: Season[] = [
+      { id: "season-2025", year: 2025, name: "Temporada 2025", status: "finished", cupCutoffDate: "2025-07-01" },
+      { id: "season-2027", year: 2027, name: "Temporada 2027", status: "active", cupCutoffDate: "2027-07-01" },
+    ];
+    expect(resolveDefaultSeasonId(seasons)).toBe("season-2027");
+    expect(resolveDefaultSeasonId(seasons, "season-2025")).toBe("season-2025");
+    expect(resolveDefaultSeasonId(seasons, "non-existent-id")).toBe("season-2027");
+  });
+
+  it("enrolls a player in all fund months of a season without duplicating existing payments", () => {
+    const months: FundMonth[] = [
+      { id: "fm-2026-1", seasonId: "season-2026", monthNumber: 1, monthLabel: "Enero", feeAmount: 3000 },
+      { id: "fm-2026-2", seasonId: "season-2026", monthNumber: 2, monthLabel: "Febrero", feeAmount: 3000 },
+    ];
+    const existing: FundPayment[] = [
+      { id: "fp-fm-2026-1-p1", fundMonthId: "fm-2026-1", playerId: "p1", paid: true },
+    ];
+    const next = enrollPlayerInSeasonFund(months, existing, "season-2026", "p1");
+    expect(next).toHaveLength(2);
+    expect(next.find((p) => p.fundMonthId === "fm-2026-1")?.paid).toBe(true);
+    expect(next.find((p) => p.fundMonthId === "fm-2026-2")?.paid).toBe(false);
   });
 });

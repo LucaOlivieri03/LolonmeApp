@@ -49,9 +49,13 @@ export default function CalendarioPage() {
     [dataset.seasons]
   );
 
-  const [seasonId, setSeasonId] = useState<string>(
-    sortedSeasons[0]?.id ?? "ALL"
+  const [rawSeasonId, setSeasonId] = useState<string>(
+    () => sortedSeasons[0]?.id ?? "ALL"
   );
+  const seasonId =
+    rawSeasonId === "ALL" || sortedSeasons.some((s) => s.id === rawSeasonId)
+      ? rawSeasonId
+      : (sortedSeasons[0]?.id ?? "ALL");
   const [typeFilter, setTypeFilter] = useState<CalendarEventType | "ALL">("ALL");
 
   const filtered = useMemo(() => {

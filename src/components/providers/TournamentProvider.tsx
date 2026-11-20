@@ -2,17 +2,25 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import seedData from "@/lib/data/seed-data.json";
-import { computeStandings, generateCupBracket } from "@/lib/engine";
+import {
+  SPANISH_MONTH_LABELS,
+  computeStandings,
+  enrollPlayerInSeasonFund,
+  generateCupBracket,
+} from "@/lib/engine";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   Announcement,
   CalendarEvent,
+  CupEdition,
   CupTie,
+  FundMonth,
   FundTransaction,
   Match,
   Player,
   PlayerRole,
+  Season,
   TitleType,
   TournamentDataset,
 } from "@/lib/types/domain";
@@ -35,9 +43,11 @@ interface TournamentContextValue {
   deleteCalendarEvent: (id: string) => void;
   updateCupTie: (tieId: string, patch: Partial<CupTie>) => void;
   regenerateCupBracket: (seasonId: string, finalistIds: string[]) => void;
-  addPlayer: (input: { displayName: string; email?: string; role: Exclude<PlayerRole, "guest"> }) => void;
+  addPlayer: (input: { displayName: string; email?: string; role: Exclude<PlayerRole, "guest"> }) => string;
   updatePlayerRole: (playerId: string, role: Exclude<PlayerRole, "guest">) => void;
   addPlayerTitle: (playerId: string, seasonId: string, titleType: TitleType) => void;
+  addSeason: (input: { year: number; defaultFee?: number; cupCutoffDate?: string }) => string;
+  addPlayerToPozo: (seasonId: string, playerId: string) => void;
   toggleFundPayment: (fundMonthId: string, playerId: string) => void;
   updateFundMonthFee: (fundMonthId: string, feeAmount: number) => void;
   addFundTransaction: (tx: Omit<FundTransaction, "id">) => void;
@@ -229,26 +239,31 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
     displayName: string;
     email?: string;
     role: Exclude<PlayerRole, "guest">;
-  }) => {
+  }): string => {
     const slug = input.displayName
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
+    const playerId = slug || `player-${Date.now()}`;
     const created: Player = {
-      id: slug || `player-${Date.now()}`,
+      id: playerId,
       displayName: input.displayName.trim(),
       email: input.email?.trim() || null,
       role: input.role,
       isActive: true,
     };
-    setDataset((prev) => ({
-      ...prev,
-      players: [...prev.players, created].sort((a, b) =>
-        a.displayName.localeCompare(b.displayName, "es")
-      ),
-    }));
+    setDataset((prev) => {
+      if (prev.players.some((p) => p.id === playerId)) return prev;
+      return {
+        ...prev,
+        players: [...prev.players, created].sort((a, b) =>
+          a.displayName.localeCompare(b.displayName, "es")
+        ),
+      };
+    });
+    return playerId;
   };
 
   const updatePlayerRole = (
@@ -281,6 +296,101 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         },
       ],
     }));
+  };
+
+  const addSeason = (input: {
+    year: number;
+    defaultFee?: number;
+    cupCutoffDate?: string;
+  }): string => {
+    const year = Math.round(input.year);
+    const seasonId = `season-${year}`;
+    const fee =
+      typeof input.defaultFee === "number" && Number.isFinite(input.defaultFee)
+        ? Math.max(0, input.defaultFee)
+        : 3000;
+    const cutoff = input.cupCutoffDate?.trim() || `${year}-07-01`;
+
+    setDataset((prev) => {
+      if (prev.seasons.some((s) => s.id === seasonId || s.year === year)) {
+        return prev;
+      }
+
+      const maxExistingYear = prev.seasons.reduce(
+        (max, s) => Math.max(max, s.year),
+        0
+      );
+      const isNewest = year >= maxExistingYear;
+
+      const updatedSeasons: Season[] = prev.seasons.map((s) =>
+        isNewest && s.status === "active" ? { ...s, status: "finished" } : s
+      );
+
+      const newSeason: Season = {
+        id: seasonId,
+        year,
+        name: `Temporada ${year}`,
+        status: isNewest ? "active" : "finished",
+        cupCutoffDate: cutoff,
+      };
+
+      const newCupEdition: CupEdition = {
+        id: `cup-${year}`,
+        seasonId,
+        name: `Copa LOLONMEBOL ${year}`,
+        cutoffSnapshotPlayerIds: [],
+      };
+
+      const newFundMonths: FundMonth[] = SPANISH_MONTH_LABELS.map(
+        ({ monthNumber, monthLabel }) => ({
+          id: `fm-${year}-${monthNumber}`,
+          seasonId,
+          monthNumber,
+          monthLabel,
+          feeAmount: fee,
+        })
+      );
+
+      return {
+        ...prev,
+        seasons: [...updatedSeasons, newSeason].sort((a, b) => a.year - b.year),
+        cupEditions: [...prev.cupEditions, newCupEdition],
+        fundMonths: [...prev.fundMonths, ...newFundMonths],
+      };
+    });
+
+    return seasonId;
+  };
+
+  const addPlayerToPozo = (seasonId: string, playerId: string) => {
+    if (!seasonId || !playerId) return;
+    setDataset((prev) => {
+      const season = prev.seasons.find((s) => s.id === seasonId);
+      let fundMonths = prev.fundMonths;
+      if (season && !fundMonths.some((m) => m.seasonId === seasonId)) {
+        const createdMonths: FundMonth[] = SPANISH_MONTH_LABELS.map(
+          ({ monthNumber, monthLabel }) => ({
+            id: `fm-${season.year}-${monthNumber}`,
+            seasonId,
+            monthNumber,
+            monthLabel,
+            feeAmount: 3000,
+          })
+        );
+        fundMonths = [...fundMonths, ...createdMonths];
+      }
+      const nextPayments = enrollPlayerInSeasonFund(
+        fundMonths,
+        prev.fundPayments,
+        seasonId,
+        playerId
+      );
+      return {
+        ...prev,
+        fundMonths,
+        fundPayments: nextPayments,
+      };
+    });
   };
 
   const toggleFundPayment = (fundMonthId: string, playerId: string) => {
@@ -357,6 +467,8 @@ export function TournamentProvider({ children }: { children: React.ReactNode }) 
         addPlayer,
         updatePlayerRole,
         addPlayerTitle,
+        addSeason,
+        addPlayerToPozo,
         toggleFundPayment,
         updateFundMonthFee,
         addFundTransaction,

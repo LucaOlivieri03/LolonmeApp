@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { resolveDefaultSeasonId } from "@/lib/engine";
 import { AdminPozoTab } from "@/components/admin/AdminPozoTab";
 import { AdminCupTab } from "@/components/admin/AdminCupTab";
 import { AdminExcelTab } from "@/components/admin/AdminExcelTab";
@@ -74,17 +75,31 @@ export default function AdminPage() {
     addPlayer,
     updatePlayerRole,
     addPlayerTitle,
+    addSeason,
   } = useTournament();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("matches");
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
 
-  // Match form state
+  // Match & Season state
   const sortedSeasons = useMemo(
     () => [...dataset.seasons].sort((a, b) => b.year - a.year),
     [dataset.seasons]
   );
-  const [mSeasonId, setMSeasonId] = useState(sortedSeasons[0]?.id ?? "season-2026");
+  const [rawMSeasonId, setMSeasonId] = useState(() =>
+    resolveDefaultSeasonId(dataset.seasons)
+  );
+  const mSeasonId = resolveDefaultSeasonId(sortedSeasons, rawMSeasonId);
+
+  // New Season form state (Admin only)
+  const nextSuggestedYear =
+    (sortedSeasons[0]?.year ?? new Date().getFullYear()) + 1;
+  const [newSeasonYear, setNewSeasonYear] = useState(String(nextSuggestedYear));
+  const [newSeasonFee, setNewSeasonFee] = useState("3000");
+  const [newSeasonCutoff, setNewSeasonCutoff] = useState(
+    `${nextSuggestedYear}-07-01`
+  );
+  const [seasonCreatedMsg, setSeasonCreatedMsg] = useState<string | null>(null);
   const [mType, setMType] = useState<MatchType>("league");
   const [mModality, setMModality] = useState<MatchModality>("F5");
   const [mDate, setMDate] = useState(new Date().toISOString().slice(0, 10));
@@ -256,6 +271,26 @@ export default function AdminPage() {
     setPEmail("");
   };
 
+  const handleCreateSeason = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    const yearNum = Number(newSeasonYear);
+    if (!Number.isFinite(yearNum) || yearNum < 2020 || yearNum > 2100) return;
+    const feeNum = Number(newSeasonFee);
+    const createdId = addSeason({
+      year: yearNum,
+      defaultFee: Number.isFinite(feeNum) ? feeNum : 3000,
+      cupCutoffDate: newSeasonCutoff || `${yearNum}-07-01`,
+    });
+    setMSeasonId(createdId);
+    const nextY = yearNum + 1;
+    setNewSeasonYear(String(nextY));
+    setNewSeasonCutoff(`${nextY}-07-01`);
+    setSeasonCreatedMsg(
+      `Temporada ${yearNum} habilitada con su Copa y 12 meses de Pozo.`
+    );
+  };
+
   return (
     <div className="space-y-5">
       {/* Header + Local Mode Role Switcher */}
@@ -332,6 +367,94 @@ export default function AdminPage() {
               </button>
             ))}
           </nav>
+
+          {/* Admin Season Management Bar */}
+          {isAdmin && (
+            <section className="rounded-lg border border-rule bg-surface p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="font-display text-lg font-bold tracking-wide text-ink">
+                    Temporadas Habilitadas ({sortedSeasons.map((s) => s.year).join(" · ")})
+                  </h2>
+                  <p className="text-xs text-ink-muted">
+                    Habilitá un nuevo año para que aparezca en todos los selectores, tablas, Copa y Pozo.
+                  </p>
+                </div>
+
+                <form
+                  onSubmit={handleCreateSeason}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-year"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Año
+                    </label>
+                    <input
+                      id="admin-new-season-year"
+                      type="number"
+                      min={2020}
+                      max={2100}
+                      value={newSeasonYear}
+                      onChange={(e) => {
+                        setNewSeasonYear(e.target.value);
+                        if (/^\d{4}$/.test(e.target.value)) {
+                          setNewSeasonCutoff(`${e.target.value}-07-01`);
+                        }
+                      }}
+                      className="font-display mt-1 min-h-10 w-24 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-fee"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Cuota Pozo ($)
+                    </label>
+                    <input
+                      id="admin-new-season-fee"
+                      type="number"
+                      min={0}
+                      value={newSeasonFee}
+                      onChange={(e) => setNewSeasonFee(e.target.value)}
+                      className="font-display mt-1 min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-cutoff"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Corte Copa
+                    </label>
+                    <input
+                      id="admin-new-season-cutoff"
+                      type="date"
+                      value={newSeasonCutoff}
+                      onChange={(e) => setNewSeasonCutoff(e.target.value)}
+                      className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Habilitar Año
+                  </button>
+                </form>
+              </div>
+              {seasonCreatedMsg && (
+                <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
+                  {seasonCreatedMsg}
+                </p>
+              )}
+            </section>
+          )}
 
           {/* TAB 1: MATCHES */}
           {safeTab === "matches" && (
@@ -679,6 +802,18 @@ export default function AdminPage() {
                   Nuevo Evento de Calendario
                 </h2>
                 <form onSubmit={handleAddEvent} className="space-y-2.5">
+                  <select
+                    aria-label="Temporada del evento"
+                    value={mSeasonId}
+                    onChange={(e) => setMSeasonId(e.target.value)}
+                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
+                  >
+                    {sortedSeasons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     type="text"
                     placeholder="Ej. Fecha 40 - Liga / Descanso"
@@ -823,6 +958,18 @@ export default function AdminPage() {
                     <Star className="h-5 w-5 fill-gold-500 text-gold-600" />
                     Otorgar Estrella / Título Oficial
                   </h2>
+                  <select
+                    aria-label="Temporada del título"
+                    value={mSeasonId}
+                    onChange={(e) => setMSeasonId(e.target.value)}
+                    className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
+                  >
+                    {sortedSeasons.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     value={titlePlayerId}
                     onChange={(e) => setTitlePlayerId(e.target.value)}

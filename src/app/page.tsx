@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Megaphone, Pin } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
-import { computeStandings } from "@/lib/engine";
+import { computeStandings, resolveDefaultSeasonId } from "@/lib/engine";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
 import { CupBracketView } from "@/components/tournament/CupBracketView";
 import { cn, formatDateEs } from "@/lib/utils";
@@ -18,13 +18,17 @@ export default function HomePage() {
     [dataset.seasons]
   );
 
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(
-    sortedSeasons[0]?.id ?? "season-2026"
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(() =>
+    resolveDefaultSeasonId(dataset.seasons)
   );
   const [activeTab, setActiveTab] = useState<HomeTab>("annual");
 
+  const resolvedSeasonId = resolveDefaultSeasonId(
+    sortedSeasons,
+    selectedSeasonId
+  );
   const activeSeason =
-    sortedSeasons.find((s) => s.id === selectedSeasonId) ?? sortedSeasons[0];
+    sortedSeasons.find((s) => s.id === resolvedSeasonId) ?? sortedSeasons[0];
 
   const annualStandings = useMemo(
     () =>
