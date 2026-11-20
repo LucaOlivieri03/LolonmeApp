@@ -38,6 +38,7 @@ export interface MatchFilterOptions {
   matchType: "ALL" | MatchType;
   dateFilter?: string;
   matchNumberQuery?: string;
+  playerId?: string;
 }
 
 export function filterMatches(
@@ -48,6 +49,7 @@ export function filterMatches(
   const numQ = (options.matchNumberQuery ?? "")
     .trim()
     .replace(/^(fecha|#)\s*/i, "");
+  const playerQ = (options.playerId ?? "").trim();
 
   return matches.filter((m) => {
     if (options.seasonId !== "ALL" && m.seasonId !== options.seasonId) {
@@ -62,6 +64,11 @@ export function filterMatches(
     if (numQ) {
       if (m.matchNumber === null) return false;
       if (String(m.matchNumber) !== numQ) return false;
+    }
+    if (playerQ && playerQ !== "ALL") {
+      if (!m.players.some((mp) => mp.playerId === playerQ)) {
+        return false;
+      }
     }
     return true;
   });

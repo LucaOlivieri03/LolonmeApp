@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { RefreshCw, Trophy } from "lucide-react";
 import { useTournament } from "@/components/providers/TournamentProvider";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { resolveDefaultSeasonId } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,23 @@ export function AdminCupTab() {
 
   const edition = dataset.cupEditions.find((e) => e.seasonId === seasonId);
   const ties = dataset.cupTies.filter((t) => t.cupEditionId === edition?.id);
+
+  const playerOptions = useMemo(
+    () =>
+      dataset.players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+      })),
+    [dataset.players]
+  );
+
+  const tiePlayerOptions = useMemo(
+    () => [
+      { id: "", displayName: "— Sin asignar —", subtitle: "Vacante" },
+      ...playerOptions,
+    ],
+    [playerOptions]
+  );
 
   return (
     <div className="space-y-4">
@@ -66,37 +84,25 @@ export function AdminCupTab() {
         </div>
 
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-rule pt-4">
-          <div className="min-w-[180px] flex-1">
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
-              Finalista LOLONMEBOL ant. #1
-            </label>
-            <select
+          <div className="min-w-[200px] flex-1">
+            <PlayerCombobox
+              label="Finalista LOLONMEBOL ant. #1"
+              options={playerOptions}
               value={finalist1}
-              onChange={(e) => setFinalist1(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-            >
-              {dataset.players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.displayName}
-                </option>
-              ))}
-            </select>
+              onChange={setFinalist1}
+              placeholder="Elegir finalista #1..."
+              searchPlaceholder="Buscar jugador..."
+            />
           </div>
-          <div className="min-w-[180px] flex-1">
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-muted">
-              Finalista LOLONMEBOL ant. #2
-            </label>
-            <select
+          <div className="min-w-[200px] flex-1">
+            <PlayerCombobox
+              label="Finalista LOLONMEBOL ant. #2"
+              options={playerOptions}
               value={finalist2}
-              onChange={(e) => setFinalist2(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-            >
-              {dataset.players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.displayName}
-                </option>
-              ))}
-            </select>
+              onChange={setFinalist2}
+              placeholder="Elegir finalista #2..."
+              searchPlaceholder="Buscar jugador..."
+            />
           </div>
           <button
             type="button"
@@ -128,21 +134,17 @@ export function AdminCupTab() {
 
               <div className="grid gap-2.5 sm:grid-cols-2">
                 <div className="flex items-center gap-2">
-                  <select
-                    aria-label="Jugador A"
-                    value={tie.playerAId ?? ""}
-                    onChange={(e) =>
-                      updateCupTie(tie.id, { playerAId: e.target.value || null })
-                    }
-                    className="min-h-11 flex-1 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-                  >
-                    <option value="">— Jugador A —</option>
-                    {dataset.players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="min-w-0 flex-1">
+                    <PlayerCombobox
+                      options={tiePlayerOptions}
+                      value={tie.playerAId ?? ""}
+                      onChange={(id) =>
+                        updateCupTie(tie.id, { playerAId: id || null })
+                      }
+                      placeholder="— Jugador A —"
+                      searchPlaceholder="Buscar Jugador A..."
+                    />
+                  </div>
                   <input
                     type="number"
                     aria-label="Global Jugador A"
@@ -159,21 +161,17 @@ export function AdminCupTab() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <select
-                    aria-label="Jugador B"
-                    value={tie.playerBId ?? ""}
-                    onChange={(e) =>
-                      updateCupTie(tie.id, { playerBId: e.target.value || null })
-                    }
-                    className="min-h-11 flex-1 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
-                  >
-                    <option value="">— Jugador B —</option>
-                    {dataset.players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.displayName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="min-w-0 flex-1">
+                    <PlayerCombobox
+                      options={tiePlayerOptions}
+                      value={tie.playerBId ?? ""}
+                      onChange={(id) =>
+                        updateCupTie(tie.id, { playerBId: id || null })
+                      }
+                      placeholder="— Jugador B —"
+                      searchPlaceholder="Buscar Jugador B..."
+                    />
+                  </div>
                   <input
                     type="number"
                     aria-label="Global Jugador B"

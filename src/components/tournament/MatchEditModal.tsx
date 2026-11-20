@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Pencil, Plus, Search, Shield, Trash2, X } from "lucide-react";
+import { Check, Pencil, Shield, Trash2, X } from "lucide-react";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type {
   Match,
   MatchModality,
@@ -62,13 +63,17 @@ export function MatchEditModal({
   );
 
   const availablePlayers = useMemo(() => {
-    const q = addSearch.trim().toLowerCase();
-    return players.filter(
-      (p) =>
-        !rosterIds.has(p.id) &&
-        (!q || p.displayName.toLowerCase().includes(q))
-    );
-  }, [players, rosterIds, addSearch]);
+    return players.filter((p) => !rosterIds.has(p.id));
+  }, [players, rosterIds]);
+
+  const availableOptions = useMemo(
+    () =>
+      availablePlayers.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+      })),
+    [availablePlayers]
+  );
 
   const updateRosterPlayer = (
     playerId: string,
@@ -458,51 +463,32 @@ export function MatchEditModal({
             ))}
           </div>
 
-          {/* Add Player to Roster */}
-          <div className="rounded-md border border-rule bg-paper p-3">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
-                Agregar jugador a la planilla
-              </span>
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-ink-muted" />
-                <input
-                  type="search"
-                  value={addSearch}
-                  onChange={(e) => setAddSearch(e.target.value)}
-                  placeholder="Buscar jugador..."
-                  className="h-8 w-48 rounded border border-rule bg-surface pr-2 pl-8 text-xs text-ink"
-                />
-              </div>
-            </div>
-            <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-              {availablePlayers.map((p) => (
-                <div
-                  key={p.id}
-                  className="inline-flex items-center overflow-hidden rounded border border-rule bg-surface text-xs"
-                >
-                  <span className="px-2 py-1 font-semibold text-ink">
-                    {p.displayName}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => addRosterPlayer(p.id, "A")}
-                    className="border-l border-rule bg-pitch-50 px-1.5 py-1 font-bold text-pitch-800 hover:bg-pitch-100"
-                    title="Sumar a Equipo A"
-                  >
-                    +A
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => addRosterPlayer(p.id, "B")}
-                    className="border-l border-rule bg-navy-50 px-1.5 py-1 font-bold text-navy-800 hover:bg-navy-100"
-                    title="Sumar a Equipo B"
-                  >
-                    +B
-                  </button>
-                </div>
-              ))}
-            </div>
+          {/* Add Player to Roster via PlayerCombobox */}
+          <div className="grid gap-3 rounded-md border border-rule bg-paper p-3 sm:grid-cols-2">
+            <PlayerCombobox
+              label="Sumar jugador a Equipo A"
+              options={availableOptions}
+              value={addSearch}
+              onChange={(id) => {
+                addRosterPlayer(id, "A");
+                setAddSearch("");
+              }}
+              placeholder="Buscar jugador para Equipo A..."
+              searchPlaceholder="Buscar jugador..."
+              emptyMessage="Todos los jugadores ya están en la planilla"
+            />
+            <PlayerCombobox
+              label="Sumar jugador a Equipo B"
+              options={availableOptions}
+              value={addSearch}
+              onChange={(id) => {
+                addRosterPlayer(id, "B");
+                setAddSearch("");
+              }}
+              placeholder="Buscar jugador para Equipo B..."
+              searchPlaceholder="Buscar jugador..."
+              emptyMessage="Todos los jugadores ya están en la planilla"
+            />
           </div>
         </div>
 

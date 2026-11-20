@@ -15,6 +15,7 @@ import {
 import { useTournament } from "@/components/providers/TournamentProvider";
 import { filterMatches } from "@/lib/engine";
 import { MatchEditModal } from "@/components/tournament/MatchEditModal";
+import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type { Match, MatchType } from "@/lib/types/domain";
 import { cn, formatDateEs } from "@/lib/utils";
 
@@ -64,11 +65,26 @@ export default function PartidosPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [dateFilter, setDateFilter] = useState("");
   const [matchNumberQuery, setMatchNumberQuery] = useState("");
+  const [playerFilterId, setPlayerFilterId] = useState("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
 
   const playerMap = useMemo(
     () => new Map(dataset.players.map((p) => [p.id, p])),
+    [dataset.players]
+  );
+
+  const playerFilterOptions = useMemo(
+    () => [
+      {
+        id: "ALL",
+        displayName: `Todos los jugadores (${dataset.players.length})`,
+      },
+      ...dataset.players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+      })),
+    ],
     [dataset.players]
   );
 
@@ -88,8 +104,16 @@ export default function PartidosPage() {
         matchType: typeFilter,
         dateFilter,
         matchNumberQuery,
+        playerId: playerFilterId,
       }),
-    [dataset.matches, seasonFilter, typeFilter, dateFilter, matchNumberQuery]
+    [
+      dataset.matches,
+      seasonFilter,
+      typeFilter,
+      dateFilter,
+      matchNumberQuery,
+      playerFilterId,
+    ]
   );
 
   const nameOf = (id: string) => playerMap.get(id)?.displayName ?? id;
@@ -244,17 +268,29 @@ export default function PartidosPage() {
             </div>
           </div>
 
-          {(dateFilter || matchNumberQuery) && (
+          <div className="min-w-[230px] flex-1 sm:max-w-xs">
+            <PlayerCombobox
+              label="Filtrar por jugador"
+              options={playerFilterOptions}
+              value={playerFilterId}
+              onChange={setPlayerFilterId}
+              placeholder="Todos los jugadores..."
+              searchPlaceholder="Buscar jugador..."
+            />
+          </div>
+
+          {(dateFilter || matchNumberQuery || playerFilterId !== "ALL") && (
             <button
               type="button"
               onClick={() => {
                 setDateFilter("");
                 setMatchNumberQuery("");
+                setPlayerFilterId("ALL");
               }}
-              className="inline-flex min-h-10 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100"
+              className="inline-flex min-h-11 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100"
             >
               <X className="h-3.5 w-3.5" />
-              Limpiar fecha / N°
+              Limpiar filtros
             </button>
           )}
         </div>
@@ -276,6 +312,7 @@ export default function PartidosPage() {
               setTypeFilter("ALL");
               setDateFilter("");
               setMatchNumberQuery("");
+              setPlayerFilterId("ALL");
             }}
             className="mt-4 inline-flex min-h-11 items-center rounded-md border border-pitch-800 bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
           >

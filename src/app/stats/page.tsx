@@ -228,6 +228,7 @@ export default function StatsPage() {
   const [labPlayerIds, setLabPlayerIds] = useState<string[]>(() =>
     activePlayers.slice(0, 2).map((p) => p.playerId)
   );
+  const [labComboId, setLabComboId] = useState<string>("");
 
   const filter = useMemo(
     () => ({
@@ -468,29 +469,39 @@ export default function StatsPage() {
       {tab === "lab" ? (
         <div className="space-y-4">
           <section className="rounded-lg border border-rule bg-surface p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
-                <Users className="h-4 w-4 text-pitch-700" />
-                Elegí 2 o más jugadores ({labPlayerIds.length} seleccionados)
-              </h2>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-                  <input
-                    type="search"
-                    value={labSearch}
-                    onChange={(e) => setLabSearch(e.target.value)}
-                    placeholder="Buscar jugador..."
-                    className="min-h-10 w-44 rounded-md border border-rule bg-paper pr-3 pl-8 text-base text-ink placeholder:text-ink-muted sm:w-52 sm:text-sm"
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
+                  <Users className="h-4 w-4 text-pitch-700" />
+                  Elegí 2 o más jugadores ({labPlayerIds.length} seleccionados)
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Buscá con el selector o tocá los jugadores de la lista para sumarlos o quitarlos del Lab.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-full sm:w-72">
+                  <PlayerCombobox
+                    options={playerComboboxOptions}
+                    value={labComboId}
+                    onChange={(id) => {
+                      setLabComboId(id);
+                      toggleLabPlayer(id);
+                    }}
+                    placeholder="Buscar jugador para sumar/quitar..."
+                    searchPlaceholder="Buscar jugador..."
                   />
                 </div>
                 {labPlayerIds.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setLabPlayerIds([])}
-                    className="min-h-10 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 transition-colors hover:bg-crimson-100"
+                    onClick={() => {
+                      setLabPlayerIds([]);
+                      setLabComboId("");
+                    }}
+                    className="min-h-11 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 transition-colors hover:bg-crimson-100"
                   >
-                    Limpiar
+                    Limpiar ({labPlayerIds.length})
                   </button>
                 )}
               </div>
