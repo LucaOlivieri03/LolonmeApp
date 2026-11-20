@@ -1,15 +1,23 @@
 "use client";
 
-import { AlertTriangle, Award, Star } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Award, ChevronDown, ChevronUp, Star } from "lucide-react";
 import type { StandingsResult } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 
 interface StandingsTableProps {
   result: StandingsResult;
   mode: "annual" | "historical";
+  initialLimit?: number;
 }
 
-export function StandingsTable({ result, mode }: StandingsTableProps) {
+export function StandingsTable({
+  result,
+  mode,
+  initialLimit = mode === "historical" ? 15 : undefined,
+}: StandingsTableProps) {
+  const [expanded, setExpanded] = useState(false);
+
   if (result.rows.length === 0) {
     return (
       <div className="rounded-lg border border-rule bg-surface p-6 text-center text-sm text-ink-muted">
@@ -17,6 +25,11 @@ export function StandingsTable({ result, mode }: StandingsTableProps) {
       </div>
     );
   }
+
+  const hasLimit =
+    typeof initialLimit === "number" && result.rows.length > initialLimit;
+  const visibleRows =
+    hasLimit && !expanded ? result.rows.slice(0, initialLimit) : result.rows;
 
   return (
     <div className="space-y-2.5">
@@ -61,7 +74,7 @@ export function StandingsTable({ result, mode }: StandingsTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-rule/75">
-            {result.rows.map((row) => {
+            {visibleRows.map((row) => {
               const isLeader = row.position === 1;
               const isDirectCup = mode === "annual" && row.position <= 7;
               const isPrelimCup =
@@ -159,6 +172,31 @@ export function StandingsTable({ result, mode }: StandingsTableProps) {
           </tbody>
         </table>
       </div>
+
+      {hasLimit && (
+        <div className="flex items-center justify-between rounded-lg border border-rule bg-surface px-4 py-2.5">
+          <span className="text-xs font-medium text-ink-muted">
+            Mostrando {visibleRows.length} de {result.rows.length} jugadores registrados
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
+          >
+            {expanded ? (
+              <>
+                Mostrar top {initialLimit}
+                <ChevronUp className="h-3.5 w-3.5" />
+              </>
+            ) : (
+              <>
+                Ver tabla completa ({result.rows.length})
+                <ChevronDown className="h-3.5 w-3.5" />
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {mode === "annual" && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 text-xs text-ink-muted">
