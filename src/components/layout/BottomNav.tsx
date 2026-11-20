@@ -9,8 +9,8 @@ const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/partidos", label: "Partidos", icon: Trophy },
   { href: "/stats", label: "Stats", icon: BarChart3 },
-  { href: "/blog", label: "Blog", icon: MessageSquare },
   { href: "/calendario", label: "Calendario", icon: CalendarDays },
+  { href: "/blog", label: "Blog", icon: MessageSquare },
 ];
 
 export function BottomNav() {
@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-pitch-700/15 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="mx-auto grid max-w-5xl grid-cols-5">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -28,15 +28,16 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition-colors",
+                "relative flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors",
                 isActive
-                  ? "text-pitch-700"
-                  : "text-slate-500 hover:text-navy-800"
+                  ? "text-pitch-800"
+                  : "text-ink-muted hover:text-ink"
               )}
             >
               {isActive && (
-                <span className="absolute top-0 h-0.5 w-10 rounded-full bg-pitch-700" />
+                <span className="absolute inset-x-3 top-0 h-[3px] bg-leather-600" />
               )}
               <Icon className={cn("h-5 w-5", isActive && "stroke-[2.4]")} />
               <span>{label}</span>

@@ -70,30 +70,39 @@ export function AnthemPlayer() {
   };
 
   return (
-    <div className="flex items-center gap-1 rounded-full border border-pitch-700/20 bg-pitch-50 px-2 py-1 shadow-xs">
-      <audio ref={audioRef} src="/assets/cancion.mpeg" preload="metadata" />
+    <div className="flex items-center overflow-hidden rounded-md border border-white/20 bg-pitch-900/60">
+      <audio ref={audioRef} src="/assets/cancion.mpeg" preload="none" />
       <button
         type="button"
         onClick={togglePlay}
         aria-label={isPlaying ? "Pausar himno de LOLONMEBOL" : "Reproducir himno de LOLONMEBOL"}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
+          "inline-flex min-h-10 items-center gap-1.5 px-2.5 text-xs font-semibold transition-colors",
           isPlaying
-            ? "bg-pitch-700 text-white"
-            : "text-pitch-800 hover:bg-pitch-100"
+            ? "bg-leather-600 text-white"
+            : "text-pitch-50 hover:bg-white/10"
         )}
       >
-        {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+        {isPlaying ? (
+          <Pause className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <Play className="h-3.5 w-3.5 shrink-0 fill-current" />
+        )}
         <span className="hidden sm:inline">Himno</span>
       </button>
       <button
         type="button"
         onClick={toggleMode}
-        title={mode === "chorus" ? "Modo estribillo (0:10 - 0:21). Clic para cambiar a completo." : "Modo completo. Clic para volver al estribillo (0:10 - 0:21)."}
-        className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium text-navy-800 hover:bg-white/80"
+        title={
+          mode === "chorus"
+            ? "Modo estribillo (0:10 - 0:21). Clic para cambiar a completo."
+            : "Modo completo. Clic para volver al estribillo (0:10 - 0:21)."
+        }
+        aria-label={mode === "chorus" ? "Cambiar himno a modo completo" : "Cambiar himno a modo estribillo"}
+        className="inline-flex min-h-10 items-center gap-1 border-l border-white/15 px-2.5 text-xs font-medium text-gold-400 transition-colors hover:bg-white/10"
       >
-        <Music2 className="h-3 w-3 text-gold-600" />
-        <span>{mode === "chorus" ? "Estribillo" : "Full"}</span>
+        <Music2 className="h-3.5 w-3.5 shrink-0" />
+        <span>{mode === "chorus" ? "Estrib." : "Full"}</span>
       </button>
     </div>
   );

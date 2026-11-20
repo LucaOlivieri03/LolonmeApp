@@ -1,64 +1,130 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-pitch-50: #effaf3;
-  --color-pitch-100: #d9f2e2;
-  --color-pitch-500: #009c3b;
-  --color-pitch-600: #008a38;
-  --color-pitch-700: #007934;
-  --color-pitch-800: #005c27;
-  --color-pitch-900: #003f1b;
+  /* Paper & Ink */
+  --color-paper: #f6f5f0;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #efece3;
+  --color-ink: #111c15;
+  --color-ink-muted: #4c5d52;
+  --color-rule: #d6d3c7;
+  --color-rule-strong: #b8b4a5;
 
-  --color-navy-50: #eef3fb;
-  --color-navy-100: #d5e2f5;
-  --color-navy-600: #034ea2;
-  --color-navy-700: #003893;
-  --color-navy-800: #002776;
-  --color-navy-900: #001c55;
+  /* Federation Pitch Green */
+  --color-pitch-50: #edf7f1;
+  --color-pitch-100: #d5ecdd;
+  --color-pitch-200: #a9d8bb;
+  --color-pitch-500: #188047;
+  --color-pitch-600: #136b3b;
+  --color-pitch-700: #0d5930;
+  --color-pitch-800: #0a4a28;
+  --color-pitch-900: #07361d;
+  --color-pitch-950: #042212;
 
-  --color-gold-100: #fef5d4;
-  --color-gold-400: #fcd116;
-  --color-gold-500: #f6b40e;
-  --color-gold-600: #d99400;
-  --color-gold-700: #b87800;
+  /* Leather Orange (from Logo.svg ball #E68E23) */
+  --color-leather-50: #fdf4e9;
+  --color-leather-100: #fae3c7;
+  --color-leather-500: #e68e23;
+  --color-leather-600: #c86e0e;
+  --color-leather-700: #9f5206;
 
-  --color-sky-400: #74acdf;
-  --color-crimson-600: #ce1126;
+  /* Tournament Gold */
+  --color-gold-50: #fef9e6;
+  --color-gold-100: #fdeeb8;
+  --color-gold-400: #f4be1e;
+  --color-gold-500: #e5a00d;
+  --color-gold-600: #b87b00;
+  --color-gold-700: #8c5c00;
 
-  --font-sans: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Federation Navy */
+  --color-navy-50: #edf2f8;
+  --color-navy-100: #d5e0ee;
+  --color-navy-600: #1e4b82;
+  --color-navy-700: #163963;
+  --color-navy-800: #0e2747;
+  --color-navy-900: #091b33;
+
+  /* Semantic / Referee Crimson */
+  --color-sky-400: #5fa0d6;
+  --color-crimson-50: #fdf1f2;
+  --color-crimson-100: #fad8db;
+  --color-crimson-600: #c4202b;
+  --color-crimson-700: #9e1620;
+
+  /* Typography */
+  --font-sans: var(--font-archivo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-barlow-condensed), var(--font-archivo), system-ui, sans-serif;
 }
 
 :root {
-  --background: #f4f7f4;
-  --foreground: #0f1c14;
+  --background: #f6f5f0;
+  --foreground: #111c15;
   --card: #ffffff;
-  --border: #dce6df;
+  --border: #d6d3c7;
+  color-scheme: light;
+}
+
+html {
+  background-color: var(--background);
+  color: var(--foreground);
+  scrollbar-color: #b8b4a5 #efece3;
+  scrollbar-width: thin;
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  caret-color: #c86e0e;
+  text-underline-offset: 3px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle mowed football pitch pattern for hero banners */
-.pitch-stripes {
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(0, 121, 52, 0.96) 0px,
-    rgba(0, 121, 52, 0.96) 28px,
-    rgba(0, 138, 56, 0.96) 28px,
-    rgba(0, 138, 56, 0.96) 56px
-  );
+::selection {
+  background-color: #0a4a28;
+  color: #f6f5f0;
 }
 
-.pitch-stripes-subtle {
-  background-image: repeating-linear-gradient(
+:focus-visible {
+  outline: 2px solid #c86e0e;
+  outline-offset: 2px;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Architectural football pitch chalk-line geometry for federation headers & matchday strips */
+.pitch-chalk-surface {
+  background-color: #0a4a28;
+  background-image:
+    radial-gradient(circle at 50% 50%, transparent 46px, rgba(246, 245, 240, 0.08) 46px, rgba(246, 245, 240, 0.08) 47.5px, transparent 47.5px),
+    linear-gradient(90deg, transparent calc(50% - 0.75px), rgba(246, 245, 240, 0.08) calc(50% - 0.75px), rgba(246, 245, 240, 0.08) calc(50% + 0.75px), transparent calc(50% + 0.75px)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(4, 34, 18, 0.14) 100%);
+}
+
+/* Subtle tactical touchline divider on light paper */
+.pitch-touchline {
+  position: relative;
+}
+
+.pitch-touchline::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(
     90deg,
-    rgba(0, 121, 52, 0.04) 0px,
-    rgba(0, 121, 52, 0.04) 32px,
-    transparent 32px,
-    transparent 64px
+    rgba(10, 74, 40, 0.35) 0%,
+    rgba(214, 211, 199, 0.9) 25%,
+    rgba(214, 211, 199, 0.9) 75%,
+    rgba(10, 74, 40, 0.35) 100%
   );
 }
