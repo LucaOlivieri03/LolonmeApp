@@ -152,7 +152,7 @@ export function mapDatasetToDatabaseRows(
   const player_aliases = dataset.aliases.map((alias) => ({
     id: UUID_REGEX.test(alias.id)
       ? alias.id
-      : deterministicUuid(`alias:${alias.rawName.toLowerCase()}`),
+      : deterministicUuid(`alias:${alias.rawName}`),
     player_id: resolvePlayerUuid(alias.playerId),
     raw_name: alias.rawName,
   }));
@@ -178,9 +178,7 @@ export function mapDatasetToDatabaseRows(
     const id =
       (sourceKey ? existing?.matchUuidBySourceKey?.get(sourceKey) : undefined) ??
       existing?.matchUuidBySlug?.get(slug) ??
-      (UUID_REGEX.test(match.id)
-        ? match.id
-        : deterministicUuid(`match:${sourceKey ?? slug}`));
+      (UUID_REGEX.test(match.id) ? match.id : deterministicUuid(`match:${slug}`));
     matchUuidByDomainId.set(match.id, id);
 
     return {
@@ -421,19 +419,25 @@ export function mapDatabaseRowsToDataset(
   const resolveSeasonId = (uuid: string): string =>
     seasonDomainIdByUuid.get(uuid) ?? uuid;
 
-  const aliases: PlayerAlias[] = (rows.player_aliases ?? []).map((row) => ({
-    id: row.id,
-    playerId: resolvePlayerId(row.player_id),
-    rawName: row.raw_name,
-  }));
+  const aliases: PlayerAlias[] = (rows.player_aliases ?? []).map(
+    (row, idx) => ({
+      id: `alias-${idx + 1}`,
+      playerId: resolvePlayerId(row.player_id),
+      rawName: row.raw_name,
+    })
+  );
 
-  const titles: PlayerTitle[] = (rows.player_titles ?? []).map((row) => ({
-    id: row.id,
-    playerId: resolvePlayerId(row.player_id),
-    seasonId: resolveSeasonId(row.season_id),
-    titleType: row.title_type,
-    awardedAt: row.awarded_at,
-  }));
+  const titles: PlayerTitle[] = (rows.player_titles ?? []).map((row) => {
+    const playerId = resolvePlayerId(row.player_id);
+    const year = seasonYearByUuid.get(row.season_id);
+    return {
+      id: year ? `title-${year}-${row.title_type}-${playerId}` : row.id,
+      playerId,
+      seasonId: resolveSeasonId(row.season_id),
+      titleType: row.title_type,
+      awardedAt: row.awarded_at,
+    };
+  });
 
   const matchDomainIdByUuid = new Map<string, string>();
   for (const row of rows.matches ?? []) {
@@ -463,32 +467,39 @@ export function mapDatabaseRowsToDataset(
     }
   }
 
-  const matches: Match[] = (rows.matches ?? []).map((row) => {
-    const domainId = matchDomainIdByUuid.get(row.id) ?? row.id;
-    return {
-      id: domainId,
-      seasonId: resolveSeasonId(row.season_id),
-      matchNumber: row.match_number,
-      matchDate: row.match_date,
-      matchType: row.match_type,
-      modality: row.modality,
-      teamAScore: row.team_a_score,
-      teamBScore: row.team_b_score,
-      resultOutcome: row.result_outcome ?? null,
-      countsForLeague: row.counts_for_league,
-      countsForStats: row.counts_for_stats,
-      votingStatus: row.voting_status,
-      externalSourceKey: row.external_source_key ?? null,
-      notes: row.notes ?? null,
-      players: matchPlayersByMatchUuid.get(row.id) ?? [],
-    };
-  });
+  const matches: Match[] = (rows.matches ?? [])
+    .map((row) => {
+      const domainId = matchDomainIdByUuid.get(row.id) ?? row.id;
+      return {
+        id: domainId,
+        seasonId: resolveSeasonId(row.season_id),
+        matchNumber: row.match_number,
+        matchDate: row.match_date,
+        matchType: row.match_type,
+        modality: row.modality,
+        teamAScore: row.team_a_score,
+        teamBScore: row.team_b_score,
+        resultOutcome: row.result_outcome ?? null,
+        countsForLeague: row.counts_for_league,
+        countsForStats: row.counts_for_stats,
+        votingStatus: row.voting_status,
+        externalSourceKey: row.external_source_key ?? null,
+        notes: row.notes ?? null,
+        players: matchPlayersByMatchUuid.get(row.id) ?? [],
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.matchDate.localeCompare(a.matchDate) ||
+        (b.matchNumber ?? -1) - (a.matchNumber ?? -1) ||
+        a.id.localeCompare(b.id)
+    );
 
   const resolveMatchId = (uuid: string | null): string | null =>
     uuid ? (matchDomainIdByUuid.get(uuid) ?? uuid) : null;
 
-  const calendarEvents: CalendarEvent[] = (rows.calendar_events ?? []).map(
-    (row) => ({
+  const calendarEvents: CalendarEvent[] = (rows.calendar_events ?? [])
+    .map((row) => ({
       id: row.external_key || row.id,
       seasonId: resolveSeasonId(row.season_id),
       title: row.title,
@@ -496,19 +507,26 @@ export function mapDatabaseRowsToDataset(
       eventDate: row.event_date,
       eventType: row.event_type,
       matchId: resolveMatchId(row.match_id),
-    })
-  );
+    }))
+    .sort(
+      (a, b) =>
+        b.eventDate.localeCompare(a.eventDate) || a.id.localeCompare(b.id)
+    );
 
-  const announcements: Announcement[] = (rows.announcements ?? []).map(
-    (row) => ({
+  const announcements: Announcement[] = (rows.announcements ?? [])
+    .map((row) => ({
       id: row.external_key || row.id,
       title: row.title,
       body: row.body,
       isPinned: row.is_pinned,
       ...(row.created_by ? { createdBy: resolvePlayerId(row.created_by) } : {}),
       createdAt: row.created_at,
-    })
-  );
+    }))
+    .sort(
+      (a, b) =>
+        Number(b.isPinned) - Number(a.isPinned) ||
+        b.createdAt.localeCompare(a.createdAt)
+    );
 
   const cupEditionDomainIdByUuid = new Map<string, string>();
   const cupEditionYearByUuid = new Map<string, number | undefined>();

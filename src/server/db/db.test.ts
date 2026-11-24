@@ -3,7 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import seedData from "@/lib/data/seed-data.json";
 import { computeStandings } from "@/lib/engine";
-import { computeImportDiff } from "@/lib/excel";
+import { applyImportDiff, computeImportDiff } from "@/lib/excel";
 import type { TournamentDataset } from "@/lib/types/domain";
 import {
   deterministicUuid,
@@ -201,5 +201,214 @@ describe("WU-1: PostgreSQL Schema Alignment, Domain Mappers & Idempotent Seed", 
     expect(
       dataset.fundTransactions.every((tx) => typeof tx.amount === "number")
     ).toBe(true);
+  });
+});
+
+const TABLE_UNIQUE_CONSTRAINTS: Record<string, string[][]> = {
+  seasons: [["id"], ["year"]],
+  players: [["id"], ["slug"], ["user_id"], ["email"]],
+  player_aliases: [["id"], ["raw_name"]],
+  player_titles: [["id"], ["player_id", "season_id", "title_type"]],
+  matches: [["id"], ["slug"], ["external_source_key"]],
+  match_players: [["id"], ["match_id", "player_id"]],
+  calendar_events: [["id"], ["external_key"]],
+  announcements: [["id"], ["external_key"]],
+  cup_editions: [["id"], ["season_id"]],
+  cup_ties: [["id"], ["cup_edition_id", "round", "slot_order"]],
+  fund_months: [["id"], ["season_id", "month_number"]],
+  fund_payments: [["id"], ["fund_month_id", "player_id"]],
+  fund_transactions: [["id"], ["external_key"]],
+};
+
+function tupleMatchesNonNull(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+  cols: string[]
+): boolean {
+  return cols.every((col) => {
+    const va = a[col];
+    const vb = b[col];
+    if (va === null || va === undefined || vb === null || vb === undefined) {
+      return false;
+    }
+    return va === vb;
+  });
+}
+
+function createPgFaithfulSupabaseMock(
+  initialTables?: Record<string, Record<string, unknown>[]>
+) {
+  const store = new Map<string, Record<string, unknown>[]>(
+    Object.entries(initialTables ?? {}).map(([k, v]) => [
+      k,
+      v.map((r) => ({ ...r })),
+    ])
+  );
+
+  const client: SeedTableClient = {
+    async selectAll(table) {
+      return (store.get(table) ?? []).map((r) => ({ ...r }));
+    },
+    async upsertRows(table, rows, onConflict) {
+      const conflictCols = onConflict.split(",").map((c) => c.trim());
+      const uniqueSpecs = TABLE_UNIQUE_CONSTRAINTS[table] ?? [["id"]];
+
+      for (let i = 0; i < rows.length; i++) {
+        for (let j = i + 1; j < rows.length; j++) {
+          if (tupleMatchesNonNull(rows[i], rows[j], conflictCols)) {
+            throw new Error(
+              `21000: ON CONFLICT DO UPDATE command cannot affect row a second time on ${table} (${onConflict})`
+            );
+          }
+        }
+      }
+
+      const current = (store.get(table) ?? []).map((r) => ({ ...r }));
+
+      for (const incoming of rows) {
+        const conflictIdx = current.findIndex((existing) =>
+          tupleMatchesNonNull(existing, incoming, conflictCols)
+        );
+
+        if (conflictIdx >= 0) {
+          const updated = { ...current[conflictIdx], ...incoming };
+          for (const uCols of uniqueSpecs) {
+            const otherIdx = current.findIndex(
+              (existing, idx) =>
+                idx !== conflictIdx &&
+                tupleMatchesNonNull(existing, updated, uCols)
+            );
+            if (otherIdx >= 0) {
+              throw new Error(
+                `23505: duplicate key value violates unique constraint on ${table} (${uCols.join(",")})`
+              );
+            }
+          }
+          current[conflictIdx] = updated;
+        } else {
+          for (const uCols of uniqueSpecs) {
+            const otherIdx = current.findIndex((existing) =>
+              tupleMatchesNonNull(existing, incoming, uCols)
+            );
+            if (otherIdx >= 0) {
+              throw new Error(
+                `23505: duplicate key value violates unique constraint on ${table} (${uCols.join(",")})`
+              );
+            }
+          }
+          current.push({ ...incoming });
+        }
+      }
+
+      store.set(table, current);
+    },
+  };
+
+  return { store, client };
+}
+
+describe("WU-1 Verification Probes (B1-B4)", () => {
+  it("Probe 1 (B1): syncDatasetToSupabase updates pre-existing matches that have external_source_key and null slug without PK/UNIQUE collision", async () => {
+    const sampleMatch = SEED_DATASET.matches.find((m) => m.externalSourceKey)!;
+    const preExistingMatchUuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const preExistingSeasonUuid = "11111111-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+    const { store, client } = createPgFaithfulSupabaseMock({
+      seasons: [
+        {
+          id: preExistingSeasonUuid,
+          year: 2025,
+          name: "Temporada 2025",
+          status: "finished",
+          cup_cutoff_date: "2025-07-01",
+        },
+      ],
+      matches: [
+        {
+          id: preExistingMatchUuid,
+          slug: null,
+          season_id: preExistingSeasonUuid,
+          match_number: sampleMatch.matchNumber,
+          match_date: sampleMatch.matchDate,
+          match_type: sampleMatch.matchType,
+          modality: sampleMatch.modality,
+          team_a_score: sampleMatch.teamAScore,
+          team_b_score: sampleMatch.teamBScore,
+          result_outcome: null,
+          counts_for_league: sampleMatch.countsForLeague,
+          counts_for_stats: sampleMatch.countsForStats,
+          voting_status: "closed",
+          external_source_key: sampleMatch.externalSourceKey,
+          notes: sampleMatch.notes ?? null,
+        },
+      ],
+    });
+
+    await syncDatasetToSupabase(client, SEED_DATASET);
+    expect(store.get("matches")?.length).toBe(SEED_DATASET.matches.length);
+  });
+
+  it("Probe 2 (B2): case-variant raw_name aliases ('Pipo' vs 'pipo') do not collide on player_aliases primary key", async () => {
+    const datasetWithCaseVariantAlias: TournamentDataset = {
+      ...SEED_DATASET,
+      aliases: [
+        ...SEED_DATASET.aliases,
+        {
+          id: "alias-case-variant",
+          playerId: "pipo",
+          rawName: "pipo",
+        },
+      ],
+    };
+
+    const { store, client } = createPgFaithfulSupabaseMock();
+    await syncDatasetToSupabase(client, datasetWithCaseVariantAlias);
+    expect(store.get("player_aliases")?.length).toBe(
+      datasetWithCaseVariantAlias.aliases.length
+    );
+  });
+
+  it("Probe 3 (B3): DB roundtrip followed by Excel applyImportDiff preserves star counts and re-syncs cleanly without duplicate conflict rows", async () => {
+    const reconstructed = mapDatabaseRowsToDataset(
+      mapDatasetToDatabaseRows(SEED_DATASET)
+    );
+    const merged = applyImportDiff(reconstructed, SEED_DATASET, {
+      overwriteExisting: false,
+    });
+
+    const expectedStandings = computeStandings({
+      players: SEED_DATASET.players,
+      matches: SEED_DATASET.matches,
+      titles: SEED_DATASET.titles,
+    });
+    const actualStandings = computeStandings({
+      players: merged.players,
+      matches: merged.matches,
+      titles: merged.titles,
+    });
+    expect(actualStandings).toEqual(expectedStandings);
+    expect(merged.titles.length).toBe(SEED_DATASET.titles.length);
+    expect(merged.aliases.length).toBe(SEED_DATASET.aliases.length);
+
+    const { client } = createPgFaithfulSupabaseMock();
+    await syncDatasetToSupabase(client, merged);
+  });
+
+  it("Probe 4 (B4): mapDatabaseRowsToDataset sorts matches and calendarEvents descending by date regardless of SQL heap order", () => {
+    const rows = mapDatasetToDatabaseRows(SEED_DATASET);
+    const shuffledRows = {
+      ...rows,
+      matches: [...rows.matches].reverse(),
+      calendar_events: [...rows.calendar_events].reverse(),
+    };
+
+    const reconstructed = mapDatabaseRowsToDataset(shuffledRows);
+    const matchDates = reconstructed.matches.map((m) => m.matchDate);
+    const sortedMatchDates = [...matchDates].sort((a, b) => b.localeCompare(a));
+    expect(matchDates).toEqual(sortedMatchDates);
+
+    const eventDates = reconstructed.calendarEvents.map((e) => e.eventDate);
+    const sortedEventDates = [...eventDates].sort((a, b) => b.localeCompare(a));
+    expect(eventDates).toEqual(sortedEventDates);
   });
 });

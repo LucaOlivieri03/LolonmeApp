@@ -1,8 +1,8 @@
 -- LolonmeApp — Migration 0002: Align PostgreSQL Schema with Historical Domain & Natural Upsert Keys
 -- Issue #15 (WU-1/7):
 --   1. Support historical matches (e.g. 2025) that record winner/draw without exact goal scores.
---   2. Add canonical `slug` on `public.players` for deterministic player identity across URLs, Excel, and DB.
---   3. Add natural `slug` / `external_key` unique columns for idempotent upserts across tournament entities.
+--   2. Add canonical `slug` on `public.players` and `public.matches` (backfilled & collision-safe).
+--   3. Add natural `external_key` unique columns for idempotent upserts across tournament entities.
 
 -- 1. Historical outcome support and canonical match slug on public.matches
 ALTER TABLE public.matches
@@ -10,10 +10,32 @@ ALTER TABLE public.matches
     CHECK (result_outcome IS NULL OR result_outcome IN ('A', 'B', 'draw')),
   ADD COLUMN IF NOT EXISTS slug text;
 
+UPDATE public.matches
+SET slug = COALESCE(NULLIF(trim(external_source_key), ''), id::text)
+WHERE slug IS NULL OR slug = '';
+
+WITH ranked_match_slugs AS (
+  SELECT
+    id,
+    slug,
+    ROW_NUMBER() OVER (PARTITION BY slug ORDER BY created_at ASC, id ASC) AS rn
+  FROM public.matches
+)
+UPDATE public.matches m
+SET slug = m.slug || '-' || substr(m.id::text, 1, 8)
+FROM ranked_match_slugs r
+WHERE m.id = r.id AND r.rn > 1;
+
+ALTER TABLE public.matches
+  ALTER COLUMN slug SET NOT NULL;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'matches_slug_key'
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'matches_slug_key'
+      AND connamespace = 'public'::regnamespace
   ) THEN
     ALTER TABLE public.matches ADD CONSTRAINT matches_slug_key UNIQUE (slug);
   END IF;
@@ -43,12 +65,11 @@ SET slug = regexp_replace(
 )
 WHERE slug IS NULL;
 
--- Ensure empty fallbacks and any duplicate slugs are disambiguated deterministically before UNIQUE
 UPDATE public.players
 SET slug = id::text
 WHERE slug IS NULL OR slug = '';
 
-WITH ranked_slugs AS (
+WITH ranked_player_slugs AS (
   SELECT
     id,
     slug,
@@ -57,7 +78,7 @@ WITH ranked_slugs AS (
 )
 UPDATE public.players p
 SET slug = p.slug || '-' || substr(p.id::text, 1, 8)
-FROM ranked_slugs r
+FROM ranked_player_slugs r
 WHERE p.id = r.id AND r.rn > 1;
 
 ALTER TABLE public.players
@@ -66,13 +87,14 @@ ALTER TABLE public.players
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'players_slug_key'
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'players_slug_key'
+      AND connamespace = 'public'::regnamespace
   ) THEN
     ALTER TABLE public.players ADD CONSTRAINT players_slug_key UNIQUE (slug);
   END IF;
 END $$;
-
-CREATE INDEX IF NOT EXISTS idx_players_slug ON public.players (slug);
 
 -- 3. Natural external keys for idempotent seed & Excel synchronization
 ALTER TABLE public.calendar_events
@@ -81,7 +103,10 @@ ALTER TABLE public.calendar_events
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'calendar_events_external_key_key'
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'calendar_events_external_key_key'
+      AND connamespace = 'public'::regnamespace
   ) THEN
     ALTER TABLE public.calendar_events
       ADD CONSTRAINT calendar_events_external_key_key UNIQUE (external_key);
@@ -94,7 +119,10 @@ ALTER TABLE public.announcements
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'announcements_external_key_key'
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'announcements_external_key_key'
+      AND connamespace = 'public'::regnamespace
   ) THEN
     ALTER TABLE public.announcements
       ADD CONSTRAINT announcements_external_key_key UNIQUE (external_key);
@@ -107,7 +135,10 @@ ALTER TABLE public.fund_transactions
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'fund_transactions_external_key_key'
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'fund_transactions_external_key_key'
+      AND connamespace = 'public'::regnamespace
   ) THEN
     ALTER TABLE public.fund_transactions
       ADD CONSTRAINT fund_transactions_external_key_key UNIQUE (external_key);
