@@ -4,7 +4,7 @@ import fs from "fs";
 import { normalizePlayerName, parseCupCaptainCell, parseSpanishDate } from "./normalize";
 import { parseLolonmebolWorkbookFile } from "./parser";
 import { computeImportDiff, applyImportDiff } from "./diff";
-import { computeStandings } from "@/lib/engine";
+import { computeFundSummary, computePairwiseStats, computeStandings } from "@/lib/engine";
 
 describe("Excel Normalizer", () => {
   it("strips star emojis, captain markers, and extra whitespace", () => {
@@ -102,6 +102,57 @@ describe("Excel Importer & Real LOLONMEBOL.xlsx Cross-Check", () => {
       expect(standings25.rows[0].points).toBe(77);
       expect(standings25.rows[0].pj).toBe(37);
 
+      // Verify Pozo y premios 26 parses column-based Gastos & Rendimientos accurately (balance = 144735.91)
+      const f26Months = dataset.fundMonths.filter((m) => m.seasonId === s26.id);
+      const f26MonthIds = new Set(f26Months.map((m) => m.id));
+      const f26Payments = dataset.fundPayments.filter((p) => f26MonthIds.has(p.fundMonthId));
+      const f26Txs = dataset.fundTransactions.filter((t) => t.seasonId === s26.id);
+      const fund26 = computeFundSummary(f26Months, f26Payments, f26Txs);
+      expect(fund26.totalCollected).toBe(219000);
+      expect(fund26.totalExpenses).toBe(77120);
+      expect(fund26.totalYields).toBeCloseTo(2855.91, 2);
+      expect(fund26.balance).toBeCloseTo(144735.91, 2);
+
+      // Verify F11 sub-headers are preserved per match (Aniversario 2 vs Oktubre) and friendly F11s do not pollute 2026 stats/standings
+      const f11Matches26 = dataset.matches.filter(
+        (m) => m.seasonId === s26.id && m.matchType === "special_f11"
+      );
+      expect(f11Matches26.map((m) => m.notes).sort()).toEqual([
+        "F11 Aniversario 2",
+        "F11 Oktubre",
+      ]);
+      expect(f11Matches26.every((m) => m.countsForStats === false)).toBe(true);
+      expect(standings26.rows).toHaveLength(27);
+
+      const aguzziFausto26 = computePairwiseStats("b-aguzzi", "fausto", dataset.matches, {
+        seasonId: s26.id,
+      });
+      expect(aguzziFausto26.matchesTogether).toBe(12);
+      expect(aguzziFausto26.winsTogether).toBe(8);
+      expect(aguzziFausto26.chemistryPct).toBeCloseTo(66.67, 1);
+      expect(aguzziFausto26.wilsonCtPct).toBeCloseTo(48.2, 1);
+      expect(aguzziFausto26.h2hBalance).toBe(7);
+
+      // Verify Rendimientos 26 Calificaciones totals match Excel ground truth
+      const aguzzi26 = standings26.rows.find((r) => r.playerId === "b-aguzzi")!;
+      const joaco26 = standings26.rows.find((r) => r.playerId === "joaco")!;
+      expect(aguzzi26.totalRating).toBeCloseTo(288.5, 2);
+      expect(joaco26.totalRating).toBeCloseTo(245, 2);
+
+      // Verify Copa 25 & Copa 26 brackets are parsed from Liga/Copa sheets without leaking placeholders
+      expect(playerIds).not.toContain("g2-g3");
+      const cup25Ties = dataset.cupTies.filter((t) => t.cupEditionId === "cup-2025");
+      const cup26Ties = dataset.cupTies.filter((t) => t.cupEditionId === "cup-2026");
+      expect(cup25Ties).toHaveLength(7);
+      expect(cup25Ties.find((t) => t.round === "final")?.winnerPlayerId).toBe("b-aguzzi");
+      expect(cup26Ties).toHaveLength(8);
+      const cup26Prelim = cup26Ties.find((t) => t.round === "preliminary")!;
+      expect(cup26Prelim.playerAId).toBe("pipo");
+      expect(cup26Prelim.playerBId).toBe("gero");
+      expect(cup26Prelim.winnerPlayerId).toBe("pipo");
+      expect(cup26Prelim.leg1MatchId).toBeTruthy();
+      expect(cup26Prelim.leg2MatchId).toBeTruthy();
+
       // Verify Dry-Run Diff detects 0 changes on identical re-import and 1 update when a score changes
       const sameDiff = computeImportDiff(dataset, dataset);
       expect(sameDiff.newMatches).toHaveLength(0);
@@ -115,6 +166,33 @@ describe("Excel Importer & Real LOLONMEBOL.xlsx Cross-Check", () => {
 
       const merged = applyImportDiff(dataset, modified, { overwriteExisting: true });
       expect(merged.matches[0].teamAScore).toBe(modified.matches[0].teamAScore);
+
+      // Verify importer diff & merge updates Pozo, Copa ties, match notes/countsForStats, and purges legacy "total" noise
+      const staleExisting = structuredClone(dataset);
+      staleExisting.players.push({
+        id: "total",
+        displayName: "Total",
+        role: "player",
+        isActive: true,
+      });
+      staleExisting.fundTransactions = [];
+      staleExisting.cupTies = [];
+      const staleF11 = staleExisting.matches.find((m) => m.notes === "F11 Oktubre")!;
+      staleF11.notes = "F11 Aniversario 2";
+      staleF11.countsForStats = true;
+
+      const staleDiff = computeImportDiff(staleExisting, dataset);
+      expect(staleDiff.updatedMatches.length).toBeGreaterThanOrEqual(1);
+
+      const repaired = applyImportDiff(staleExisting, dataset, {
+        overwriteExisting: true,
+      });
+      expect(repaired.players.map((p) => p.id)).not.toContain("total");
+      expect(repaired.fundTransactions.length).toBe(dataset.fundTransactions.length);
+      expect(repaired.cupTies.length).toBe(dataset.cupTies.length);
+      const repairedF11 = repaired.matches.find((m) => m.id === staleF11.id)!;
+      expect(repairedF11.notes).toBe("F11 Oktubre");
+      expect(repairedF11.countsForStats).toBe(false);
     }
   );
 });

@@ -3,6 +3,7 @@ import type {
   Announcement,
   CalendarEvent,
   CupEdition,
+  CupRound,
   CupTie,
   FundMonth,
   FundPayment,
@@ -256,6 +257,7 @@ function parseFechasSheet(
 
   // Parse each 2-column match block
   for (const spec of colSpecs) {
+    let currentF11Title = cellText(headerRow.getCell(spec.colA));
     let r = 2;
     while (r <= ws.rowCount) {
       const c1 = cellText(ws.getRow(r).getCell(spec.colA));
@@ -263,6 +265,7 @@ function parseFechasSheet(
 
       // Special F11 sub-header inside the F11 column (e.g. "F11 Oktubre | F11 Oktubre")
       if (spec.matchType === "special_f11" && c1.toLowerCase().startsWith("f11")) {
+        currentF11Title = c1;
         r++;
         continue;
       }
@@ -282,7 +285,7 @@ function parseFechasSheet(
         header && header.label !== String(header.matchNumber)
           ? header.label
           : spec.matchType === "special_f11"
-            ? cellText(headerRow.getCell(spec.colA))
+            ? currentF11Title
             : null;
 
       let teamAScore: number | null = null;
@@ -419,7 +422,7 @@ function parseFechasSheet(
           teamBScore,
           resultOutcome,
           countsForLeague: spec.countsForLeague,
-          countsForStats: true,
+          countsForStats: spec.matchType === "special_f11" ? spec.countsForLeague : true,
           votingStatus: "closed",
           externalSourceKey: `${season.year}-${spec.matchType}-${matchNumber ?? `r${r}`}`,
           notes,
@@ -451,14 +454,19 @@ function mergeRendimientosSheet(
   }
 
   const seasonMatchesByNumber = new Map<number, Match>();
+  const seasonMatchesByDate = new Map<string, Match>();
   for (const m of matches) {
-    if (m.seasonId === seasonId && m.matchNumber !== null) {
+    if (m.seasonId !== seasonId) continue;
+    if (m.matchNumber !== null) {
       seasonMatchesByNumber.set(m.matchNumber, m);
+    }
+    if (m.matchDate && m.matchType !== "special_f11") {
+      seasonMatchesByDate.set(m.matchDate, m);
     }
   }
 
   let inRatingsSection = false;
-  let ratingsColToMatchNumber = new Map<number, number>();
+  const ratingsColToMatch = new Map<number, Match>();
 
   for (let r = 4; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
@@ -474,11 +482,26 @@ function mergeRendimientosSheet(
 
     if (inRatingsSection) {
       if (col1.toLowerCase() === "jugador") {
-        // Parse ratings header row for match numbers
+        // Parse ratings header rows (row 87 has month names, row 88 has ISO dates or match numbers)
         for (let c = 3; c <= ws.columnCount; c++) {
           const v = cellText(row.getCell(c));
+          if (!v) continue;
           if (isIntegerString(v)) {
-            ratingsColToMatchNumber.set(c, Number(v));
+            const match = seasonMatchesByNumber.get(Number(v));
+            if (match) ratingsColToMatch.set(c, match);
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+            const byDate = seasonMatchesByDate.get(v);
+            if (byDate) {
+              ratingsColToMatch.set(c, byDate);
+            } else {
+              // Fallback to aligned G/A match number column when Excel has a 1-day date typo
+              const fallbackNum = colToMatchNumber.get(c);
+              const byNum =
+                fallbackNum !== undefined
+                  ? seasonMatchesByNumber.get(fallbackNum)
+                  : undefined;
+              if (byNum) ratingsColToMatch.set(c, byNum);
+            }
           }
         }
         continue;
@@ -487,18 +510,24 @@ function mergeRendimientosSheet(
       const reg = registry.getOrCreate(col1);
       if (!reg) continue;
 
-      const mapToUse =
-        ratingsColToMatchNumber.size > 0
-          ? ratingsColToMatchNumber
-          : colToMatchNumber;
-
-      for (const [colIdx, mNum] of mapToUse.entries()) {
-        const rating = cellNumber(row.getCell(colIdx));
-        if (rating === null || rating < 0 || rating > 10) continue;
-        const match = seasonMatchesByNumber.get(mNum);
-        const mp = match?.players.find((p) => p.playerId === reg.playerId);
-        if (mp) {
-          mp.adminRating = rating;
+      if (ratingsColToMatch.size > 0) {
+        for (const [colIdx, match] of ratingsColToMatch.entries()) {
+          const rating = cellNumber(row.getCell(colIdx));
+          if (rating === null || rating < 0 || rating > 10) continue;
+          const mp = match.players.find((p) => p.playerId === reg.playerId);
+          if (mp) {
+            mp.adminRating = rating;
+          }
+        }
+      } else {
+        for (const [colIdx, mNum] of colToMatchNumber.entries()) {
+          const rating = cellNumber(row.getCell(colIdx));
+          if (rating === null || rating < 0 || rating > 10) continue;
+          const match = seasonMatchesByNumber.get(mNum);
+          const mp = match?.players.find((p) => p.playerId === reg.playerId);
+          if (mp) {
+            mp.adminRating = rating;
+          }
         }
       }
       continue;
@@ -552,10 +581,30 @@ function parsePozoSheet(
   }
 
   const playerCols = new Map<number, string>();
+  let expenseAmountCol = -1;
+  let expenseDescCol = -1;
+  let yieldCol = -1;
+
   const hRow = ws.getRow(headerRowIdx);
   for (let c = 2; c <= ws.columnCount; c++) {
     const raw = cellText(hRow.getCell(c));
     if (!raw) continue;
+    const lowerRaw = raw.toLowerCase();
+
+    // Detect summary/financial columns explicitly so they are never treated as players
+    if (/^gastos?$/i.test(lowerRaw)) {
+      if (expenseAmountCol === -1) expenseAmountCol = c;
+      else if (expenseDescCol === -1) expenseDescCol = c;
+      continue;
+    }
+    if (/^rendimientos?$/i.test(lowerRaw)) {
+      if (yieldCol === -1) yieldCol = c;
+      continue;
+    }
+    if (/^(total|totales|subtotal|subtotales|saldo|premios?)$/i.test(lowerRaw)) {
+      continue;
+    }
+
     const reg = registry.getOrCreate(raw);
     if (reg) playerCols.set(c, reg.playerId);
   }
@@ -589,8 +638,25 @@ function parsePozoSheet(
           paid,
         });
       }
+
+      // Column-based expenses (e.g. Pozo y premios 26: C16=amount, C17=description)
+      if (expenseAmountCol !== -1) {
+        const expAmount = cellNumber(row.getCell(expenseAmountCol));
+        if (expAmount !== null && expAmount > 0) {
+          const expDesc =
+            expenseDescCol !== -1 ? cellText(row.getCell(expenseDescCol)) : "";
+          fundTransactions.push({
+            id: `ftx-${season.year}-expense-r${r}`,
+            seasonId: season.id,
+            txType: "expense",
+            amount: expAmount,
+            description: expDesc || `Gasto ${label} ${season.year}`,
+            txDate: `${season.year}-${String(monthNumber).padStart(2, "0")}-15`,
+          });
+        }
+      }
     } else if (lower.includes("rendimiento")) {
-      // Find first numeric value in row
+      // Row-based yield (e.g. Pozo 25)
       for (let c = 2; c <= ws.columnCount; c++) {
         const n = cellNumber(row.getCell(c));
         if (n !== null && n > 0) {
@@ -606,6 +672,7 @@ function parsePozoSheet(
         }
       }
     } else if (lower.includes("premio") || lower.includes("gasto")) {
+      // Row-based prize/expense (e.g. Pozo 25)
       for (let c = 2; c <= ws.columnCount; c++) {
         const n = cellNumber(row.getCell(c));
         if (n !== null && n > 0) {
@@ -622,6 +689,228 @@ function parsePozoSheet(
       }
     }
   }
+
+  // Column-based yield (e.g. Pozo y premios 26: C18 merged across rows)
+  if (yieldCol !== -1) {
+    for (let r = headerRowIdx + 1; r <= Math.min(35, ws.rowCount); r++) {
+      const n = cellNumber(ws.getRow(r).getCell(yieldCol));
+      if (n !== null && n > 0) {
+        fundTransactions.push({
+          id: `ftx-${season.year}-yield-col`,
+          seasonId: season.id,
+          txType: "yield",
+          amount: n,
+          description: `Rendimientos ${season.year}`,
+          txDate: `${season.year}-12-01`,
+        });
+        break;
+      }
+    }
+  }
+}
+
+interface CupBracketSlotSpec {
+  idSuffix: string;
+  round: CupRound;
+  slotOrder: number;
+  row: number;
+  colA: number;
+  colB: number;
+  scoreRow: number;
+  scoreColA: number;
+  scoreColB: number;
+  roundKeyword: string;
+}
+
+const CUP_BRACKET_SLOTS: CupBracketSlotSpec[] = [
+  {
+    idSuffix: "prelim-1",
+    round: "preliminary",
+    slotOrder: 1,
+    row: 4,
+    colA: 19,
+    colB: 22,
+    scoreRow: 6,
+    scoreColA: 19,
+    scoreColB: 22,
+    roundKeyword: "previa",
+  },
+  {
+    idSuffix: "qf-1",
+    round: "quarterfinal",
+    slotOrder: 1,
+    row: 4,
+    colA: 14,
+    colB: 17,
+    scoreRow: 6,
+    scoreColA: 14,
+    scoreColB: 17,
+    roundKeyword: "cuarto",
+  },
+  {
+    idSuffix: "qf-2",
+    round: "quarterfinal",
+    slotOrder: 2,
+    row: 12,
+    colA: 14,
+    colB: 17,
+    scoreRow: 14,
+    scoreColA: 14,
+    scoreColB: 17,
+    roundKeyword: "cuarto",
+  },
+  {
+    idSuffix: "qf-3",
+    round: "quarterfinal",
+    slotOrder: 3,
+    row: 4,
+    colA: 24,
+    colB: 27,
+    scoreRow: 6,
+    scoreColA: 24,
+    scoreColB: 27,
+    roundKeyword: "cuarto",
+  },
+  {
+    idSuffix: "qf-4",
+    round: "quarterfinal",
+    slotOrder: 4,
+    row: 12,
+    colA: 24,
+    colB: 27,
+    scoreRow: 14,
+    scoreColA: 24,
+    scoreColB: 27,
+    roundKeyword: "cuarto",
+  },
+  {
+    idSuffix: "sf-1",
+    round: "semifinal",
+    slotOrder: 1,
+    row: 8,
+    colA: 14,
+    colB: 17,
+    scoreRow: 10,
+    scoreColA: 14,
+    scoreColB: 17,
+    roundKeyword: "semi",
+  },
+  {
+    idSuffix: "sf-2",
+    round: "semifinal",
+    slotOrder: 2,
+    row: 8,
+    colA: 24,
+    colB: 27,
+    scoreRow: 10,
+    scoreColA: 24,
+    scoreColB: 27,
+    roundKeyword: "semi",
+  },
+  {
+    idSuffix: "final-1",
+    round: "final",
+    slotOrder: 1,
+    row: 8,
+    colA: 19,
+    colB: 22,
+    scoreRow: 10,
+    scoreColA: 19,
+    scoreColB: 22,
+    roundKeyword: "final",
+  },
+];
+
+function resolveBracketPlayer(raw: string, registry: PlayerRegistry): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^(g\d+(?:\/g\d+)?|ganador|vs|por definir|tbd)$/i.test(trimmed)) {
+    return null;
+  }
+  return registry.getOrCreate(trimmed)?.playerId ?? null;
+}
+
+function parseCupBracketSheet(
+  ws: ExcelJS.Worksheet,
+  edition: CupEdition,
+  seasonMatches: Match[],
+  registry: PlayerRegistry
+): CupTie[] {
+  const cupMatches = seasonMatches
+    .filter((m) => m.matchType === "cup")
+    .sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0));
+
+  const ties: CupTie[] = [];
+
+  for (const slot of CUP_BRACKET_SLOTS) {
+    const rawA = cellText(ws.getRow(slot.row).getCell(slot.colA));
+    const rawB = cellText(ws.getRow(slot.row).getCell(slot.colB));
+    const playerAId = resolveBracketPlayer(rawA, registry);
+    const playerBId = resolveBracketPlayer(rawB, registry);
+
+    // Skip preliminary slot when a season had no preliminary round (e.g. Copa 25)
+    if (slot.round === "preliminary" && !playerAId && !playerBId) {
+      continue;
+    }
+
+    const scoreA = cellText(ws.getRow(slot.scoreRow).getCell(slot.scoreColA));
+    const scoreB = cellText(ws.getRow(slot.scoreRow).getCell(slot.scoreColB));
+
+    let overrideScoreA: number | null = null;
+    let overrideScoreB: number | null = null;
+    let winnerPlayerId: string | null = null;
+    let notes: string | null = null;
+
+    if (isIntegerString(scoreA) && isIntegerString(scoreB)) {
+      const nA = Number(scoreA);
+      const nB = Number(scoreB);
+      if (nA > 0 || nB > 0) {
+        overrideScoreA = nA;
+        overrideScoreB = nB;
+        if (nA > nB) winnerPlayerId = playerAId;
+        else if (nB > nA) winnerPlayerId = playerBId;
+      }
+    } else if (/^\+\d+$/.test(scoreA) && !/^\+\d+$/.test(scoreB)) {
+      winnerPlayerId = playerAId;
+      notes = `Diferencia ${scoreA}`;
+    } else if (/^\+\d+$/.test(scoreB) && !/^\+\d+$/.test(scoreA)) {
+      winnerPlayerId = playerBId;
+      notes = `Diferencia ${scoreB}`;
+    }
+
+    // Link leg1 and leg2 matches by matching cup captains + round keyword
+    let leg1MatchId: string | null = null;
+    let leg2MatchId: string | null = null;
+    if (playerAId && playerBId) {
+      const pairMatches = cupMatches.filter((m) => {
+        const noteLower = (m.notes ?? "").toLowerCase();
+        if (!noteLower.includes(slot.roundKeyword)) return false;
+        const caps = m.players.filter((p) => p.isCupCaptain).map((p) => p.playerId);
+        return caps.includes(playerAId) && caps.includes(playerBId);
+      });
+      leg1MatchId = pairMatches[0]?.id ?? null;
+      leg2MatchId = pairMatches[1]?.id ?? null;
+    }
+
+    ties.push({
+      id: `${edition.id}-${slot.idSuffix}`,
+      cupEditionId: edition.id,
+      round: slot.round,
+      slotOrder: slot.slotOrder,
+      playerAId,
+      playerBId,
+      seedA: null,
+      seedB: null,
+      leg1MatchId,
+      leg2MatchId,
+      overrideScoreA,
+      overrideScoreB,
+      winnerPlayerId,
+      notes,
+    });
+  }
+
+  return ties;
 }
 
 export async function parseLolonmebolWorkbook(
@@ -757,14 +1046,31 @@ export async function parseLolonmebolWorkbook(
     },
   ];
 
-  // Build Cup Editions for each season
-  const cupEditions: CupEdition[] = seasons.map((s) => ({
-    id: `cup-${s.year}`,
-    seasonId: s.id,
-    name: `Copa LOLONMEBOL ${s.year}`,
-    cutoffSnapshotPlayerIds: [],
-  }));
+  // Build Cup Editions and parse real Cup brackets from `Liga XX y Copa XX` when present
+  const cupEditions: CupEdition[] = [];
   const cupTies: CupTie[] = [];
+  for (const { year, shortYear } of fechasSheets) {
+    const seasonId = `season-${year}`;
+    const edition: CupEdition = {
+      id: `cup-${year}`,
+      seasonId,
+      name: `Copa LOLONMEBOL ${year}`,
+      cutoffSnapshotPlayerIds: [],
+    };
+    cupEditions.push(edition);
+
+    const ligaCopaSheet = workbook.getWorksheet(`Liga ${shortYear} y Copa ${shortYear}`);
+    if (ligaCopaSheet) {
+      const seasonMatches = matches.filter((m) => m.seasonId === seasonId);
+      const parsedTies = parseCupBracketSheet(
+        ligaCopaSheet,
+        edition,
+        seasonMatches,
+        registry
+      );
+      cupTies.push(...parsedTies);
+    }
+  }
 
   return {
     seasons,
