@@ -1,3 +1,4 @@
+import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TournamentDataset } from "@/lib/types/domain";
 import { mapDatasetToDatabaseRows, type ExistingUuidLookups } from "./mappers";
