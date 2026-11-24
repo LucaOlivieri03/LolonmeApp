@@ -244,7 +244,7 @@ export default function AdminPage() {
       teamAScore: Number.isFinite(sA) ? sA : null,
       teamBScore: Number.isFinite(sB) ? sB : null,
       countsForLeague: mType === "lolonmebol" ? false : mCountsLeague,
-      countsForStats: true,
+      countsForStats: mType === "special_f11" ? mCountsLeague : true,
       votingStatus: "closed",
       players: [
         ...teamAIds.map((pid) => ({

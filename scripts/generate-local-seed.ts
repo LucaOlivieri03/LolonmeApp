@@ -12,7 +12,7 @@ async function main() {
 
   const dataset = await parseLolonmebolWorkbookFile(xlsxPath);
 
-  // Auto-generate initial Cup 2026 bracket from 2026 standings + 2025 LOLONMEBOL finalists (B. Aguzzi, Pipo)
+  // Populate cutoff snapshot and fallback bracket only if workbook did not provide real Cup ties
   const s26 = dataset.seasons.find((s) => s.year === 2026);
   if (s26) {
     const standings26 = computeStandings({
@@ -26,12 +26,17 @@ async function main() {
       edition26.cutoffSnapshotPlayerIds = standings26.rows.map(
         (r) => r.playerId
       );
-      const ties26 = generateCupBracket({
-        editionId: edition26.id,
-        standingsPlayerIds: edition26.cutoffSnapshotPlayerIds,
-        previousLolonmebolFinalistIds: ["b-aguzzi", "pipo"],
-      });
-      dataset.cupTies.push(...ties26);
+      const existingTies26 = dataset.cupTies.filter(
+        (t) => t.cupEditionId === edition26.id
+      );
+      if (existingTies26.length === 0) {
+        const ties26 = generateCupBracket({
+          editionId: edition26.id,
+          standingsPlayerIds: edition26.cutoffSnapshotPlayerIds,
+          previousLolonmebolFinalistIds: ["b-aguzzi", "pipo"],
+        });
+        dataset.cupTies.push(...ties26);
+      }
     }
   }
 

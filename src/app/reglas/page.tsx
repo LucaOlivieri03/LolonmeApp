@@ -678,7 +678,7 @@ export default function ReglasPage() {
                       • <strong>No suman puntos ni PJ</strong> en la Tabla Anual ni en la Tabla Histórica de Liga (<code className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs">countsForLeague = false</code>).
                     </li>
                     <li>
-                      • <strong>Sí computan para estadísticas individuales</strong> cuando se registra planilla completa: goles, asistencias, calificaciones, MVP y laboratorio de química/consistencia (<code className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs">countsForStats = true</code>).
+                      • <strong>No computan por defecto en estadísticas oficiales de Liga/Copa</strong> (<code className="rounded bg-surface-subtle px-1.5 py-0.5 text-xs">countsForStats = false</code>), para no alterar Química, Consistencia ni Historial con amistosos de cancha grande (configurable por partido desde Admin).
                     </li>
                   </ul>
                 </div>
