@@ -1,7 +1,13 @@
 import type {
+  PairwiseStats,
+  StandingsRow,
+  SubgroupStats,
+} from "@/lib/engine";
+import type {
   CalendarEventType,
   CupRound,
   MatchModality,
+  MatchType,
 } from "./domain";
 
 /**
@@ -45,4 +51,72 @@ export interface CalendarEventItem {
 export interface CalendarMonthGroup {
   monthKey: string;
   events: CalendarEventItem[];
+}
+
+export interface MatchLedgerPlayerItem {
+  id: string;
+  playerId: string;
+  displayName: string;
+  team: "A" | "B";
+  goals: number;
+  assists: number;
+  isMvp: boolean;
+  isCupCaptain: boolean;
+  adminRating: number | null;
+}
+
+export interface MatchLedgerItem {
+  id: string;
+  seasonId: string;
+  matchDate: string;
+  matchType: MatchType;
+  modality: MatchModality;
+  matchNumber: number | null;
+  teamAScore: number | null;
+  teamBScore: number | null;
+  resultOutcome: "A" | "B" | "draw" | null;
+  notes?: string | null;
+  mvpNames: string[];
+  teamA: MatchLedgerPlayerItem[];
+  teamB: MatchLedgerPlayerItem[];
+}
+
+export interface MatchPlayerOption {
+  id: string;
+  displayName: string;
+}
+
+export interface StatsActivePlayerOption {
+  id: string;
+  displayName: string;
+  position: number;
+  points: number;
+  pj: number;
+  stars: number;
+}
+
+export interface StatsPairingItem {
+  playerId: string;
+  displayName: string;
+  stats: PairwiseStats;
+}
+
+export interface StatsLabPairwiseItem {
+  playerAName: string;
+  playerBName: string;
+  stats: PairwiseStats;
+}
+
+export interface StatsProfileSummary {
+  selectedPlayerId: string;
+  row: StandingsRow | null;
+  bestTeammates: StatsPairingItem[];
+  topRivals: StatsPairingItem[];
+}
+
+export interface StatsLabSummary {
+  selectedPlayerIds: string[];
+  selectedPlayerNames: string[];
+  subgroup: SubgroupStats | null;
+  pairwise: StatsLabPairwiseItem | null;
 }
