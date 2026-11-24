@@ -1,5 +1,5 @@
 # Server-First Modular Monolith Migration (Issues #15 to #21)
-Branch: `feat/wu2-server-boundary-and-repos` (WU-2 slice stacked on `feat/wu1-db-schema-and-seed`) | Delivery: `ask-on-risk` | Running Authored Lines: `1625` (`+1518 / -107` across WU-1)
+Branch: `feat/wu3-server-queries-and-public-rsc` (WU-3 slice stacked on `feat/wu2-server-boundary-and-repos`) | Delivery: `ask-on-risk` | Running Authored Lines: `3431` (`+1625` WU-1, `+1806` WU-2)
 Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
 
 ## Specs
@@ -29,7 +29,21 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
     - Guardas `requireOperator` y `requireAdmin` cubiertas con tests unitarios en el mismo commit.
     - `npm run typecheck && npm test && npm run build` pasan sin errores.
     - Rollback limpio: revertir `src/server/auth`, `src/server/repositories` y `src/middleware.ts` no rompe ninguna ruta existente.
-- **S3** (Issue #17 — `WU-3/7`): Capa `src/server/queries/` cacheada ejecutando `src/lib/engine` en servidor y migración a React Server Components de `/`, `/calendario`, `/reglas` y `/blog`. *(Planned)*
+- **S3** (Issue #17 — `WU-3/7`): SSR Lecturas Públicas: Queries cacheadas y migración RSC de Inicio, Calendario, Reglas y Blog.
+  - User request: `"segui con WU 3"`.
+  - Queries de servidor con caché (`src/server/queries/public.ts`, protegidas con `server-only`):
+    - `getHomeViewModel(seasonYear?)`: ejecuta `computeStandings` (Anual e Histórica) y resuelve las llaves de Copa y anuncios fijados en el servidor, cacheado con tags (`seasons`, `matches`, `cup`, `announcements`).
+    - `getCalendarViewModel(seasonYear?)`: entrega eventos y resumen mensual ya agrupados desde el servidor.
+  - Conversión a React Server Components:
+    - Migrar `src/app/page.tsx`, `src/app/calendario/page.tsx`, `src/app/reglas/page.tsx` y `src/app/blog/page.tsx` quitando `"use client"` y `useTournament()`.
+    - Dejar en cliente únicamente micro-islas de UI donde exista interacción real (cambio de pestaña `Anual / Histórica / Copa` o selector de temporada vía URL `searchParams` / componente liviano que recibe filas ya pre-calculadas).
+  - Tests:
+    - Tests en Vitest para `getHomeViewModel` y `getCalendarViewModel` validando paridad exacta con `src/lib/engine`.
+  - Criterios de aceptación:
+    - `/`, `/calendario`, `/reglas` y `/blog` no importan `useTournament` ni ejecutan `computeStandings` en el cliente.
+    - El payload enviado a los componentes interactivos de Inicio contiene únicamente las filas de tabla/copa ya calculadas (0 partidos crudos innecesarios, 0 datos de Pozo).
+    - Navegación mobile y desktop mantienen intacta la estética Boletín Oficial de Federación en Cancha.
+    - `npm run typecheck && npm test && npm run build` pasan sin errores.
 - **S4** (Issue #18 — `WU-4/7`): Migración Server-First de `/partidos` y `/stats` con islas `"use client"` livianas y carga diferida (`next/dynamic`) de `recharts`. *(Planned)*
 - **S5** (Issue #19 — `WU-5/7`): Flujo real de Supabase Auth (`/auth/callback`, `signOutAction`) y migración SSR de `/perfil` calculando la ficha personal en servidor. *(Planned)*
 - **S6** (Issue #20 — `WU-6/7`): Server Actions transaccionales protegidas por rol (`src/server/actions/`) y refactor modular de `/admin` con guardia SSR. *(Planned)*
@@ -39,7 +53,7 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
 
 - [x] **T1** (`S1`, Issue #15, route: inline, status: completed, commits: `0daca6e`, `e85fc9e`, Risk: item 1 (PostgreSQL migration `0002`) + item 3 (`src/lib/excel/diff.ts` natural-key merge)): Added `0002_align_domain_and_historical_outcomes.sql`, SQL row types & bidirectional domain<->DB mappers (`src/server/db/`), idempotent `scripts/seed-supabase.ts` (`db:seed` / `db:seed:dry`), 8 unit/probe tests (`23/23` total passing), differential check on `applyImportDiff`, and independent verifier sign-off (`S1: MET`, `0` open blockers).
 - [x] **T2** (`S2`, Issue #16, route: inline, status: completed, commit: `b0d1ebf`, Risk: item 2 (SSR auth session, role guards, middleware) + item 5 (`server-only` dependency)): Added `server-only` boundary across `src/server/**` (with Vitest alias and `tsx --conditions=react-server` for `db:seed`), `@supabase/ssr` session refresh `src/middleware.ts`, `getViewerSession()` + `requireAuthenticatedPlayer`/`requireOperator`/`requireAdmin` (`src/server/auth/`), segregated `PublicTournamentRepository` (no `email`/`userId`/`fund_*`, >1000-row pagination) and `AdminFundRepository` (admin-guarded + session-scoped RLS) in `src/server/repositories/` (Supabase + deterministic seed fallback), 13 new unit/contract tests (`36/36` passing), live Supabase read smoke test, `next build` pass, and independent verifier sign-off (`S2: MET`, `S1: MET`, `0` open blockers).
-- [ ] **T3** (`S3`, Issue #17, route: inline, status: planned): Cached server queries and RSC migration of `/`, `/calendario`, `/reglas`, `/blog`.
+- [x] **T3** (`S3`, Issue #17, route: inline, status: completed, commit: `894f256`, Risk: none): Added tagged cached server queries (`src/server/queries/`), pre-resolved cup ties & calendar match summaries (`src/lib/types/view-models.ts`), migrated `/`, `/calendario`, `/reglas` (plus verified `/blog`) to React Server Components with thin interactive client islands, 5 new parity & RSC contract tests (`41/41` passing), and verified `next build` First Load JS drop (`/` `214 kB -> 120 kB`, `/calendario` `213 kB -> 121 kB`, `/reglas` `124 kB -> 117 kB`).
 - [ ] **T4** (`S4`, Issue #18, route: inline, status: planned): Server-First `/partidos` and `/stats` with thin interactive islands and lazy `recharts`.
 - [ ] **T5** (`S5`, Issue #19, route: inline, status: planned): Real Supabase Auth flow and SSR `/perfil` + session-aware header.
 - [ ] **T6** (`S6`, Issue #20, route: inline, status: planned): Role-guarded Server Actions and modular `/admin` split + `MatchEditModal` DB persistence.
@@ -58,3 +72,7 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
   - `"avanza con WU-2 (#16) para armar src/server/ (server-only, sesión SSR y repositorios reales contra tu Supabase)"`
   - Branched `feat/wu2-server-boundary-and-repos` from `feat/wu1-db-schema-and-seed` (`5767a26`) to implement `T2` (`S2`, Issue #16).
 - **L5** (2026-11-24): Completed `T2` (`b0d1ebf`). Verified `npm run typecheck`, `npm test` (`36/36` passing across 5 suites), `npm run db:seed:dry`, `npm run build` (`12/12` pages + `Middleware 95.2 kB`), and live read smoke test via `SupabaseTournamentRepository` against Supabase PostgreSQL (`2` seasons, `59` players, `86` matches, `937` match_players, `hasFundKeys: false`, `hasEmailOrUserId: false`). Independent read-only verifier (`odd-verifier`) signed off `S2: MET`, `S1 (non-regression): MET`, `Open Blockers: NONE`.
+- **L6** (2026-11-24):
+  - `"segui con WU 3"`
+  - Branched `feat/wu3-server-queries-and-public-rsc` from `feat/wu2-server-boundary-and-repos` (`fe8cfd5`) to implement `T3` (`S3`, Issue #17).
+- **L7** (2026-11-24): Completed `T3` (`894f256`). Verified `npm run typecheck`, `npm test` (`41/41` passing across 6 suites), and `npm run build` (`12/12` routes). Measured First Load JS drops: `/` `214 kB -> 120 kB` (`-44%`), `/calendario` `213 kB -> 121 kB` (`-43%`), `/reglas` `124 kB -> 117 kB` (page JS `8.57 kB -> 1.66 kB`).
