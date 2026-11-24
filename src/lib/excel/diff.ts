@@ -18,18 +18,28 @@ export interface ImportDiffPreview {
 const NON_PLAYER_NOISE_ID =
   /^(f11|liga|copa|lolonmebol|descanso|partido|mvp|total|totales|subtotal|subtotales|rendimiento|rendimientos|gasto|gastos|premio|premios|saldo|pozo|cuota|cuotas|mes|jugador|jugadores|promedio|calificaciones|g\d+(?:-g\d+)?)$/i;
 
+function mergeByKey<T>(
+  existingItems: T[],
+  incomingItems: T[],
+  getKey: (item: T) => string,
+  overwriteExisting: boolean
+): T[] {
+  const map = new Map(existingItems.map((item) => [getKey(item), item]));
+  for (const item of incomingItems) {
+    const key = getKey(item);
+    if (overwriteExisting || !map.has(key)) {
+      map.set(key, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
 function mergeById<T extends { id: string }>(
   existingItems: T[],
   incomingItems: T[],
   overwriteExisting: boolean
 ): T[] {
-  const map = new Map(existingItems.map((item) => [item.id, item]));
-  for (const item of incomingItems) {
-    if (overwriteExisting || !map.has(item.id)) {
-      map.set(item.id, item);
-    }
-  }
-  return Array.from(map.values());
+  return mergeByKey(existingItems, incomingItems, (item) => item.id, overwriteExisting);
 }
 
 function matchFingerprint(m: Match): string {
@@ -176,15 +186,17 @@ export function applyImportDiff(
 
   mergedMatches.push(...diff.newMatches);
 
-  // Merge aliases, titles, calendar events, cup brackets, and fund (Pozo) records
-  const mergedAliases = mergeById(
+  // Merge aliases and titles by natural domain keys; remaining entities by canonical IDs
+  const mergedAliases = mergeByKey(
     existing.aliases.filter((a) => !NON_PLAYER_NOISE_ID.test(a.playerId)),
     incoming.aliases,
+    (a) => a.rawName,
     overwriteExisting
   );
-  const mergedTitles = mergeById(
+  const mergedTitles = mergeByKey(
     existing.titles,
     incoming.titles,
+    (t) => `${t.seasonId}|${t.playerId}|${t.titleType}`,
     overwriteExisting
   );
   const mergedCalendarEvents = mergeById(
