@@ -1,18 +1,40 @@
 import "server-only";
 import type { StandingsResult } from "@/lib/engine";
-import type { Announcement, CalendarEvent, Season } from "@/lib/types/domain";
+import type {
+  Announcement,
+  CalendarEvent,
+  MatchModality,
+  MatchType,
+  Season,
+} from "@/lib/types/domain";
 import type {
   CalendarEventItem,
   CalendarLinkedMatchSummary,
   CalendarMonthGroup,
+  MatchLedgerItem,
+  MatchLedgerPlayerItem,
+  MatchPlayerOption,
   ResolvedCupTie,
+  StatsActivePlayerOption,
+  StatsLabPairwiseItem,
+  StatsLabSummary,
+  StatsPairingItem,
+  StatsProfileSummary,
 } from "@/lib/types/view-models";
 
 export type {
   CalendarEventItem,
   CalendarLinkedMatchSummary,
   CalendarMonthGroup,
+  MatchLedgerItem,
+  MatchLedgerPlayerItem,
+  MatchPlayerOption,
   ResolvedCupTie,
+  StatsActivePlayerOption,
+  StatsLabPairwiseItem,
+  StatsLabSummary,
+  StatsPairingItem,
+  StatsProfileSummary,
 };
 
 /**
@@ -37,4 +59,44 @@ export interface CalendarViewModel {
   events: CalendarEventItem[];
   groupedByMonth: CalendarMonthGroup[];
   initialMonth: string;
+}
+
+export interface MatchesQueryFilters {
+  seasonFilter?: number | "all";
+  matchType?: MatchType | "ALL";
+  dateFilter?: string;
+  matchNumberQuery?: string;
+  playerId?: string;
+}
+
+export interface MatchesViewModel {
+  seasons: Season[];
+  selectedSeasonId: string;
+  selectedType: MatchType | "ALL";
+  dateFilter: string;
+  matchNumberQuery: string;
+  playerFilterId: string;
+  availableMatchNumbers: number[];
+  playerOptions: MatchPlayerOption[];
+  matches: MatchLedgerItem[];
+}
+
+export interface StatsQueryFilters {
+  seasonFilter?: number | "all";
+  modality?: MatchModality | "ALL";
+  /**
+   * `undefined` selects default top 2 active players.
+   * An empty array `[]` represents an explicit user clear.
+   */
+  labPlayerIds?: string[];
+  playerId?: string;
+}
+
+export interface StatsViewModel {
+  seasons: Season[];
+  selectedSeasonId: string;
+  selectedModality: MatchModality | "ALL";
+  activePlayers: StatsActivePlayerOption[];
+  lab: StatsLabSummary;
+  profile: StatsProfileSummary;
 }
