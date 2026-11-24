@@ -15,6 +15,23 @@ export interface ImportDiffPreview {
   unchangedMatchesCount: number;
 }
 
+const NON_PLAYER_NOISE_ID =
+  /^(f11|liga|copa|lolonmebol|descanso|partido|mvp|total|totales|subtotal|subtotales|rendimiento|rendimientos|gasto|gastos|premio|premios|saldo|pozo|cuota|cuotas|mes|jugador|jugadores|promedio|calificaciones|g\d+(?:-g\d+)?)$/i;
+
+function mergeById<T extends { id: string }>(
+  existingItems: T[],
+  incomingItems: T[],
+  overwriteExisting: boolean
+): T[] {
+  const map = new Map(existingItems.map((item) => [item.id, item]));
+  for (const item of incomingItems) {
+    if (overwriteExisting || !map.has(item.id)) {
+      map.set(item.id, item);
+    }
+  }
+  return Array.from(map.values());
+}
+
 function matchFingerprint(m: Match): string {
   const playersKey = [...m.players]
     .sort((a, b) => a.playerId.localeCompare(b.playerId))
@@ -23,7 +40,7 @@ function matchFingerprint(m: Match): string {
         `${p.playerId}:${p.team}:${p.isCupCaptain ? 1 : 0}:${p.goals}:${p.assists}:${p.adminRating ?? ""}:${p.isMvp ? 1 : 0}`
     )
     .join("|");
-  return `${m.matchDate}|${m.teamAScore ?? ""}|${m.teamBScore ?? ""}|${m.resultOutcome ?? ""}|${m.modality}|${playersKey}`;
+  return `${m.matchDate}|${m.teamAScore ?? ""}|${m.teamBScore ?? ""}|${m.resultOutcome ?? ""}|${m.modality}|${m.countsForLeague ? 1 : 0}|${m.countsForStats ? 1 : 0}|${m.notes ?? ""}|${playersKey}`;
 }
 
 function describeMatchDiff(existing: Match, incoming: Match): string[] {
@@ -38,6 +55,17 @@ function describeMatchDiff(existing: Match, incoming: Match): string[] {
     changes.push(
       `Marcador: ${existing.teamAScore ?? "-"}-${existing.teamBScore ?? "-"} → ${incoming.teamAScore ?? "-"}-${incoming.teamBScore ?? "-"}`
     );
+  }
+  if ((existing.notes ?? null) !== (incoming.notes ?? null)) {
+    changes.push(
+      `Detalle: ${existing.notes ?? "-"} → ${incoming.notes ?? "-"}`
+    );
+  }
+  if (
+    existing.countsForLeague !== incoming.countsForLeague ||
+    existing.countsForStats !== incoming.countsForStats
+  ) {
+    changes.push("Reglas de cómputo (Liga / Estadísticas)");
   }
   if (existing.players.length !== incoming.players.length) {
     changes.push(
@@ -101,17 +129,33 @@ export function applyImportDiff(
   options: { overwriteExisting: boolean }
 ): TournamentDataset {
   const diff = computeImportDiff(existing, incoming);
+  const { overwriteExisting } = options;
 
-  // Merge players (preserve existing roles/emails/nicknames)
-  const playersMap = new Map(existing.players.map((p) => [p.id, p]));
-  for (const np of diff.newPlayers) {
-    playersMap.set(np.id, np);
+  // Merge players (preserve existing roles/emails/nicknames while purging legacy header noise)
+  const playersMap = new Map(
+    existing.players
+      .filter((p) => !NON_PLAYER_NOISE_ID.test(p.id))
+      .map((p) => [p.id, p])
+  );
+  for (const np of incoming.players) {
+    if (NON_PLAYER_NOISE_ID.test(np.id)) continue;
+    const prev = playersMap.get(np.id);
+    if (!prev) {
+      playersMap.set(np.id, np);
+    } else if (overwriteExisting) {
+      playersMap.set(np.id, {
+        ...prev,
+        displayName: np.displayName,
+      });
+    }
   }
 
   // Merge seasons
   const seasonsMap = new Map(existing.seasons.map((s) => [s.id, s]));
   for (const s of incoming.seasons) {
-    if (!seasonsMap.has(s.id)) seasonsMap.set(s.id, s);
+    if (overwriteExisting || !seasonsMap.has(s.id)) {
+      seasonsMap.set(s.id, s);
+    }
   }
 
   // Merge matches
@@ -124,7 +168,7 @@ export function applyImportDiff(
 
   const mergedMatches = existing.matches.map((m) => {
     const key = m.externalSourceKey ?? m.id;
-    if (options.overwriteExisting && updatedKeySet.has(key)) {
+    if (overwriteExisting && updatedKeySet.has(key)) {
       return incomingByKey.get(key)!;
     }
     return m;
@@ -132,14 +176,76 @@ export function applyImportDiff(
 
   mergedMatches.push(...diff.newMatches);
 
+  // Merge aliases, titles, calendar events, cup brackets, and fund (Pozo) records
+  const mergedAliases = mergeById(
+    existing.aliases.filter((a) => !NON_PLAYER_NOISE_ID.test(a.playerId)),
+    incoming.aliases,
+    overwriteExisting
+  );
+  const mergedTitles = mergeById(
+    existing.titles,
+    incoming.titles,
+    overwriteExisting
+  );
+  const mergedCalendarEvents = mergeById(
+    existing.calendarEvents,
+    incoming.calendarEvents,
+    overwriteExisting
+  ).sort((a, b) => b.eventDate.localeCompare(a.eventDate));
+
+  const incomingEditionIds = new Set(incoming.cupEditions.map((e) => e.id));
+  const mergedCupEditions = mergeById(
+    existing.cupEditions,
+    incoming.cupEditions,
+    overwriteExisting
+  );
+  const baseCupTies = overwriteExisting
+    ? existing.cupTies.filter((t) => !incomingEditionIds.has(t.cupEditionId))
+    : existing.cupTies;
+  const mergedCupTies = mergeById(
+    baseCupTies,
+    incoming.cupTies,
+    overwriteExisting
+  );
+
+  const incomingSeasonIds = new Set(incoming.seasons.map((s) => s.id));
+  const mergedFundMonths = mergeById(
+    existing.fundMonths,
+    incoming.fundMonths,
+    overwriteExisting
+  );
+  const mergedFundPayments = mergeById(
+    existing.fundPayments.filter((fp) => !NON_PLAYER_NOISE_ID.test(fp.playerId)),
+    incoming.fundPayments.filter((fp) => !NON_PLAYER_NOISE_ID.test(fp.playerId)),
+    overwriteExisting
+  );
+  const baseFundTransactions = overwriteExisting
+    ? existing.fundTransactions.filter(
+        (tx) => !incomingSeasonIds.has(tx.seasonId) || !tx.id.startsWith("ftx-")
+      )
+    : existing.fundTransactions;
+  const mergedFundTransactions = mergeById(
+    baseFundTransactions,
+    incoming.fundTransactions,
+    overwriteExisting
+  );
+
   return {
     ...existing,
     seasons: Array.from(seasonsMap.values()).sort((a, b) => a.year - b.year),
     players: Array.from(playersMap.values()).sort((a, b) =>
       a.displayName.localeCompare(b.displayName, "es")
     ),
+    aliases: mergedAliases,
+    titles: mergedTitles,
     matches: mergedMatches.sort((a, b) =>
       b.matchDate.localeCompare(a.matchDate)
     ),
+    calendarEvents: mergedCalendarEvents,
+    cupEditions: mergedCupEditions,
+    cupTies: mergedCupTies,
+    fundMonths: mergedFundMonths,
+    fundPayments: mergedFundPayments,
+    fundTransactions: mergedFundTransactions,
   };
 }

@@ -166,6 +166,33 @@ describe("Excel Importer & Real LOLONMEBOL.xlsx Cross-Check", () => {
 
       const merged = applyImportDiff(dataset, modified, { overwriteExisting: true });
       expect(merged.matches[0].teamAScore).toBe(modified.matches[0].teamAScore);
+
+      // Verify importer diff & merge updates Pozo, Copa ties, match notes/countsForStats, and purges legacy "total" noise
+      const staleExisting = structuredClone(dataset);
+      staleExisting.players.push({
+        id: "total",
+        displayName: "Total",
+        role: "player",
+        isActive: true,
+      });
+      staleExisting.fundTransactions = [];
+      staleExisting.cupTies = [];
+      const staleF11 = staleExisting.matches.find((m) => m.notes === "F11 Oktubre")!;
+      staleF11.notes = "F11 Aniversario 2";
+      staleF11.countsForStats = true;
+
+      const staleDiff = computeImportDiff(staleExisting, dataset);
+      expect(staleDiff.updatedMatches.length).toBeGreaterThanOrEqual(1);
+
+      const repaired = applyImportDiff(staleExisting, dataset, {
+        overwriteExisting: true,
+      });
+      expect(repaired.players.map((p) => p.id)).not.toContain("total");
+      expect(repaired.fundTransactions.length).toBe(dataset.fundTransactions.length);
+      expect(repaired.cupTies.length).toBe(dataset.cupTies.length);
+      const repairedF11 = repaired.matches.find((m) => m.id === staleF11.id)!;
+      expect(repairedF11.notes).toBe("F11 Oktubre");
+      expect(repairedF11.countsForStats).toBe(false);
     }
   );
 });
