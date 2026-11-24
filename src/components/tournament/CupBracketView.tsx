@@ -1,14 +1,9 @@
-"use client";
-
 import { Trophy } from "lucide-react";
-import { getCupTieAggregate, resolveCupTieWinner } from "@/lib/engine";
-import type { CupTie, Match, Player } from "@/lib/types/domain";
+import type { ResolvedCupTie } from "@/lib/types/view-models";
 import { cn } from "@/lib/utils";
 
 interface CupBracketViewProps {
-  ties: CupTie[];
-  players: Player[];
-  matches: Match[];
+  ties: ResolvedCupTie[];
   editionName: string;
 }
 
@@ -28,16 +23,7 @@ const ROUND_ORDER = [
   "lolonmebol",
 ] as const;
 
-export function CupBracketView({
-  ties,
-  players,
-  matches,
-  editionName,
-}: CupBracketViewProps) {
-  const playerMap = new Map(players.map((p) => [p.id, p]));
-  const nameOf = (id: string | null) =>
-    id ? playerMap.get(id)?.displayName ?? id : "Por definir";
-
+export function CupBracketView({ ties, editionName }: CupBracketViewProps) {
   if (ties.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-rule-strong bg-surface p-8 text-center">
@@ -118,91 +104,78 @@ export function CupBracketView({
                 </div>
 
                 <div className="flex flex-1 flex-col justify-around gap-3">
-                  {roundTies.map((tie) => {
-                    const agg = getCupTieAggregate(tie, matches);
-                    const winnerId = resolveCupTieWinner(tie, matches);
-                    const isAWin = Boolean(winnerId && winnerId === tie.playerAId);
-                    const isBWin = Boolean(winnerId && winnerId === tie.playerBId);
-
-                    return (
-                      <div key={tie.id} className="relative flex items-center">
+                  {roundTies.map((tie) => (
+                    <div key={tie.id} className="relative flex items-center">
+                      <div
+                        className={cn(
+                          "w-full overflow-hidden rounded-md border bg-paper",
+                          isSupercup
+                            ? "border-gold-500 bg-gold-50/40"
+                            : isFinal
+                              ? "border-leather-600/50"
+                              : "border-rule"
+                        )}
+                      >
                         <div
                           className={cn(
-                            "w-full overflow-hidden rounded-md border bg-paper",
-                            isSupercup
-                              ? "border-gold-500 bg-gold-50/40"
-                              : isFinal
-                                ? "border-leather-600/50"
-                                : "border-rule"
+                            "flex items-center justify-between gap-2 px-3 py-2 text-sm",
+                            tie.isAWin
+                              ? "bg-pitch-50 font-bold text-pitch-900"
+                              : "bg-surface text-ink"
                           )}
                         >
-                          <div
-                            className={cn(
-                              "flex items-center justify-between gap-2 px-3 py-2 text-sm",
-                              isAWin
-                                ? "bg-pitch-50 font-bold text-pitch-900"
-                                : "bg-surface text-ink"
-                            )}
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              {tie.seedA && (
-                                <span className="font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-pitch-800 text-xs font-bold text-white">
-                                  {tie.seedA}
-                                </span>
-                              )}
-                              <span className="truncate">{nameOf(tie.playerAId)}</span>
-                            </div>
-                            <span className="font-display shrink-0 text-lg font-extrabold text-ink">
-                              {agg.hasScores ? agg.scoreA : "—"}
-                            </span>
-                          </div>
-
-                          <div className="h-px bg-rule" />
-
-                          <div
-                            className={cn(
-                              "flex items-center justify-between gap-2 px-3 py-2 text-sm",
-                              isBWin
-                                ? "bg-pitch-50 font-bold text-pitch-900"
-                                : "bg-surface text-ink"
-                            )}
-                          >
-                            <div className="flex min-w-0 items-center gap-2">
-                              {tie.seedB && (
-                                <span className="font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-surface-subtle text-xs font-bold text-ink-muted">
-                                  {tie.seedB}
-                                </span>
-                              )}
-                              <span className="truncate">
-                                {tie.playerBId
-                                  ? nameOf(tie.playerBId)
-                                  : round === "quarterfinal" && tie.slotOrder === 1
-                                    ? "Ganador Fase Previa"
-                                    : "Por definir"}
+                          <div className="flex min-w-0 items-center gap-2">
+                            {tie.seedA && (
+                              <span className="font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-pitch-800 text-xs font-bold text-white">
+                                {tie.seedA}
                               </span>
-                            </div>
-                            <span className="font-display shrink-0 text-lg font-extrabold text-ink">
-                              {agg.hasScores ? agg.scoreB : "—"}
-                            </span>
+                            )}
+                            <span className="truncate">{tie.playerAName}</span>
                           </div>
-
-                          {tie.notes && (
-                            <div className="border-t border-rule bg-surface-subtle/60 px-3 py-1.5 text-xs text-ink-muted">
-                              {tie.notes}
-                            </div>
-                          )}
+                          <span className="font-display shrink-0 text-lg font-extrabold text-ink">
+                            {tie.hasScores ? tie.scoreA : "—"}
+                          </span>
                         </div>
 
-                        {/* Horizontal connector stub to next round */}
-                        {hasNextRound && (
-                          <div
-                            aria-hidden="true"
-                            className="h-px w-3 shrink-0 bg-rule-strong"
-                          />
+                        <div className="h-px bg-rule" />
+
+                        <div
+                          className={cn(
+                            "flex items-center justify-between gap-2 px-3 py-2 text-sm",
+                            tie.isBWin
+                              ? "bg-pitch-50 font-bold text-pitch-900"
+                              : "bg-surface text-ink"
+                          )}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            {tie.seedB && (
+                              <span className="font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-surface-subtle text-xs font-bold text-ink-muted">
+                                {tie.seedB}
+                              </span>
+                            )}
+                            <span className="truncate">{tie.playerBName}</span>
+                          </div>
+                          <span className="font-display shrink-0 text-lg font-extrabold text-ink">
+                            {tie.hasScores ? tie.scoreB : "—"}
+                          </span>
+                        </div>
+
+                        {tie.notes && (
+                          <div className="border-t border-rule bg-surface-subtle/60 px-3 py-1.5 text-xs text-ink-muted">
+                            {tie.notes}
+                          </div>
                         )}
                       </div>
-                    );
-                  })}
+
+                      {/* Horizontal connector stub to next round */}
+                      {hasNextRound && (
+                        <div
+                          aria-hidden="true"
+                          className="h-px w-3 shrink-0 bg-rule-strong"
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             );

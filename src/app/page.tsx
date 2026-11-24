@@ -1,76 +1,38 @@
-"use client";
-
-import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Megaphone, Pin } from "lucide-react";
-import { useTournament } from "@/components/providers/TournamentProvider";
-import { computeStandings, resolveDefaultSeasonId } from "@/lib/engine";
-import { StandingsTable } from "@/components/tournament/StandingsTable";
-import { CupBracketView } from "@/components/tournament/CupBracketView";
+import { HomeCompetitionTabs } from "@/components/tournament/HomeCompetitionTabs";
 import { cn, formatDateEs } from "@/lib/utils";
+import { getHomeViewModel } from "@/server/queries";
 
-type HomeTab = "annual" | "historical" | "cup";
+interface HomePageProps {
+  searchParams: Promise<{ season?: string }>;
+}
 
-export default function HomePage() {
-  const { dataset } = useTournament();
-  const sortedSeasons = useMemo(
-    () => [...dataset.seasons].sort((a, b) => b.year - a.year),
-    [dataset.seasons]
-  );
+function parseSeasonYearParam(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100
+    ? parsed
+    : undefined;
+}
 
-  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(() =>
-    resolveDefaultSeasonId(dataset.seasons)
-  );
-  const [activeTab, setActiveTab] = useState<HomeTab>("annual");
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const seasonYear = parseSeasonYearParam(params.season);
+  const viewModel = await getHomeViewModel(seasonYear);
 
-  const resolvedSeasonId = resolveDefaultSeasonId(
-    sortedSeasons,
-    selectedSeasonId
-  );
-  const activeSeason =
-    sortedSeasons.find((s) => s.id === resolvedSeasonId) ?? sortedSeasons[0];
+  const {
+    seasons,
+    activeSeason,
+    annualStandings,
+    historicalStandings,
+    cupEditionName,
+    cupTies,
+    seasonMatchesCount,
+    announcements,
+    latestEvent,
+  } = viewModel;
 
-  const annualStandings = useMemo(
-    () =>
-      computeStandings({
-        players: dataset.players,
-        matches: dataset.matches,
-        titles: dataset.titles,
-        seasonId: activeSeason?.id,
-      }),
-    [dataset, activeSeason]
-  );
-
-  const historicalStandings = useMemo(
-    () =>
-      computeStandings({
-        players: dataset.players,
-        matches: dataset.matches,
-        titles: dataset.titles,
-      }),
-    [dataset]
-  );
-
-  const activeCupEdition = dataset.cupEditions.find(
-    (e) => e.seasonId === activeSeason?.id
-  );
-  const activeCupTies = dataset.cupTies.filter(
-    (t) => t.cupEditionId === activeCupEdition?.id
-  );
-
-  const seasonMatchesCount = dataset.matches.filter(
-    (m) => m.seasonId === activeSeason?.id
-  ).length;
-
-  const sortedAnnouncements = useMemo(
-    () =>
-      [...dataset.announcements].sort(
-        (a, b) => Number(b.isPinned) - Number(a.isPinned)
-      ),
-    [dataset.announcements]
-  );
-
-  const latestEvent = dataset.calendarEvents[0];
   const leader = annualStandings.rows[0];
 
   return (
@@ -92,7 +54,10 @@ export default function HomePage() {
                   ({leader?.points ?? 0} pts)
                 </span>
               </span>
-              <span className="hidden text-pitch-200/70 sm:inline" aria-hidden="true">
+              <span
+                className="hidden text-pitch-200/70 sm:inline"
+                aria-hidden="true"
+              >
                 ·
               </span>
               <span>
@@ -137,24 +102,23 @@ export default function HomePage() {
               Tablero de Anuncios · Pizarrón de Tiza
             </h2>
             <span className="rounded-sm border border-dashed border-white/30 bg-white/10 px-2 py-0.5 text-xs font-bold text-gold-400">
-              {sortedAnnouncements.length} aviso
-              {sortedAnnouncements.length === 1 ? "" : "s"}
+              {announcements.length} aviso
+              {announcements.length === 1 ? "" : "s"}
             </span>
           </div>
 
-          {sortedAnnouncements.length === 0 ? (
+          {announcements.length === 0 ? (
             <p className="px-4 py-6 text-sm text-neutral-300">
               No hay comunicados oficiales escritos en el pizarrón por el momento.
             </p>
           ) : (
             <ul className="space-y-2.5 p-3.5">
-              {sortedAnnouncements.slice(0, 4).map((ann) => (
+              {announcements.slice(0, 4).map((ann) => (
                 <li
                   key={ann.id}
                   className={cn(
                     "tactical-chalk-card rounded-md px-3.5 py-2.5 transition-colors",
-                    ann.isPinned &&
-                      "border-gold-400/65 bg-white/[0.07]"
+                    ann.isPinned && "border-gold-400/65 bg-white/[0.07]"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -214,81 +178,15 @@ export default function HomePage() {
         </aside>
       </section>
 
-      {/* Primary Competition Surface */}
-      <section className="space-y-3" aria-label="Competencias del torneo">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2.5">
-          <div
-            role="tablist"
-            aria-label="Vista de competencia"
-            className="inline-flex rounded-md border border-rule bg-surface p-0.5"
-          >
-            {(
-              [
-                { id: "annual", label: "Tabla Anual" },
-                { id: "historical", label: "Histórica" },
-                { id: "cup", label: "Copa" },
-              ] as const
-            ).map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === id}
-                onClick={() => setActiveTab(id)}
-                className={cn(
-                  "min-h-10 rounded-sm px-3.5 text-sm font-semibold transition-colors",
-                  activeTab === id
-                    ? "bg-pitch-800 text-white"
-                    : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {activeTab !== "historical" && (
-            <div className="flex items-center gap-1.5" role="group" aria-label="Temporada">
-              {sortedSeasons.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelectedSeasonId(s.id)}
-                  className={cn(
-                    "font-display min-h-10 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
-                    activeSeason?.id === s.id
-                      ? "border-leather-600 bg-leather-600 text-white"
-                      : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
-                  )}
-                >
-                  {s.year}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div role="tabpanel">
-          {activeTab === "annual" && (
-            <StandingsTable result={annualStandings} mode="annual" />
-          )}
-          {activeTab === "historical" && (
-            <StandingsTable
-              result={historicalStandings}
-              mode="historical"
-              initialLimit={15}
-            />
-          )}
-          {activeTab === "cup" && (
-            <CupBracketView
-              ties={activeCupTies}
-              players={dataset.players}
-              matches={dataset.matches}
-              editionName={activeCupEdition?.name ?? `Copa ${activeSeason?.year ?? ""}`}
-            />
-          )}
-        </div>
-      </section>
+      {/* Primary Competition Surface (Thin Client Island with Pre-Computed Rows) */}
+      <HomeCompetitionTabs
+        seasons={seasons}
+        activeSeasonId={activeSeason?.id ?? null}
+        annualStandings={annualStandings}
+        historicalStandings={historicalStandings}
+        cupEditionName={cupEditionName}
+        cupTies={cupTies}
+      />
     </div>
   );
 }
