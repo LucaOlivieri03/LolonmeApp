@@ -109,7 +109,7 @@ export async function syncDatasetToSupabase(
     client.selectAll("seasons", "id,year"),
     client.selectAll(
       "players",
-      "id,slug,user_id,email,role,nickname,avatar_url,favorite_club_id,is_active"
+      "id,slug,user_id,email,role,nickname,avatar_url,favorite_club_id,political_orientation,is_active"
     ),
     client.selectAll("matches", "id,slug,external_source_key"),
     client.selectAll("cup_editions", "id,season_id"),
@@ -197,6 +197,8 @@ export async function syncDatasetToSupabase(
         nickname: p.nickname ?? prev.nickname ?? null,
         avatar_url: p.avatar_url ?? prev.avatar_url ?? null,
         favorite_club_id: p.favorite_club_id ?? prev.favorite_club_id ?? null,
+        political_orientation:
+          p.political_orientation ?? prev.political_orientation ?? null,
         is_active:
           typeof prev.is_active === "boolean" ? prev.is_active : p.is_active,
       } as Record<string, unknown>;

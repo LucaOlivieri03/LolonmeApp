@@ -41,9 +41,10 @@ BEGIN
   END IF;
 END $$;
 
--- 2. Canonical unique slug on public.players (accent-normalized, trimmed, collision-safe)
+-- 2. Canonical unique slug & optional profile fields on public.players (accent-normalized, trimmed, collision-safe)
 ALTER TABLE public.players
-  ADD COLUMN IF NOT EXISTS slug text;
+  ADD COLUMN IF NOT EXISTS slug text,
+  ADD COLUMN IF NOT EXISTS political_orientation text;
 
 UPDATE public.players
 SET slug = regexp_replace(

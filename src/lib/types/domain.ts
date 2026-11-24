@@ -33,6 +33,7 @@ export interface Player {
   avatarUrl?: string | null;
   role: Exclude<PlayerRole, "guest">;
   favoriteClubId?: number | null;
+  politicalOrientation?: string | null;
   isActive: boolean;
 }
 

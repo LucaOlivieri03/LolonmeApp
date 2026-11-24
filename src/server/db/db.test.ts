@@ -66,6 +66,7 @@ describe("WU-1: PostgreSQL Schema Alignment, Domain Mappers & Idempotent Seed", 
     expect(sql).toMatch(/result_outcome IN \('A', 'B', 'draw'\)/);
     expect(sql).toMatch(/ALTER TABLE public\.players[\s\S]*slug/i);
     expect(sql).toMatch(/UNIQUE[\s\S]*slug/i);
+    expect(sql).toMatch(/ALTER TABLE public\.players[\s\S]*political_orientation/i);
   });
 
   it("roundtrips the full historical dataset through SQL rows with 100% standings & Excel diff parity", () => {
@@ -135,6 +136,7 @@ describe("WU-1: PostgreSQL Schema Alignment, Domain Mappers & Idempotent Seed", 
           avatar_url: null,
           role: "admin",
           favorite_club_id: 12,
+          political_orientation: "Centro",
           is_active: true,
         },
       ],
@@ -157,7 +159,7 @@ describe("WU-1: PostgreSQL Schema Alignment, Domain Mappers & Idempotent Seed", 
     expect(countsAfterSecondRun.matches).toBe(SEED_DATASET.matches.length);
     expect(countsAfterSecondRun.fund_payments).toBe(SEED_DATASET.fundPayments.length);
 
-    // Existing Auth linkage, UUID, role, email, and favorite club must remain intact
+    // Existing Auth linkage, UUID, role, email, favorite club, and political orientation must remain intact
     const aguzziRow = store.get("players")?.find((p) => p.slug === "b-aguzzi");
     expect(aguzziRow).toMatchObject({
       id: preExistingPlayerUuid,
@@ -165,6 +167,7 @@ describe("WU-1: PostgreSQL Schema Alignment, Domain Mappers & Idempotent Seed", 
       email: "aguzzi@lolonmebol.com",
       role: "admin",
       favorite_club_id: 12,
+      political_orientation: "Centro",
     });
 
     // Foreign keys in match_players and player_titles for b-aguzzi must point to preExistingPlayerUuid

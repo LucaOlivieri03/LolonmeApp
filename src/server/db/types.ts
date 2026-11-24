@@ -32,6 +32,7 @@ export interface DbPlayerRow {
   avatar_url?: string | null;
   role: DbPlayerRole;
   favorite_club_id?: number | null;
+  political_orientation?: string | null;
   is_active: boolean;
   created_at?: string;
 }

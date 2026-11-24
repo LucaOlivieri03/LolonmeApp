@@ -132,6 +132,7 @@ export function mapDatasetToDatabaseRows(
       avatar_url: player.avatarUrl ?? null,
       role: player.role,
       favorite_club_id: player.favoriteClubId ?? null,
+      political_orientation: player.politicalOrientation ?? null,
       is_active: player.isActive,
     };
   });
@@ -407,6 +408,10 @@ export function mapDatabaseRowsToDataset(
         role: row.role,
         ...(row.favorite_club_id !== undefined && row.favorite_club_id !== null
           ? { favoriteClubId: row.favorite_club_id }
+          : {}),
+        ...(row.political_orientation !== undefined &&
+        row.political_orientation !== null
+          ? { politicalOrientation: row.political_orientation }
           : {}),
         isActive: row.is_active,
       };
