@@ -3,11 +3,19 @@ import {
   AuthError,
   GUEST_SESSION,
   isAuthError,
+  performRequestEmailOtp,
+  performSignInWithPassword,
+  performVerifyEmailOtp,
   requireAdmin,
   requireAuthenticatedPlayer,
   requireOperator,
+  resolveAuthCallback,
+  resolveSafeAppOrigin,
   resolveViewerSession,
+  sanitizeRedirectPath,
   type AuthSessionClient,
+  type CallbackAuthClient,
+  type ServerAuthActionsClient,
   type ViewerSession,
 } from "./index";
 
@@ -228,5 +236,216 @@ describe("SSR role guards (401 / 403)", () => {
       role: "admin",
       playerId: "luca",
     });
+  });
+});
+
+describe("Redirect sanitization & auth callback / actions security", () => {
+  it("sanitizeRedirectPath blocks external URLs, protocol-relative URLs, backslash tricks, and control chars", () => {
+    expect(sanitizeRedirectPath("/perfil")).toBe("/perfil");
+    expect(sanitizeRedirectPath("/admin?tab=matches")).toBe(
+      "/admin?tab=matches"
+    );
+    expect(sanitizeRedirectPath(undefined)).toBe("/perfil");
+    expect(sanitizeRedirectPath("")).toBe("/perfil");
+    expect(sanitizeRedirectPath("https://evil.example/phish")).toBe("/perfil");
+    expect(sanitizeRedirectPath("//evil.example/phish")).toBe("/perfil");
+    expect(sanitizeRedirectPath("/\\evil.example/phish")).toBe("/perfil");
+    expect(sanitizeRedirectPath("/perfil\nSet-Cookie: bad=1")).toBe("/perfil");
+  });
+
+  it("resolveSafeAppOrigin blocks untrusted Host headers, matches Vercel PKCE aliases, and never produces invalid URLs", async () => {
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "https://lolonmebol.app/some/path",
+        hostHeader: "evil.example",
+      })
+    ).toBe("https://lolonmebol.app");
+
+    // Probe 1a & 1b: untrusted external Host and localhost-prefixed spoofed domain fall back safely
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
+        vercelUrlEnv: "",
+        hostHeader: "evil.example",
+      })
+    ).toBe("http://localhost:3000");
+
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
+        vercelUrlEnv: "",
+        hostHeader: "localhost.evil.example",
+      })
+    ).toBe("http://localhost:3000");
+
+    // Probe 1c: Vercel production alias matches incoming Host ahead of immutable deployment hash (PKCE cookie match)
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "lolonmeapp.vercel.app",
+        vercelBranchUrlEnv: "lolonmeapp-git-main.vercel.app",
+        vercelUrlEnv: "lolonmeapp-9x8y7z.vercel.app",
+        hostHeader: "lolonmeapp.vercel.app",
+      })
+    ).toBe("https://lolonmeapp.vercel.app");
+
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "lolonmeapp.vercel.app",
+        vercelBranchUrlEnv: "lolonmeapp-git-feat.vercel.app",
+        vercelUrlEnv: "lolonmeapp-9x8y7z.vercel.app",
+        hostHeader: "lolonmeapp-git-feat.vercel.app",
+      })
+    ).toBe("https://lolonmeapp-git-feat.vercel.app");
+
+    // Exact loopback allowed for local dev on custom valid port
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
+        vercelUrlEnv: "",
+        hostHeader: "localhost:3001",
+      })
+    ).toBe("http://localhost:3001");
+
+    // Probe 1d & 1e: invalid port (>65535) and non-HTTP scheme (`javascript:`) never crash performRequestEmailOtp
+    const signInWithOtp = vi.fn().mockResolvedValue({ error: null });
+    const mockActionsClient: ServerAuthActionsClient = {
+      auth: {
+        signInWithOtp,
+        verifyOtp: vi.fn().mockResolvedValue({ error: null }),
+        signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+      },
+    };
+
+    const badPortOrigin = resolveSafeAppOrigin({
+      siteUrlEnv: "",
+      vercelProdUrlEnv: "",
+      vercelBranchUrlEnv: "",
+      vercelUrlEnv: "",
+      hostHeader: "localhost:99999",
+    });
+    expect(badPortOrigin).toBe("http://localhost:3000");
+    await expect(
+      performRequestEmailOtp(
+        mockActionsClient,
+        "jugador@lolonmebol.test",
+        badPortOrigin
+      )
+    ).resolves.toMatchObject({ status: "otp_sent" });
+
+    const jsSchemeOrigin = resolveSafeAppOrigin({
+      siteUrlEnv: "javascript:alert(1)",
+      vercelProdUrlEnv: "",
+      vercelBranchUrlEnv: "",
+      vercelUrlEnv: "",
+    });
+    expect(jsSchemeOrigin).toBe("http://localhost:3000");
+    const firstSent = await performRequestEmailOtp(
+      mockActionsClient,
+      "typo@lolonmebol.test",
+      "javascript:alert(1)"
+    );
+    const secondSent = await performRequestEmailOtp(
+      mockActionsClient,
+      "real@lolonmebol.test",
+      "https://lolonmeapp.vercel.app"
+    );
+    expect(Number.isSafeInteger(firstSent.sentAt)).toBe(true);
+    expect(Number.isSafeInteger(secondSent.sentAt)).toBe(true);
+    expect(secondSent.sentAt).not.toBe(firstSent.sentAt);
+  });
+
+  it("resolveAuthCallback exchanges PKCE code or verifies token_hash and neutralizes open-redirects", async () => {
+    const exchangeSpy = vi.fn().mockResolvedValue({ error: null });
+    const verifySpy = vi.fn().mockResolvedValue({ error: null });
+    const mockClient: CallbackAuthClient = {
+      auth: {
+        exchangeCodeForSession: exchangeSpy,
+        verifyOtp: verifySpy,
+      },
+    };
+
+    const okCode = await resolveAuthCallback(
+      "https://lolonmebol.app/auth/callback?code=pkce-123&next=//evil.example",
+      mockClient
+    );
+    expect(okCode).toEqual({
+      ok: true,
+      redirectTo: "https://lolonmebol.app/perfil",
+    });
+    expect(exchangeSpy).toHaveBeenCalledWith("pkce-123");
+
+    const okTokenHash = await resolveAuthCallback(
+      "https://lolonmebol.app/auth/callback?token_hash=th-456&type=magiclink&next=/stats",
+      mockClient
+    );
+    expect(okTokenHash).toEqual({
+      ok: true,
+      redirectTo: "https://lolonmebol.app/stats",
+    });
+    expect(verifySpy).toHaveBeenCalledWith({
+      token_hash: "th-456",
+      type: "magiclink",
+    });
+
+    const missing = await resolveAuthCallback(
+      "https://lolonmebol.app/auth/callback",
+      mockClient
+    );
+    expect(missing).toEqual({
+      ok: false,
+      redirectTo: "https://lolonmebol.app/perfil?authError=missing_code",
+    });
+  });
+
+  it("performRequestEmailOtp, performVerifyEmailOtp, and performSignInWithPassword validate inputs", async () => {
+    const signInWithOtp = vi.fn().mockResolvedValue({ error: null });
+    const verifyOtp = vi.fn().mockResolvedValue({ error: null });
+    const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
+    const signOut = vi.fn().mockResolvedValue({ error: null });
+    const actionsClient: ServerAuthActionsClient = {
+      auth: { signInWithOtp, verifyOtp, signInWithPassword, signOut },
+    };
+
+    expect(
+      await performRequestEmailOtp(actionsClient, "not-an-email", "http://localhost:3000")
+    ).toMatchObject({ status: "error" });
+
+    const sent = await performRequestEmailOtp(
+      actionsClient,
+      "  Jugador@Lolonmebol.Test ",
+      "https://lolonmebol.app"
+    );
+    expect(sent).toMatchObject({
+      status: "otp_sent",
+      email: "jugador@lolonmebol.test",
+    });
+    expect(signInWithOtp).toHaveBeenCalledWith({
+      email: "jugador@lolonmebol.test",
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: "https://lolonmebol.app/auth/callback?next=/perfil",
+      },
+    });
+
+    expect(
+      await performVerifyEmailOtp(actionsClient, "jugador@lolonmebol.test", "12ab")
+    ).toMatchObject({ ok: false });
+
+    expect(
+      await performVerifyEmailOtp(actionsClient, "jugador@lolonmebol.test", "123456")
+    ).toEqual({ ok: true });
+
+    expect(
+      await performSignInWithPassword(actionsClient, "jugador@lolonmebol.test", "secret123")
+    ).toEqual({ ok: true });
   });
 });

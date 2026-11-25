@@ -1,5 +1,5 @@
 # Server-First Modular Monolith Migration (Issues #15 to #21)
-Branch: `feat/wu4-partidos-and-stats-rsc` (WU-4 slice stacked on `feat/wu3-server-queries-and-public-rsc`) | Delivery: `ask-on-risk` | Running Authored Lines: `4600+` (`+1625` WU-1, `+1806` WU-2, WU-3 `894f256`)
+Branch: `feat/wu5-auth-and-profile-ssr` (WU-5 slice stacked on `feat/wu4-partidos-and-stats-rsc`) | Delivery: `ask-on-risk` | Running Authored Lines: `5500+` (WU-1..WU-4)
 Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
 
 ## Specs
@@ -60,7 +60,26 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
     - `recharts` queda diferido vía `next/dynamic` y fuera del bundle inicial de `/stats`.
     - Se preservan todos los filtros, acordeón de partidos, Lab Grupal, Stats por Jugador, definiciones de fórmulas y estética Boletín Oficial.
     - `npm run typecheck && npm test && npm run build` pasan sin errores.
-- **S5** (Issue #19 — `WU-5/7`): Flujo real de Supabase Auth (`/auth/callback`, `signOutAction`) y migración SSR de `/perfil` calculando la ficha personal en servidor. *(Planned)*
+- **S5** (Issue #19 — `WU-5/7`): Flujo real de Supabase Auth (`/auth/callback`, `signOutAction`) y migración SSR de `/perfil` calculando la ficha personal en servidor + navegación contextual.
+  - User request: `"si"` (continuar con `WU-5 (#19)` tras abrir PR #25).
+  - Flujo de Autenticación Real:
+    - Ruta `src/app/auth/callback/route.ts` con intercambio seguro PKCE (`exchangeCodeForSession`) y soporte `token_hash` + `type` (`verifyOtp`), sanitizando `next` contra open-redirect (`sanitizeRedirectPath`).
+    - Server Actions de autenticación en `src/server/actions/auth.ts`: `requestEmailOtpAction` (envío de código OTP / Magic Link por email), `verifyEmailOtpAction` (verificación de código de 6 dígitos en el mismo navegador/móvil), `signInWithPasswordAction` y `signOutAction()` (cierre de sesión SSR + `revalidatePath("/", "layout")` + redirect a `/perfil`).
+  - Migración SSR de `/perfil`:
+    - `getAuthenticatedProfileViewModel()` (y builders puros `buildProfileViewModel` / `loadProfileViewModel`) en `src/server/queries/profile.ts` (`server-only`):
+      - `status: "guest"`: retorna únicamente `{ status: "guest", isAuthConfigured }` sin cargar ni serializar padrón ni partidos.
+      - `status: "unlinked"`: usuario autenticado en Supabase cuyo email aún no está vinculado a un `player` activo en el padrón oficial; muestra aviso claro de cuenta pendiente de vinculación + botón de cierre de sesión.
+      - `status: "linked"`: calcula en servidor posición anual, posición histórica, PJ, victorias, MVPs, títulos/estrellas y últimos 6 partidos resumidos del jugador autenticado.
+    - Convertir `src/app/perfil/page.tsx` en React Server Component sin `useTournament()` ni simuladores en `localStorage`, usando una micro-isla liviana `src/components/profile/LoginCard.tsx` sólo para el formulario de acceso de invitados.
+  - Navegación contextual:
+    - Actualizar `src/app/layout.tsx` y `src/components/layout/AppHeader.tsx` para reflejar la sesión activa SSR y mostrar el acceso a `/admin` únicamente a operadores reales (`role === "admin" || role === "authorized"`).
+  - Tests:
+    - Tests unitarios en Vitest para `loadProfileViewModel` cubriendo los 3 estados (`guest`, `unlinked`, `linked`), sanitización anti-open-redirect, callback/signOut handlers y contrato arquitectónico RSC de `/perfil`.
+  - Criterios de aceptación:
+    - `/perfil` es un Server Component sin dependencia de `useTournament()` ni simuladores en `localStorage`.
+    - Iniciar y cerrar sesión actualiza cookies SSR y revalida la interfaz sin estado fantasma en cliente.
+    - Un invitado en `/perfil` recibe sólo la UI liviana de acceso (0 jugadores/partidos serializados).
+    - `npm run typecheck && npm test && npm run build` pasan sin errores.
 - **S6** (Issue #20 — `WU-6/7`): Server Actions transaccionales protegidas por rol (`src/server/actions/`) y refactor modular de `/admin` con guardia SSR. *(Planned)*
 - **S7** (Issue #21 — `WU-7/7`): Pozo server-only (`admin`), importador `LOLONMEBOL.xlsx` transaccional contra PostgreSQL y retiro definitivo de `TournamentProvider.tsx`, `localStorage` y `seed-data.json` del bundle cliente con test automatizado de arquitectura. *(Planned)*
 
@@ -70,7 +89,7 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
 - [x] **T2** (`S2`, Issue #16, route: inline, status: completed, commit: `b0d1ebf`, Risk: item 2 (SSR auth session, role guards, middleware) + item 5 (`server-only` dependency)): Added `server-only` boundary across `src/server/**` (with Vitest alias and `tsx --conditions=react-server` for `db:seed`), `@supabase/ssr` session refresh `src/middleware.ts`, `getViewerSession()` + `requireAuthenticatedPlayer`/`requireOperator`/`requireAdmin` (`src/server/auth/`), segregated `PublicTournamentRepository` (no `email`/`userId`/`fund_*`, >1000-row pagination) and `AdminFundRepository` (admin-guarded + session-scoped RLS) in `src/server/repositories/` (Supabase + deterministic seed fallback), 13 new unit/contract tests (`36/36` passing), live Supabase read smoke test, `next build` pass, and independent verifier sign-off (`S2: MET`, `S1: MET`, `0` open blockers).
 - [x] **T3** (`S3`, Issue #17, route: inline, status: completed, commit: `894f256`, Risk: none): Added tagged cached server queries (`src/server/queries/`), pre-resolved cup ties & calendar match summaries (`src/lib/types/view-models.ts`), migrated `/`, `/calendario`, `/reglas` (plus verified `/blog`) to React Server Components with thin interactive client islands, 5 new parity & RSC contract tests (`41/41` passing), and verified `next build` First Load JS drop (`/` `214 kB -> 120 kB`, `/calendario` `213 kB -> 121 kB`, `/reglas` `124 kB -> 117 kB`).
 - [x] **T4** (`S4`, Issue #18, route: inline, status: completed, commit: `bbbb8bf`, Risk: none): Added tagged cached server queries `getMatchesViewModel` and `getStatsViewModel` (`src/server/queries/public.ts`), migrated `/partidos` and `/stats` to React Server Components with URL `searchParams` filtering and thin client islands (`src/components/matches/PartidosInteractiveView.tsx`, `src/components/stats/StatsInteractiveView.tsx`), isolated `recharts` into `src/components/stats/StatsCharts.tsx` loaded via `next/dynamic(..., { ssr: false })`, added 3 new parity & architectural contract tests (`44/44` passing across 6 suites), and verified `next build` First Load JS drop (`/stats` `319 kB -> 123 kB` `-61%`, `/partidos` `123 kB` with `4.2 kB` page JS).
-- [ ] **T5** (`S5`, Issue #19, route: inline, status: planned): Real Supabase Auth flow and SSR `/perfil` + session-aware header.
+- [x] **T5** (`S5`, Issue #19, route: inline, status: completed, commits: `37ee123`, `6556522`, `8cf8ff9`, Risk: item 2 (SSR Supabase Auth callback, OTP/password/signOut Server Actions, callback origin allowlist & open-redirect defenses, per-user SSR session isolation)): Added `/auth/callback` route (`exchangeCodeForSession` + `verifyOtp` + cookie persistence + `sanitizeRedirectPath`), auth Server Actions (`src/server/actions/auth.ts` + `src/server/auth/actions-core.ts` + `resolveSafeAppOrigin`), `getAuthenticatedProfileViewModel()` (`guest` / `unlinked` / `linked` without leaking tournament/fund/email data), RSC `/perfil` + `LoginCard.tsx` (keyed OTP verification reset), contextual `AppHeader` (operator-only `/admin` link), 6 new unit/security/contract tests (`50/50` passing), `next build` pass (`/perfil` `215 kB -> 120 kB` `-44%`), and independent verifier sign-off (`S5: MET`, `0` open blockers).
 - [ ] **T6** (`S6`, Issue #20, route: inline, status: planned): Role-guarded Server Actions and modular `/admin` split + `MatchEditModal` DB persistence.
 - [ ] **T7** (`S7`, Issue #21, route: inline, status: planned): Admin-only Pozo SSR/actions, DB-backed Excel importer, and removal of `TournamentProvider.tsx` + client bundle guard test.
 
@@ -94,4 +113,8 @@ Runner: `npm run typecheck`, `npm test` (`vitest run`), `npm run build`
 - **L8** (2026-11-24):
   - `"avanza con WU-4"`
   - Branched `feat/wu4-partidos-and-stats-rsc` from `feat/wu3-server-queries-and-public-rsc` (`75839a9`) to implement `T4` (`S4`, Issue #18).
-- **L9** (2026-11-24): Completed `T4` (`bbbb8bf`). Verified `npm run typecheck`, `npm test` (`44/44` passing across 6 suites), and `npm run build` (`12/12` routes). Measured First Load JS: `/stats` `319 kB -> 123 kB` (`-61%`, `7.52 kB` page JS, `recharts` deferred via `next/dynamic`), `/partidos` `123 kB` (`4.2 kB` page JS).
+- **L9** (2026-11-24): Completed `T4` (`bbbb8bf`). Verified `npm run typecheck`, `npm test` (`44/44` passing across 6 suites), and `npm run build` (`12/12` routes). Measured First Load JS: `/stats` `319 kB -> 123 kB` (`-61%`, `7.52 kB` page JS, `recharts` deferred via `next/dynamic`), `/partidos` `123 kB` (`4.2 kB` page JS). Opened PR #25 (`feat/wu4-partidos-and-stats-rsc` -> `feat/wu3-server-queries-and-public-rsc`).
+- **L10** (2026-11-25):
+  - `"si"` (autorización explícita para avanzar con `WU-5` / Issue `#19`).
+  - Branched `feat/wu5-auth-and-profile-ssr` from `feat/wu4-partidos-and-stats-rsc` (`47a911d`) to implement `T5` (`S5`, Issue #19).
+- **L11** (2026-11-25): Implemented `T5` (`37ee123`). Independent security verifier (`odd-verifier`) identified 2 blockers (`B1`: untrusted `Host` header fallback, Vercel PKCE alias domain mismatch, and `javascript:` / >65535 port `Invalid URL` in `resolveSafeAppOrigin`; `B2`: stale `otpVerifyState` across OTP resends and safe IEEE-754 `sentAt` nonce bounds). Fixed all in `6556522` + `8cf8ff9` with regression probes (`50/50` tests passing across 6 suites, `next build` `13/13` routes, `/perfil` First Load JS `215 kB -> 120 kB` `-44%`). Independent verifier signed off `S5: MET`, `S1-S4: MET`, `Open Blockers: NONE`.

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, Shield, UserCircle2 } from "lucide-react";
+import type { PlayerRole } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
 
@@ -15,11 +16,26 @@ const DESKTOP_NAV = [
   { href: "/blog", label: "Blog" },
 ];
 
-export function AppHeader() {
+export interface AppHeaderProps {
+  role?: PlayerRole;
+  displayName?: string | null;
+  isAuthenticated?: boolean;
+}
+
+export function AppHeader({
+  role = "guest",
+  displayName = null,
+  isAuthenticated = false,
+}: AppHeaderProps) {
   const pathname = usePathname();
   const isAdminActive = pathname.startsWith("/admin");
   const isReglasActive = pathname.startsWith("/reglas");
   const isPerfilActive = pathname.startsWith("/perfil");
+  const canAccessAdmin = role === "admin" || role === "authorized";
+
+  const profileLabel = isAuthenticated
+    ? (displayName ?? "Mi Cuenta")
+    : "Perfil";
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-gold-500 bg-pitch-800 text-paper">
@@ -39,9 +55,13 @@ export function AppHeader() {
             </span>
           </Link>
 
-          <nav aria-label="Navegación de escritorio" className="hidden items-center gap-1 md:flex">
+          <nav
+            aria-label="Navegación de escritorio"
+            className="hidden items-center gap-1 md:flex"
+          >
             {DESKTOP_NAV.map(({ href, label }) => {
-              const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+              const isActive =
+                href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
                 <Link
                   key={href}
@@ -82,32 +102,38 @@ export function AppHeader() {
           </Link>
           <Link
             href="/perfil"
-            aria-label="Mi Perfil"
+            aria-label={isAuthenticated ? `Mi Perfil (${profileLabel})` : "Mi Perfil"}
             aria-current={isPerfilActive ? "page" : undefined}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors",
               isPerfilActive
                 ? "border-gold-400 bg-gold-500/20 text-gold-400"
-                : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
+                : isAuthenticated
+                  ? "border-gold-400/50 bg-pitch-900/80 text-gold-300 hover:border-gold-400 hover:bg-pitch-900"
+                  : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
             )}
           >
             <UserCircle2 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Perfil</span>
+            <span className="hidden max-w-[8.5rem] truncate sm:inline">
+              {profileLabel}
+            </span>
           </Link>
-          <Link
-            href="/admin"
-            aria-label="Panel de Administración"
-            aria-current={isAdminActive ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-colors",
-              isAdminActive
-                ? "border-leather-500 bg-leather-600 text-white"
-                : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
-            )}
-          >
-            <Shield className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
+          {canAccessAdmin && (
+            <Link
+              href="/admin"
+              aria-label="Panel de Administración"
+              aria-current={isAdminActive ? "page" : undefined}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-colors",
+                isAdminActive
+                  ? "border-leather-500 bg-leather-600 text-white"
+                  : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
+              )}
+            >
+              <Shield className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

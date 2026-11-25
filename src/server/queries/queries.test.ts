@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   computePairwiseStats,
   computeStandings,
@@ -19,8 +19,10 @@ import {
   loadCalendarViewModel,
   loadHomeViewModel,
   loadMatchesViewModel,
+  loadProfileViewModel,
   loadStatsViewModel,
 } from "./index";
+import { GUEST_SESSION, type ViewerSession } from "@/server/auth";
 
 function loadRealSeedDataset(): TournamentDataset {
   const seedPath = path.resolve(process.cwd(), "src/lib/data/seed-data.json");
@@ -302,6 +304,7 @@ describe("RSC architectural contract for /, /calendario, /reglas, /blog, /partid
     "src/app/blog/page.tsx",
     "src/app/partidos/page.tsx",
     "src/app/stats/page.tsx",
+    "src/app/perfil/page.tsx",
   ];
 
   it('keeps public pages as React Server Components without "use client", useTournament, or client engine calls', () => {
@@ -349,5 +352,96 @@ describe("RSC architectural contract for /, /calendario, /reglas, /blog, /partid
     expect(statsIsland).not.toContain("@/lib/engine");
     expect(statsIsland).not.toMatch(/from\s+["']recharts["']/);
     expect(statsIsland).toContain("next/dynamic");
+
+    const loginCard = fs.readFileSync(
+      path.resolve(process.cwd(), "src/components/profile/LoginCard.tsx"),
+      "utf8"
+    );
+    expect(loginCard).not.toContain("useTournament");
+    expect(loginCard).not.toContain("localStorage");
+    expect(loginCard).not.toContain("@/lib/engine");
+  });
+});
+
+describe("Server Profile Query — guest, unlinked, and linked states", () => {
+  it("returns minimal guest and unlinked view models without querying tournament dataset", async () => {
+    const repo = new SeedPublicTournamentRepository(loadRealSeedDataset());
+    const datasetSpy = vi.spyOn(repo, "getPublicDataset");
+
+    const guestVm = await loadProfileViewModel(GUEST_SESSION, repo, {
+      isAuthConfigured: true,
+    });
+    expect(guestVm).toEqual({
+      status: "guest",
+      isAuthConfigured: true,
+    });
+    expect(datasetSpy).not.toHaveBeenCalled();
+
+    const unlinkedSession: ViewerSession = {
+      role: "guest",
+      userId: "auth-u1",
+      playerId: null,
+      playerUuid: null,
+      displayName: null,
+      email: "nuevo@lolonmebol.test",
+    };
+    const unlinkedVm = await loadProfileViewModel(unlinkedSession, repo);
+    expect(unlinkedVm).toEqual({
+      status: "unlinked",
+      email: "nuevo@lolonmebol.test",
+    });
+    expect(datasetSpy).not.toHaveBeenCalled();
+  });
+
+  it("computes personal standings, stars, and up to 6 recent matches for a linked player without leaking other emails or fund_*", async () => {
+    const rawDataset = loadRealSeedDataset();
+    const targetPlayer = rawDataset.players[0];
+    rawDataset.players[1] = {
+      ...rawDataset.players[1],
+      email: "other-player-secret@lolonmebol.test",
+    };
+
+    const repo = new SeedPublicTournamentRepository(rawDataset);
+    const linkedSession: ViewerSession = {
+      role: "player",
+      userId: "auth-linked-1",
+      playerId: targetPlayer.id,
+      playerUuid: "uuid-linked-1",
+      displayName: targetPlayer.displayName,
+      email: "me@lolonmebol.test",
+    };
+
+    const vm = await loadProfileViewModel(linkedSession, repo);
+    expect(vm.status).toBe("linked");
+    if (vm.status !== "linked") return;
+
+    const expectedAnnual = computeStandings({
+      players: rawDataset.players,
+      matches: rawDataset.matches,
+      titles: rawDataset.titles,
+      seasonId: "season-2026",
+    }).rows.find((r) => r.playerId === targetPlayer.id) ?? null;
+
+    const expectedHistorical = computeStandings({
+      players: rawDataset.players,
+      matches: rawDataset.matches,
+      titles: rawDataset.titles,
+    }).rows.find((r) => r.playerId === targetPlayer.id) ?? null;
+
+    expect(vm.player).toMatchObject({
+      id: targetPlayer.id,
+      displayName: targetPlayer.displayName,
+      role: "player",
+      email: "me@lolonmebol.test",
+    });
+    expect(vm.annualRow).toEqual(expectedAnnual);
+    expect(vm.historicalRow).toEqual(expectedHistorical);
+    expect(vm.recentMatches.length).toBeLessThanOrEqual(6);
+
+    const serialized = JSON.stringify(vm);
+    expect(serialized).not.toContain("other-player-secret@lolonmebol.test");
+    expect(serialized).not.toContain("fundMonths");
+    expect(serialized).not.toContain("fundPayments");
+    expect(serialized).not.toContain("fundTransactions");
   });
 });
