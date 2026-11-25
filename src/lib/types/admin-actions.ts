@@ -114,3 +114,54 @@ export interface UpdateCupTieInput {
     notes?: string | null;
   };
 }
+
+export interface EnrollPlayerInFundInput {
+  seasonId: string;
+  playerId: string;
+}
+
+export interface CreatePlayerAndEnrollInFundInput {
+  seasonId: string;
+  displayName: string;
+}
+
+export interface ToggleFundPaymentInput {
+  fundMonthId: string;
+  playerId: string;
+  paid?: boolean;
+}
+
+export interface UpdateFundMonthFeeInput {
+  fundMonthId: string;
+  feeAmount: number;
+}
+
+export interface CreateFundTransactionInput {
+  seasonId: string;
+  txType: "expense" | "yield";
+  amount: number;
+  description: string;
+  txDate: string;
+}
+
+export interface ExcelMatchDiffSummaryDto {
+  externalSourceKey: string;
+  matchDate: string;
+  matchNumber: number | null;
+  changes: string[];
+}
+
+export interface ExcelImportPreviewDto {
+  newPlayersCount: number;
+  newMatchesCount: number;
+  updatedMatchesCount: number;
+  unchangedMatchesCount: number;
+  updatedMatches: ExcelMatchDiffSummaryDto[];
+}
+
+export interface ExcelImportApplySummaryDto {
+  newPlayersCount: number;
+  newMatchesCount: number;
+  updatedMatchesCount: number;
+  unchangedMatchesCount: number;
+}

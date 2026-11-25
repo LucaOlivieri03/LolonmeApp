@@ -3,7 +3,6 @@ import { Archivo, Barlow_Condensed } from "next/font/google";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { PwaRegistrar } from "@/components/layout/PwaRegistrar";
-import { TournamentProvider } from "@/components/providers/TournamentProvider";
 import { getViewerSession } from "@/server/auth";
 import "./globals.css";
 
@@ -51,18 +50,16 @@ export default async function RootLayout({
       className={`${archivo.variable} ${barlowCondensed.variable}`}
     >
       <body className="min-h-screen bg-paper text-ink antialiased">
-        <TournamentProvider>
-          <PwaRegistrar />
-          <AppHeader
-            role={session.role}
-            displayName={session.displayName}
-            isAuthenticated={Boolean(session.userId)}
-          />
-          <main className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-24 sm:px-5 md:pb-12">
-            {children}
-          </main>
-          <BottomNav />
-        </TournamentProvider>
+        <PwaRegistrar />
+        <AppHeader
+          role={session.role}
+          displayName={session.displayName}
+          isAuthenticated={Boolean(session.userId)}
+        />
+        <main className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-24 sm:px-5 md:pb-12">
+          {children}
+        </main>
+        <BottomNav />
       </body>
     </html>
   );

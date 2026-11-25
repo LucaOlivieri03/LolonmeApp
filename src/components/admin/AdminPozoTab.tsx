@@ -1,34 +1,51 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Check, PlusCircle, UserPlus, Wallet, X } from "lucide-react";
-import { useTournament } from "@/components/providers/TournamentProvider";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { computeFundSummary, resolveDefaultSeasonId } from "@/lib/engine";
-import type { FundTxType } from "@/lib/types/domain";
+import type {
+  FundMonth,
+  FundPayment,
+  FundTransaction,
+  FundTxType,
+  Player,
+  Season,
+} from "@/lib/types/domain";
 import { cn, formatArs, formatDateEs } from "@/lib/utils";
+import {
+  createFundTransactionAction,
+  createPlayerAndEnrollInFundAction,
+  enrollPlayerInFundAction,
+  toggleFundPaymentAction,
+  updateFundMonthFeeAction,
+} from "@/server/actions/fund";
+
+export interface AdminPozoTabProps {
+  seasons: Season[];
+  players: Array<Pick<Player, "id" | "displayName">>;
+  fundMonths: FundMonth[];
+  fundPayments: FundPayment[];
+  fundTransactions: FundTransaction[];
+}
 
 export function AdminPozoTab({
-  allowAdminOverride = false,
-}: {
-  allowAdminOverride?: boolean;
-} = {}) {
-  const {
-    dataset,
-    role,
-    addPlayer,
-    addPlayerToPozo,
-    toggleFundPayment,
-    updateFundMonthFee,
-    addFundTransaction,
-  } = useTournament();
+  seasons,
+  players,
+  fundMonths,
+  fundPayments,
+  fundTransactions,
+}: AdminPozoTabProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const sortedSeasons = useMemo(
-    () => [...dataset.seasons].sort((a, b) => b.year - a.year),
-    [dataset.seasons]
+    () => [...seasons].sort((a, b) => b.year - a.year),
+    [seasons]
   );
   const [selectedSeasonId, setSeasonId] = useState(() =>
-    resolveDefaultSeasonId(dataset.seasons)
+    resolveDefaultSeasonId(seasons)
   );
   const seasonId = resolveDefaultSeasonId(sortedSeasons, selectedSeasonId);
 
@@ -37,58 +54,103 @@ export function AdminPozoTab({
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [enrollNotice, setEnrollNotice] = useState<string | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   const [txType, setTxType] = useState<FundTxType>("expense");
   const [txAmount, setTxAmount] = useState("");
   const [txDesc, setTxDesc] = useState("");
 
-  if (!allowAdminOverride && role !== "admin") {
-    return null;
-  }
+  // Optimistic toggle & fee draft states for snappy mobile/desktop interaction
+  const [optimisticPaid, setOptimisticPaid] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [feeDrafts, setFeeDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setOptimisticPaid({});
+  }, [fundPayments]);
+
+  useEffect(() => {
+    setFeeDrafts({});
+  }, [fundMonths]);
 
   const months = useMemo(
     () =>
-      dataset.fundMonths
+      fundMonths
         .filter((m) => m.seasonId === seasonId)
         .sort((a, b) => a.monthNumber - b.monthNumber),
-    [dataset.fundMonths, seasonId]
+    [fundMonths, seasonId]
   );
 
   const monthIds = useMemo(() => new Set(months.map((m) => m.id)), [months]);
-  const payments = useMemo(
-    () => dataset.fundPayments.filter((p) => monthIds.has(p.fundMonthId)),
-    [dataset.fundPayments, monthIds]
-  );
+
+  const effectivePayments = useMemo(() => {
+    const base = fundPayments.filter((p) => monthIds.has(p.fundMonthId));
+    const seenKeys = new Set<string>();
+    const mapped = base.map((p) => {
+      const key = `${p.fundMonthId}|${p.playerId}`;
+      seenKeys.add(key);
+      if (key in optimisticPaid) {
+        return { ...p, paid: optimisticPaid[key] };
+      }
+      return p;
+    });
+    for (const [key, paid] of Object.entries(optimisticPaid)) {
+      if (!seenKeys.has(key)) {
+        const [fmId, pid] = key.split("|");
+        if (fmId && pid && monthIds.has(fmId)) {
+          mapped.push({
+            id: `opt-${key}`,
+            fundMonthId: fmId,
+            playerId: pid,
+            paid,
+          });
+        }
+      }
+    }
+    return mapped;
+  }, [fundPayments, monthIds, optimisticPaid]);
 
   const transactions = useMemo(
-    () => dataset.fundTransactions.filter((t) => t.seasonId === seasonId),
-    [dataset.fundTransactions, seasonId]
+    () =>
+      fundTransactions
+        .filter((t) => t.seasonId === seasonId)
+        .sort(
+          (a, b) =>
+            b.txDate.localeCompare(a.txDate) || b.id.localeCompare(a.id)
+        ),
+    [fundTransactions, seasonId]
   );
 
   const summary = useMemo(
-    () => computeFundSummary(months, payments, transactions),
-    [months, payments, transactions]
+    () => computeFundSummary(months, effectivePayments, transactions),
+    [months, effectivePayments, transactions]
   );
 
   const pozoPlayers = useMemo(() => {
-    const ids = new Set(payments.map((p) => p.playerId));
-    return dataset.players
+    const ids = new Set(effectivePayments.map((p) => p.playerId));
+    return players
       .filter((p) => ids.has(p.id))
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "es"));
-  }, [dataset.players, payments]);
+  }, [players, effectivePayments]);
 
   const paidMap = useMemo(() => {
     const m = new Map<string, boolean>();
-    for (const p of payments) {
+    for (const p of effectivePayments) {
       m.set(`${p.fundMonthId}|${p.playerId}`, p.paid);
     }
     return m;
-  }, [payments]);
+  }, [effectivePayments]);
 
   const playerDebtSummary = useMemo(() => {
     const map = new Map<
       string,
-      { paidMonths: number; pendingMonths: number; paidAmount: number; debtAmount: number }
+      {
+        paidMonths: number;
+        pendingMonths: number;
+        paidAmount: number;
+        debtAmount: number;
+      }
     >();
     for (const p of pozoPlayers) {
       let paidMonths = 0;
@@ -111,7 +173,8 @@ export function AdminPozoTab({
   }, [pozoPlayers, months, paidMap]);
 
   const safeFocusedPlayerId =
-    focusedPlayerId === "ALL" || pozoPlayers.some((p) => p.id === focusedPlayerId)
+    focusedPlayerId === "ALL" ||
+    pozoPlayers.some((p) => p.id === focusedPlayerId)
       ? focusedPlayerId
       : "ALL";
 
@@ -122,8 +185,8 @@ export function AdminPozoTab({
 
   const unEnrolledPlayers = useMemo(() => {
     const enrolledIds = new Set(pozoPlayers.map((p) => p.id));
-    return dataset.players.filter((p) => !enrolledIds.has(p.id));
-  }, [dataset.players, pozoPlayers]);
+    return players.filter((p) => !enrolledIds.has(p.id));
+  }, [players, pozoPlayers]);
 
   const selectedEnrollId =
     enrollPlayerId && unEnrolledPlayers.some((p) => p.id === enrollPlayerId)
@@ -164,52 +227,145 @@ export function AdminPozoTab({
   const handleEnrollExisting = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEnrollId) return;
-    const player = dataset.players.find((p) => p.id === selectedEnrollId);
-    addPlayerToPozo(seasonId, selectedEnrollId);
-    setEnrollPlayerId("");
-    setEnrollNotice(
-      `${player?.displayName ?? "Jugador"} incorporado al Pozo con sus ${months.length || 12} meses inicializados.`
-    );
+    const player = players.find((p) => p.id === selectedEnrollId);
+    setErrorBanner(null);
+    setEnrollNotice(null);
+
+    startTransition(async () => {
+      const res = await enrollPlayerInFundAction({
+        seasonId,
+        playerId: selectedEnrollId,
+      });
+      if (!res.ok) {
+        setErrorBanner(res.error);
+        return;
+      }
+      setEnrollPlayerId("");
+      setEnrollNotice(
+        `${player?.displayName ?? "Jugador"} incorporado al Pozo con sus ${months.length || 12} meses inicializados.`
+      );
+      router.refresh();
+    });
   };
 
   const handleCreateAndEnroll = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = newPlayerName.trim();
     if (!trimmed) return;
-    const createdId = addPlayer({
-      displayName: trimmed,
-      role: "player",
+    setErrorBanner(null);
+    setEnrollNotice(null);
+
+    startTransition(async () => {
+      const res = await createPlayerAndEnrollInFundAction({
+        seasonId,
+        displayName: trimmed,
+      });
+      if (!res.ok) {
+        setErrorBanner(res.error);
+        return;
+      }
+      setNewPlayerName("");
+      setShowCreateNew(false);
+      if (res.data?.id) {
+        setFocusedPlayerId(res.data.id);
+      }
+      setEnrollNotice(
+        res.message ??
+          `Jugador "${trimmed}" creado en el padrón e incorporado al Pozo.`
+      );
+      router.refresh();
     });
-    addPlayerToPozo(seasonId, createdId);
-    setNewPlayerName("");
-    setShowCreateNew(false);
-    setFocusedPlayerId(createdId);
-    setEnrollNotice(
-      `Jugador "${trimmed}" creado en el padrón e incorporado al Pozo.`
-    );
+  };
+
+  const handleTogglePayment = (fundMonthId: string, playerId: string) => {
+    const key = `${fundMonthId}|${playerId}`;
+    const currentPaid = paidMap.get(key) ?? false;
+    const nextPaid = !currentPaid;
+
+    setErrorBanner(null);
+    setOptimisticPaid((prev) => ({ ...prev, [key]: nextPaid }));
+
+    startTransition(async () => {
+      const res = await toggleFundPaymentAction({
+        fundMonthId,
+        playerId,
+        paid: nextPaid,
+      });
+      if (!res.ok) {
+        setOptimisticPaid((prev) => ({ ...prev, [key]: currentPaid }));
+        setErrorBanner(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  const commitMonthFee = (month: FundMonth) => {
+    const raw = feeDrafts[month.id];
+    if (raw === undefined) return;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      setFeeDrafts((prev) => {
+        const next = { ...prev };
+        delete next[month.id];
+        return next;
+      });
+      setErrorBanner("La cuota mensual debe ser un número mayor o igual a 0.");
+      return;
+    }
+    if (parsed === month.feeAmount) {
+      return;
+    }
+
+    setErrorBanner(null);
+    startTransition(async () => {
+      const res = await updateFundMonthFeeAction({
+        fundMonthId: month.id,
+        feeAmount: parsed,
+      });
+      if (!res.ok) {
+        setFeeDrafts((prev) => {
+          const next = { ...prev };
+          delete next[month.id];
+          return next;
+        });
+        setErrorBanner(res.error);
+        return;
+      }
+      router.refresh();
+    });
   };
 
   const handleAddTx = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number(txAmount);
     if (!Number.isFinite(amount) || amount <= 0 || !txDesc.trim()) return;
-    addFundTransaction({
-      seasonId,
-      txType,
-      amount,
-      description: txDesc.trim(),
-      txDate: new Date().toISOString().slice(0, 10),
+    setErrorBanner(null);
+
+    startTransition(async () => {
+      const res = await createFundTransactionAction({
+        seasonId,
+        txType,
+        amount,
+        description: txDesc.trim(),
+        txDate: new Date().toISOString().slice(0, 10),
+      });
+      if (!res.ok) {
+        setErrorBanner(res.error);
+        return;
+      }
+      setTxAmount("");
+      setTxDesc("");
+      router.refresh();
     });
-    setTxAmount("");
-    setTxDesc("");
   };
 
   const focusedPlayer =
     safeFocusedPlayerId !== "ALL"
-      ? pozoPlayers.find((p) => p.id === safeFocusedPlayerId) ?? null
+      ? (pozoPlayers.find((p) => p.id === safeFocusedPlayerId) ?? null)
       : null;
   const focusedDebt = focusedPlayer
-    ? playerDebtSummary.get(focusedPlayer.id) ?? null
+    ? (playerDebtSummary.get(focusedPlayer.id) ?? null)
     : null;
 
   return (
@@ -235,6 +391,7 @@ export function AdminPozoTab({
                 setSeasonId(s.id);
                 setFocusedPlayerId("ALL");
                 setEnrollNotice(null);
+                setErrorBanner(null);
               }}
               className={cn(
                 "font-display min-h-10 rounded-md border px-3.5 text-base font-bold transition-colors",
@@ -249,10 +406,26 @@ export function AdminPozoTab({
         </div>
       </div>
 
+      {errorBanner && (
+        <div className="flex items-center justify-between rounded-md border border-crimson-600/35 bg-crimson-50 px-3.5 py-2.5 text-xs font-semibold text-crimson-700">
+          <span>{errorBanner}</span>
+          <button
+            type="button"
+            onClick={() => setErrorBanner(null)}
+            aria-label="Cerrar error"
+            className="rounded p-0.5 text-crimson-700 hover:bg-crimson-100"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Unified Financial Ledger Strip */}
       <dl className="grid grid-cols-2 divide-x divide-y divide-rule overflow-hidden rounded-lg border border-rule bg-surface sm:grid-cols-4 sm:divide-y-0">
         <div className="px-4 py-3">
-          <dt className="text-xs font-semibold text-ink-muted">Cuotas Recaudadas</dt>
+          <dt className="text-xs font-semibold text-ink-muted">
+            Cuotas Recaudadas
+          </dt>
           <dd className="font-display mt-0.5 text-2xl font-extrabold text-pitch-800">
             {formatArs(summary.totalCollected)}
           </dd>
@@ -264,7 +437,9 @@ export function AdminPozoTab({
           </dd>
         </div>
         <div className="px-4 py-3">
-          <dt className="text-xs font-semibold text-ink-muted">Gastos / Premios</dt>
+          <dt className="text-xs font-semibold text-ink-muted">
+            Gastos / Premios
+          </dt>
           <dd className="font-display mt-0.5 text-2xl font-extrabold text-crimson-600">
             -{formatArs(summary.totalExpenses)}
           </dd>
@@ -360,7 +535,7 @@ export function AdminPozoTab({
                   </div>
                   <button
                     type="submit"
-                    disabled={!selectedEnrollId}
+                    disabled={!selectedEnrollId || isPending}
                     className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-md bg-pitch-800 px-4 text-xs font-bold text-white transition-colors hover:bg-pitch-900 disabled:opacity-40"
                   >
                     <UserPlus className="h-4 w-4" />
@@ -414,7 +589,7 @@ export function AdminPozoTab({
                   />
                   <button
                     type="submit"
-                    disabled={!newPlayerName.trim()}
+                    disabled={!newPlayerName.trim() || isPending}
                     className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-md bg-pitch-800 px-4 text-xs font-bold text-white transition-colors hover:bg-pitch-900 disabled:opacity-40"
                   >
                     <PlusCircle className="h-4 w-4" />
@@ -463,7 +638,9 @@ export function AdminPozoTab({
                       <span
                         className={cn(
                           "mt-0.5 block text-[10px] font-semibold normal-case",
-                          st.pendingMonths > 0 ? "text-crimson-600" : "text-pitch-700"
+                          st.pendingMonths > 0
+                            ? "text-crimson-600"
+                            : "text-pitch-700"
                         )}
                       >
                         {st.paidMonths}/{months.length}
@@ -483,11 +660,22 @@ export function AdminPozoTab({
                 <td className="py-2 px-2.5">
                   <input
                     type="number"
+                    min={0}
                     aria-label={`Cuota ${m.monthLabel}`}
-                    value={m.feeAmount}
+                    value={feeDrafts[m.id] ?? String(m.feeAmount)}
                     onChange={(e) =>
-                      updateFundMonthFee(m.id, Number(e.target.value) || 0)
+                      setFeeDrafts((prev) => ({
+                        ...prev,
+                        [m.id]: e.target.value,
+                      }))
                     }
+                    onBlur={() => commitMonthFee(m)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitMonthFee(m);
+                      }
+                    }}
                     className="font-display min-h-10 w-24 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
                   />
                 </td>
@@ -499,7 +687,7 @@ export function AdminPozoTab({
                         type="button"
                         aria-pressed={isPaid}
                         aria-label={`${p.displayName} - ${m.monthLabel}: ${isPaid ? "Pagó" : "Pendiente"}`}
-                        onClick={() => toggleFundPayment(m.id, p.id)}
+                        onClick={() => handleTogglePayment(m.id, p.id)}
                         className={cn(
                           "inline-flex h-10 w-10 items-center justify-center rounded-md border transition-colors",
                           isPaid
@@ -539,6 +727,8 @@ export function AdminPozoTab({
           </select>
           <input
             type="number"
+            min={1}
+            step="any"
             placeholder="Monto ($)"
             value={txAmount}
             onChange={(e) => setTxAmount(e.target.value)}
@@ -556,9 +746,10 @@ export function AdminPozoTab({
         </div>
         <button
           type="submit"
-          className="mt-3 min-h-11 rounded-md bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
+          disabled={isPending}
+          className="mt-3 min-h-11 rounded-md bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900 disabled:opacity-45"
         >
-          Agregar Movimiento
+          {isPending ? "Guardando..." : "Agregar Movimiento"}
         </button>
 
         {transactions.length > 0 && (
@@ -569,7 +760,9 @@ export function AdminPozoTab({
                 className="flex items-center justify-between gap-2 py-2.5"
               >
                 <div className="min-w-0">
-                  <span className="font-semibold text-ink">{tx.description}</span>
+                  <span className="font-semibold text-ink">
+                    {tx.description}
+                  </span>
                   <span className="ml-2 text-xs text-ink-muted">
                     {formatDateEs(tx.txDate)}
                   </span>
