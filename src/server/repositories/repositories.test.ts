@@ -395,12 +395,19 @@ describe("server-only architectural guard across src/server/**", () => {
     expect(nonTestFiles.length).toBeGreaterThan(0);
 
     for (const file of nonTestFiles) {
+      const relPath = path
+        .relative(process.cwd(), file)
+        .split(path.sep)
+        .join("/");
       const content = fs.readFileSync(file, "utf8");
       const firstLine = content.split(/\r?\n/)[0]?.trim();
+      const expectedFirstLine = relPath.startsWith("src/server/actions/")
+        ? '"use server";'
+        : 'import "server-only";';
       expect(
         firstLine,
-        `${path.relative(process.cwd(), file)} must start with import "server-only";`
-      ).toBe('import "server-only";');
+        `${relPath} must start with ${expectedFirstLine}`
+      ).toBe(expectedFirstLine);
     }
   });
 });

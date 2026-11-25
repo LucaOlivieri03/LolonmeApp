@@ -8,6 +8,8 @@ import type {
   CupRound,
   MatchModality,
   MatchType,
+  PlayerRole,
+  PlayerTitle,
 } from "./domain";
 
 /**
@@ -120,3 +122,49 @@ export interface StatsLabSummary {
   subgroup: SubgroupStats | null;
   pairwise: StatsLabPairwiseItem | null;
 }
+
+export interface AuthFormActionState {
+  status: "idle" | "otp_sent" | "error";
+  email?: string;
+  message?: string;
+}
+
+export interface ProfileRecentMatchItem {
+  id: string;
+  matchNumber: number | null;
+  matchDate: string;
+  notes?: string | null;
+  team: "A" | "B";
+  isMvp: boolean;
+  goals: number;
+  assists: number;
+  adminRating: number | null;
+  teamAScore: number | null;
+  teamBScore: number | null;
+  resultOutcome: "A" | "B" | "draw" | null;
+}
+
+export type ProfileViewModel =
+  | {
+      status: "guest";
+      isAuthConfigured: boolean;
+    }
+  | {
+      status: "unlinked";
+      email: string | null;
+    }
+  | {
+      status: "linked";
+      player: {
+        id: string;
+        displayName: string;
+        nickname?: string | null;
+        role: Exclude<PlayerRole, "guest">;
+        email: string | null;
+      };
+      activeSeasonName: string;
+      annualRow: StandingsRow | null;
+      historicalRow: StandingsRow | null;
+      titles: PlayerTitle[];
+      recentMatches: ProfileRecentMatchItem[];
+    };
