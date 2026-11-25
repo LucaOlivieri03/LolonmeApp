@@ -11,13 +11,14 @@ import type {
   Player,
   Season,
 } from "@/lib/types/domain";
+import type { ActionResult } from "@/lib/types/admin-actions";
 import { cn } from "@/lib/utils";
 
 interface MatchEditModalProps {
   match: Match;
   seasons: Season[];
   players: Player[];
-  onSave: (updated: Match) => void;
+  onSave: (updated: Match) => Promise<ActionResult<unknown> | void> | void;
   onClose: () => void;
 }
 
@@ -51,6 +52,8 @@ export function MatchEditModal({
     match.players.map((p) => ({ ...p }))
   );
   const [addSearch, setAddSearch] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const playerMap = useMemo(
     () => new Map(players.map((p) => [p.id, p])),
@@ -105,8 +108,10 @@ export function MatchEditModal({
     ]);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setSaveError(null);
     const sA = teamAScore.trim() === "" ? null : Number(teamAScore);
     const sB = teamBScore.trim() === "" ? null : Number(teamBScore);
     const num = matchNumber.trim() === "" ? null : Number(matchNumber);
@@ -134,7 +139,19 @@ export function MatchEditModal({
       players: roster,
     };
 
-    onSave(updated);
+    setIsSaving(true);
+    try {
+      const res = await onSave(updated);
+      if (res && !res.ok) {
+        setSaveError(res.error);
+      }
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "No se pudieron guardar los cambios."
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const teamARoster = roster.filter((p) => p.team === "A");
@@ -492,20 +509,28 @@ export function MatchEditModal({
           </div>
         </div>
 
+        {saveError && (
+          <div className="border-t border-crimson-600/35 bg-crimson-50 px-4 py-2.5 text-xs font-semibold text-crimson-700">
+            {saveError}
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-2 border-t border-rule bg-surface-subtle px-4 py-3">
           <button
             type="button"
+            disabled={isSaving}
             onClick={onClose}
-            className="min-h-10 rounded-md border border-rule bg-surface px-4 text-xs font-bold text-ink-muted hover:text-ink"
+            className="min-h-10 rounded-md border border-rule bg-surface px-4 text-xs font-bold text-ink-muted hover:text-ink disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-pitch-800 px-4 text-xs font-bold text-white hover:bg-pitch-900"
+            disabled={isSaving}
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-pitch-800 px-4 text-xs font-bold text-white hover:bg-pitch-900 disabled:opacity-50"
           >
             <Check className="h-4 w-4" />
-            Guardar Cambios
+            {isSaving ? "Guardando..." : "Guardar Cambios"}
           </button>
         </div>
       </form>

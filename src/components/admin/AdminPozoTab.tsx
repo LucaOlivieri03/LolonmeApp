@@ -8,7 +8,11 @@ import { computeFundSummary, resolveDefaultSeasonId } from "@/lib/engine";
 import type { FundTxType } from "@/lib/types/domain";
 import { cn, formatArs, formatDateEs } from "@/lib/utils";
 
-export function AdminPozoTab() {
+export function AdminPozoTab({
+  allowAdminOverride = false,
+}: {
+  allowAdminOverride?: boolean;
+} = {}) {
   const {
     dataset,
     role,
@@ -38,7 +42,7 @@ export function AdminPozoTab() {
   const [txAmount, setTxAmount] = useState("");
   const [txDesc, setTxDesc] = useState("");
 
-  if (role !== "admin") {
+  if (!allowAdminOverride && role !== "admin") {
     return null;
   }
 
