@@ -1,7 +1,51 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import path from "path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TournamentDataset } from "@/lib/types/domain";
+
+const routeMocks = vi.hoisted(() => ({
+  getViewerSession: vi.fn(),
+  getPublicTournamentRepository: vi.fn(),
+  getAdminFundRepository: vi.fn(),
+  createSupabaseServerClient: vi.fn(),
+  parseLolonmebolWorkbookBuffer: vi.fn(),
+}));
+
+vi.mock("@/server/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/auth")>();
+  return {
+    ...actual,
+    getViewerSession: (...args: unknown[]) =>
+      routeMocks.getViewerSession(...args),
+  };
+});
+
+vi.mock("@/server/repositories", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/repositories")>();
+  return {
+    ...actual,
+    getPublicTournamentRepository: (...args: unknown[]) =>
+      routeMocks.getPublicTournamentRepository(...args),
+    getAdminFundRepository: (...args: unknown[]) =>
+      routeMocks.getAdminFundRepository(...args),
+  };
+});
+
+vi.mock("@/lib/supabase/server", () => ({
+  createSupabaseServerClient: (...args: unknown[]) =>
+    routeMocks.createSupabaseServerClient(...args),
+}));
+
+vi.mock("@/lib/excel", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/excel")>();
+  return {
+    ...actual,
+    parseLolonmebolWorkbookBuffer: (...args: unknown[]) =>
+      routeMocks.parseLolonmebolWorkbookBuffer(...args),
+  };
+});
+
+import { POST as importExcelPost } from "@/app/api/import-excel/route";
 import {
   GUEST_SESSION,
   type AdminSession,
@@ -903,5 +947,78 @@ describe("WU-7 Complete Removal of TournamentProvider, localStorage & Client see
         ).not.toContain("seed-data.json");
       }
     }
+  });
+});
+
+describe("WU-7 Verification Probes (B1): POST /api/import-excel parameter validation", () => {
+  beforeEach(() => {
+    routeMocks.getViewerSession.mockReset();
+    routeMocks.getPublicTournamentRepository.mockReset();
+    routeMocks.getAdminFundRepository.mockReset();
+    routeMocks.createSupabaseServerClient.mockReset();
+    routeMocks.parseLolonmebolWorkbookBuffer.mockReset();
+
+    routeMocks.getViewerSession.mockResolvedValue(ADMIN_SESSION);
+    routeMocks.getPublicTournamentRepository.mockReturnValue(
+      new SeedPublicTournamentRepository()
+    );
+    routeMocks.getAdminFundRepository.mockReturnValue(
+      new SeedAdminFundRepository()
+    );
+    routeMocks.createSupabaseServerClient.mockResolvedValue(null);
+    routeMocks.parseLolonmebolWorkbookBuffer.mockResolvedValue(
+      createFixtureExcelDataset("base")
+    );
+  });
+
+  function makeExcelUploadRequest(fields: Record<string, string | File>) {
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([new Uint8Array([80, 75, 3, 4])], "LOLONMEBOL.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
+    );
+    for (const [key, value] of Object.entries(fields)) {
+      formData.set(key, value);
+    }
+    return new Request("http://localhost:3000/api/import-excel", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
+  it("Probe B1-a: rejects invalid explicit mode values with HTTP 400 without touching repositories or Excel parser", async () => {
+    for (const badMode of ["commit", "delete", "", "PREVIEW", "APPLY"]) {
+      const res = await importExcelPost(
+        makeExcelUploadRequest({ mode: badMode })
+      );
+      expect(res.status, `mode=${JSON.stringify(badMode)}`).toBe(400);
+    }
+
+    expect(routeMocks.parseLolonmebolWorkbookBuffer).not.toHaveBeenCalled();
+    expect(routeMocks.getPublicTournamentRepository).not.toHaveBeenCalled();
+    expect(routeMocks.getAdminFundRepository).not.toHaveBeenCalled();
+    expect(routeMocks.createSupabaseServerClient).not.toHaveBeenCalled();
+  });
+
+  it("Probe B1-b: rejects invalid explicit overwriteExisting values with HTTP 400 instead of coercing to true", async () => {
+    for (const badOverwrite of ["FALSE", "0", "no", "yes", "TRUE", ""]) {
+      const res = await importExcelPost(
+        makeExcelUploadRequest({
+          mode: "apply",
+          overwriteExisting: badOverwrite,
+        })
+      );
+      expect(
+        res.status,
+        `overwriteExisting=${JSON.stringify(badOverwrite)}`
+      ).toBe(400);
+    }
+
+    expect(routeMocks.parseLolonmebolWorkbookBuffer).not.toHaveBeenCalled();
+    expect(routeMocks.getPublicTournamentRepository).not.toHaveBeenCalled();
+    expect(routeMocks.getAdminFundRepository).not.toHaveBeenCalled();
+    expect(routeMocks.createSupabaseServerClient).not.toHaveBeenCalled();
   });
 });

@@ -41,9 +41,36 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const modeRaw = formData.get("mode");
-    const mode = modeRaw === "apply" ? "apply" : "preview";
+    let mode: "preview" | "apply";
+    if (modeRaw === null) {
+      mode = "preview";
+    } else if (modeRaw === "preview" || modeRaw === "apply") {
+      mode = modeRaw;
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            "Parámetro mode inválido. Valores permitidos: preview | apply.",
+        },
+        { status: 400 }
+      );
+    }
+
     const overwriteRaw = formData.get("overwriteExisting");
-    const overwriteExisting = overwriteRaw !== "false";
+    let overwriteExisting: boolean;
+    if (overwriteRaw === null) {
+      overwriteExisting = true;
+    } else if (overwriteRaw === "true" || overwriteRaw === "false") {
+      overwriteExisting = overwriteRaw === "true";
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            "Parámetro overwriteExisting inválido. Valores permitidos: true | false.",
+        },
+        { status: 400 }
+      );
+    }
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
