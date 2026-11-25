@@ -21,15 +21,20 @@ import type {
   AwardPlayerTitleInput,
   CreateAnnouncementInput,
   CreateCalendarEventInput,
+  CreateFundTransactionInput,
   CreateMatchInput,
+  CreatePlayerAndEnrollInFundInput,
   CreatePlayerInput,
   CreateSeasonInput,
   DeleteAnnouncementInput,
   DeleteCalendarEventInput,
   DeleteMatchInput,
+  EnrollPlayerInFundInput,
   MatchRosterEntryInput,
   RegenerateCupBracketInput,
+  ToggleFundPaymentInput,
   UpdateCupTieInput,
+  UpdateFundMonthFeeInput,
   UpdateMatchInput,
   UpdatePlayerRoleInput,
 } from "@/lib/types/admin-actions";
@@ -1577,4 +1582,456 @@ export async function performUpdateCupTie(
   }
 
   return { ok: true, message: "Llave de Copa actualizada." };
+}
+
+
+// ---------------------------------------------------------------------------
+// Fund / Pozo (Strict Admin-Only)
+// ---------------------------------------------------------------------------
+
+const VALID_FUND_TX_TYPES = new Set(["expense", "yield"]);
+const MAX_FUND_AMOUNT = 1_000_000_000;
+
+async function resolveFundMonthUuid(
+  db: AdminDbClient,
+  fundMonthId: string
+): Promise<string | null> {
+  const trimmed = fundMonthId.trim();
+  if (!trimmed) return null;
+
+  if (UUID_REGEX.test(trimmed)) {
+    const { data, error } = await db
+      .from("fund_months")
+      .select("id")
+      .eq("id", trimmed)
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data as { id: string }).id;
+  }
+
+  const parsed = /^fm-(\d{4})-(\d{1,2})$/.exec(trimmed);
+  if (!parsed) return null;
+
+  const year = Number(parsed[1]);
+  const monthNumber = Number(parsed[2]);
+  if (
+    !Number.isInteger(monthNumber) ||
+    monthNumber < 1 ||
+    monthNumber > 12
+  ) {
+    return null;
+  }
+
+  const season = await resolveSeasonRow(db, `season-${year}`);
+  if (!season) return null;
+
+  const { data, error } = await db
+    .from("fund_months")
+    .select("id")
+    .eq("season_id", season.id)
+    .eq("month_number", monthNumber)
+    .maybeSingle();
+  if (error || !data) return null;
+  return (data as { id: string }).id;
+}
+
+export async function performEnrollPlayerInFund(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: EnrollPlayerInFundInput
+): Promise<ActionResult<{ initializedMonths: number }>> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const season = await resolveSeasonRow(db, input.seasonId ?? "");
+  if (!season) {
+    return { ok: false, code: "NOT_FOUND", error: "Temporada no encontrada." };
+  }
+
+  const playerUuid = await resolvePlayerUuid(db, input.playerId ?? "");
+  if (!playerUuid) {
+    return { ok: false, code: "NOT_FOUND", error: "Jugador no encontrado." };
+  }
+
+  const { data: initialMonths, error: monthsReadErr } = await db
+    .from("fund_months")
+    .select("id, month_number, fee_amount")
+    .eq("season_id", season.id);
+
+  if (monthsReadErr) {
+    return dbErrorResult(
+      monthsReadErr,
+      "No se pudieron consultar los meses del Pozo"
+    );
+  }
+
+  let seasonMonths =
+    (initialMonths as Array<{
+      id: string;
+      month_number: number;
+      fee_amount: number;
+    }> | null) ?? [];
+
+  const existingMonthNumbers = new Set(seasonMonths.map((m) => m.month_number));
+  if (existingMonthNumbers.size < 12) {
+    const defaultFee = seasonMonths[0]?.fee_amount ?? 3000;
+    const missingMonths = MONTH_LABELS.map((label, idx) => ({
+      season_id: season.id,
+      month_number: idx + 1,
+      month_label: label,
+      fee_amount: defaultFee,
+    })).filter((m) => !existingMonthNumbers.has(m.month_number));
+
+    if (missingMonths.length > 0) {
+      const { error: initMonthsErr } = await db
+        .from("fund_months")
+        .upsert(missingMonths, { onConflict: "season_id,month_number" });
+
+      if (initMonthsErr) {
+        return dbErrorResult(
+          initMonthsErr,
+          "No se pudieron inicializar los meses faltantes del Pozo"
+        );
+      }
+
+      const { data: refreshedMonths, error: refreshErr } = await db
+        .from("fund_months")
+        .select("id, month_number, fee_amount")
+        .eq("season_id", season.id);
+
+      if (refreshErr) {
+        return dbErrorResult(
+          refreshErr,
+          "No se pudieron recargar los meses del Pozo"
+        );
+      }
+
+      seasonMonths =
+        (refreshedMonths as Array<{
+          id: string;
+          month_number: number;
+          fee_amount: number;
+        }> | null) ?? [];
+    }
+  }
+
+  const monthIds = seasonMonths.map((m) => m.id);
+  if (monthIds.length === 0) {
+    return {
+      ok: false,
+      code: "INTERNAL",
+      error: "La temporada no posee meses configurados en el Pozo.",
+    };
+  }
+
+  const { data: existingPayments, error: existingPayErr } = await db
+    .from("fund_payments")
+    .select("fund_month_id")
+    .eq("player_id", playerUuid)
+    .in("fund_month_id", monthIds);
+
+  if (existingPayErr) {
+    return dbErrorResult(
+      existingPayErr,
+      "No se pudieron consultar los pagos existentes del jugador"
+    );
+  }
+
+  const existingMonthIds = new Set(
+    (
+      (existingPayments as Array<{ fund_month_id: string }> | null) ?? []
+    ).map((p) => p.fund_month_id)
+  );
+
+  const missingPaymentRows = monthIds
+    .filter((monthId) => !existingMonthIds.has(monthId))
+    .map((monthId) => ({
+      fund_month_id: monthId,
+      player_id: playerUuid,
+      paid: false,
+      paid_at: null,
+    }));
+
+  if (missingPaymentRows.length > 0) {
+    const { error: insertPayErr } = await db
+      .from("fund_payments")
+      .insert(missingPaymentRows);
+
+    if (insertPayErr) {
+      return dbErrorResult(
+        insertPayErr,
+        "No se pudo incorporar el jugador al Pozo"
+      );
+    }
+  }
+
+  return {
+    ok: true,
+    message: `Jugador incorporado al Pozo con ${monthIds.length} meses activos.`,
+    data: { initializedMonths: missingPaymentRows.length },
+  };
+}
+
+export async function performCreatePlayerAndEnrollInFund(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: CreatePlayerAndEnrollInFundInput
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const displayName = input.displayName?.trim() ?? "";
+  if (!displayName) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Ingresá el nombre del jugador.",
+    };
+  }
+
+  const season = await resolveSeasonRow(db, input.seasonId ?? "");
+  if (!season) {
+    return { ok: false, code: "NOT_FOUND", error: "Temporada no encontrada." };
+  }
+
+  const slug = await generateUniquePlayerSlug(db, displayName);
+  const { data: createdPlayer, error: createErr } = await db
+    .from("players")
+    .insert({
+      display_name: displayName,
+      slug,
+      role: "player",
+      is_active: true,
+    })
+    .select("id, slug")
+    .single();
+
+  if (createErr || !createdPlayer) {
+    return dbErrorResult(
+      createErr ?? { message: "No se pudo crear el jugador" },
+      "No se pudo crear el jugador en el padrón"
+    );
+  }
+
+  const createdRow = createdPlayer as { id: string; slug: string };
+
+  const enrollResult = await performEnrollPlayerInFund(db, session, {
+    seasonId: season.id,
+    playerId: createdRow.id,
+  });
+
+  if (!enrollResult.ok) {
+    await db.from("players").delete().eq("id", createdRow.id);
+    return enrollResult;
+  }
+
+  return {
+    ok: true,
+    message: `Jugador "${displayName}" creado en el padrón e incorporado al Pozo.`,
+    data: { id: createdRow.slug },
+  };
+}
+
+export async function performToggleFundPayment(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: ToggleFundPaymentInput
+): Promise<ActionResult<{ paid: boolean }>> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const fundMonthUuid = await resolveFundMonthUuid(
+    db,
+    input.fundMonthId ?? ""
+  );
+  if (!fundMonthUuid) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "Mes del Pozo no encontrado.",
+    };
+  }
+
+  const playerUuid = await resolvePlayerUuid(db, input.playerId ?? "");
+  if (!playerUuid) {
+    return { ok: false, code: "NOT_FOUND", error: "Jugador no encontrado." };
+  }
+
+  const { data: existing, error: lookupErr } = await db
+    .from("fund_payments")
+    .select("id, paid")
+    .eq("fund_month_id", fundMonthUuid)
+    .eq("player_id", playerUuid)
+    .maybeSingle();
+
+  if (lookupErr) {
+    return dbErrorResult(
+      lookupErr,
+      "No se pudo consultar el estado de pago actual"
+    );
+  }
+
+  const prevPaid = existing
+    ? Boolean((existing as { paid: boolean }).paid)
+    : false;
+  const nextPaid = typeof input.paid === "boolean" ? input.paid : !prevPaid;
+
+  const { error: upsertErr } = await db.from("fund_payments").upsert(
+    {
+      fund_month_id: fundMonthUuid,
+      player_id: playerUuid,
+      paid: nextPaid,
+      paid_at: nextPaid ? new Date().toISOString() : null,
+    },
+    { onConflict: "fund_month_id,player_id" }
+  );
+
+  if (upsertErr) {
+    return dbErrorResult(upsertErr, "No se pudo actualizar el pago del Pozo");
+  }
+
+  return {
+    ok: true,
+    data: { paid: nextPaid },
+  };
+}
+
+export async function performUpdateFundMonthFee(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: UpdateFundMonthFeeInput
+): Promise<ActionResult> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  if (
+    typeof input.feeAmount !== "number" ||
+    !Number.isFinite(input.feeAmount) ||
+    input.feeAmount < 0 ||
+    input.feeAmount > MAX_FUND_AMOUNT
+  ) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "La cuota mensual debe ser un monto válido mayor o igual a 0.",
+    };
+  }
+
+  const fundMonthUuid = await resolveFundMonthUuid(
+    db,
+    input.fundMonthId ?? ""
+  );
+  if (!fundMonthUuid) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "Mes del Pozo no encontrado.",
+    };
+  }
+
+  const roundedFee = Math.round(input.feeAmount * 100) / 100;
+  const { error } = await db
+    .from("fund_months")
+    .update({ fee_amount: roundedFee })
+    .eq("id", fundMonthUuid);
+
+  if (error) {
+    return dbErrorResult(
+      error,
+      "No se pudo actualizar la cuota mensual del Pozo"
+    );
+  }
+
+  return { ok: true, message: "Cuota mensual actualizada." };
+}
+
+export async function performCreateFundTransaction(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: CreateFundTransactionInput
+): Promise<ActionResult> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  if (!VALID_FUND_TX_TYPES.has(input.txType)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Tipo de movimiento inválido.",
+    };
+  }
+
+  if (
+    typeof input.amount !== "number" ||
+    !Number.isFinite(input.amount) ||
+    input.amount <= 0 ||
+    input.amount > MAX_FUND_AMOUNT
+  ) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "El monto debe ser mayor a 0.",
+    };
+  }
+
+  const description = input.description?.trim() ?? "";
+  if (!description || description.length > 300) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Ingresá una descripción válida (hasta 300 caracteres).",
+    };
+  }
+
+  const txDate = input.txDate?.trim() ?? "";
+  if (!isValidIsoDate(txDate)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Fecha de movimiento inválida (YYYY-MM-DD).",
+    };
+  }
+
+  const season = await resolveSeasonRow(db, input.seasonId ?? "");
+  if (!season) {
+    return { ok: false, code: "NOT_FOUND", error: "Temporada no encontrada." };
+  }
+
+  const externalKey = `manual-ftx-${season.year}-${randomUUID().slice(0, 8)}`;
+  const roundedAmount = Math.round(input.amount * 100) / 100;
+
+  const { error } = await db.from("fund_transactions").insert({
+    external_key: externalKey,
+    season_id: season.id,
+    tx_type: input.txType,
+    amount: roundedAmount,
+    description,
+    tx_date: txDate,
+  });
+
+  if (error) {
+    return dbErrorResult(error, "No se pudo registrar el movimiento del Pozo");
+  }
+
+  return { ok: true, message: "Movimiento registrado en el Pozo." };
 }

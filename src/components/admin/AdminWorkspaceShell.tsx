@@ -23,6 +23,9 @@ import type {
   CalendarEvent,
   CupEdition,
   CupTie,
+  FundMonth,
+  FundPayment,
+  FundTransaction,
   Match,
   Player,
   Season,
@@ -51,18 +54,24 @@ export interface AdminWorkspaceShellProps {
   };
   data: {
     seasons: Season[];
-    players: Player[];
+    players: Array<Omit<Player, "email" | "userId">>;
     matches: Match[];
     announcements: Announcement[];
     calendarEvents: CalendarEvent[];
     cupEditions: CupEdition[];
     cupTies: CupTie[];
   };
+  fund: {
+    fundMonths: FundMonth[];
+    fundPayments: FundPayment[];
+    fundTransactions: FundTransaction[];
+  } | null;
 }
 
 export function AdminWorkspaceShell({
   session,
   data,
+  fund,
 }: AdminWorkspaceShellProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -349,7 +358,15 @@ export function AdminWorkspaceShell({
         />
       )}
 
-      {safeTab === "pozo" && isAdmin && <AdminPozoTab allowAdminOverride />}
+      {safeTab === "pozo" && isAdmin && fund && (
+        <AdminPozoTab
+          seasons={sortedSeasons}
+          players={data.players}
+          fundMonths={fund.fundMonths}
+          fundPayments={fund.fundPayments}
+          fundTransactions={fund.fundTransactions}
+        />
+      )}
 
       {safeTab === "excel" && isAdmin && <AdminExcelTab />}
     </div>

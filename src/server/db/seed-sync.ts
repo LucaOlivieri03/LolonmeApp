@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TournamentDataset } from "@/lib/types/domain";
 import { mapDatasetToDatabaseRows, type ExistingUuidLookups } from "./mappers";
 
+const SELECT_PAGE_SIZE = 1000;
 const UPSERT_BATCH_SIZE = 200;
 
 export interface SeedTableClient {
@@ -15,6 +16,15 @@ export interface SeedTableClient {
     rows: Record<string, unknown>[],
     onConflict: string
   ): Promise<void>;
+  deleteByIds?(table: string, ids: string[]): Promise<void>;
+}
+
+export interface SyncDatasetOptions {
+  pruneReplacedChildren?: {
+    updatedMatchKeysOrSlugs?: ReadonlySet<string>;
+    replacedCupSeasonIds?: ReadonlySet<string>;
+    replacedFundTxSeasonIds?: ReadonlySet<string>;
+  };
 }
 
 export interface SeedSyncSummary {
@@ -61,18 +71,38 @@ function dedupeRowsByConflict(
 }
 
 /**
- * Wraps a Supabase service-role client into `SeedTableClient` with batched upserts.
+ * Wraps a Supabase client (either `service_role` in CLI seeding or an `admin`
+ * session-scoped SSR client) into `SeedTableClient` with paginated reads and batched writes.
  */
 export function createSupabaseSeedClient(
   supabase: SupabaseClient
 ): SeedTableClient {
   return {
     async selectAll(table, columns) {
-      const { data, error } = await supabase.from(table).select(columns);
-      if (error) {
-        throw new Error(`Failed reading ${table}: ${error.message}`);
+      const rows: Record<string, unknown>[] = [];
+      let from = 0;
+
+      while (true) {
+        const to = from + SELECT_PAGE_SIZE - 1;
+        const { data, error } = await supabase
+          .from(table)
+          .select(columns)
+          .order("id", { ascending: true })
+          .range(from, to);
+
+        if (error) {
+          throw new Error(`Failed reading ${table}: ${error.message}`);
+        }
+
+        const batch = (data ?? []) as unknown as Record<string, unknown>[];
+        rows.push(...batch);
+        if (batch.length < SELECT_PAGE_SIZE) {
+          break;
+        }
+        from += SELECT_PAGE_SIZE;
       }
-      return (data ?? []) as unknown as Record<string, unknown>[];
+
+      return rows;
     },
     async upsertRows(table, rows, onConflict) {
       const deduped = dedupeRowsByConflict(rows, onConflict);
@@ -89,16 +119,33 @@ export function createSupabaseSeedClient(
         }
       }
     },
+    async deleteByIds(table, ids) {
+      if (ids.length === 0) return;
+      for (let i = 0; i < ids.length; i += UPSERT_BATCH_SIZE) {
+        const chunk = ids.slice(i, i + UPSERT_BATCH_SIZE);
+        const { error } = await supabase
+          .from(table)
+          .delete()
+          .in("id", chunk);
+        if (error) {
+          throw new Error(
+            `Failed pruning obsolete rows in ${table}: ${error.message}`
+          );
+        }
+      }
+    },
   };
 }
 
 /**
  * Idempotently synchronizes a `TournamentDataset` into PostgreSQL via natural conflict keys,
- * preserving pre-existing entity UUIDs and linked Supabase Auth player attributes.
+ * preserving pre-existing entity UUIDs, roles, and linked Supabase Auth player attributes.
+ * Never selects `players.email` so it runs cleanly under both `authenticated` Admin RLS and `service_role`.
  */
 export async function syncDatasetToSupabase(
   client: SeedTableClient,
-  dataset: TournamentDataset
+  dataset: TournamentDataset,
+  options?: SyncDatasetOptions
 ): Promise<SeedSyncSummary> {
   const [
     existingSeasons,
@@ -110,7 +157,7 @@ export async function syncDatasetToSupabase(
     client.selectAll("seasons", "id,year"),
     client.selectAll(
       "players",
-      "id,slug,user_id,email,role,nickname,avatar_url,favorite_club_id,political_orientation,is_active"
+      "id,slug,user_id,role,nickname,avatar_url,favorite_club_id,political_orientation,is_active"
     ),
     client.selectAll("matches", "id,slug,external_source_key"),
     client.selectAll("cup_editions", "id,season_id"),
@@ -185,24 +232,37 @@ export async function syncDatasetToSupabase(
   const safePlayers = dedupeRowsByConflict(
     rows.players.map((p) => {
       const prev = existingPlayerBySlug.get(p.slug);
-      if (!prev) return p as unknown as Record<string, unknown>;
-
-      return {
-        ...p,
-        user_id: p.user_id ?? prev.user_id ?? null,
-        email: p.email ?? prev.email ?? null,
+      const base: Record<string, unknown> = {
+        id: p.id,
+        slug: p.slug,
+        display_name: p.display_name,
+        nickname: p.nickname ?? (prev?.nickname as string | null | undefined) ?? null,
+        avatar_url:
+          p.avatar_url ?? (prev?.avatar_url as string | null | undefined) ?? null,
         role:
-          prev.role === "admin" || prev.role === "authorized"
+          prev?.role === "admin" || prev?.role === "authorized"
             ? prev.role
             : p.role,
-        nickname: p.nickname ?? prev.nickname ?? null,
-        avatar_url: p.avatar_url ?? prev.avatar_url ?? null,
-        favorite_club_id: p.favorite_club_id ?? prev.favorite_club_id ?? null,
+        favorite_club_id:
+          p.favorite_club_id ??
+          (prev?.favorite_club_id as number | null | undefined) ??
+          null,
         political_orientation:
-          p.political_orientation ?? prev.political_orientation ?? null,
+          p.political_orientation ??
+          (prev?.political_orientation as string | null | undefined) ??
+          null,
         is_active:
-          typeof prev.is_active === "boolean" ? prev.is_active : p.is_active,
-      } as Record<string, unknown>;
+          typeof prev?.is_active === "boolean" ? prev.is_active : p.is_active,
+      };
+
+      if (p.user_id !== undefined) {
+        base.user_id = p.user_id;
+      }
+      if (p.email !== undefined) {
+        base.email = p.email;
+      }
+
+      return base;
     }),
     "slug"
   );
@@ -275,9 +335,24 @@ export async function syncDatasetToSupabase(
     "external_key"
   );
 
-  // Upsert in strict foreign-key topological order
+  // Upsert in strict foreign-key topological order.
+  // Note: If safePlayers contains mixed optional user_id/email keys across rows,
+  // group by key signature so PostgREST never fills omitted columns with NULL.
+  const playerBatchesByKeySig = new Map<string, Record<string, unknown>[]>();
+  for (const p of safePlayers) {
+    const sig = `${"user_id" in p ? 1 : 0}|${"email" in p ? 1 : 0}`;
+    const bucket = playerBatchesByKeySig.get(sig);
+    if (bucket) {
+      bucket.push(p);
+    } else {
+      playerBatchesByKeySig.set(sig, [p]);
+    }
+  }
+
   await client.upsertRows("seasons", safeSeasons, "year");
-  await client.upsertRows("players", safePlayers, "slug");
+  for (const batch of playerBatchesByKeySig.values()) {
+    await client.upsertRows("players", batch, "slug");
+  }
   await client.upsertRows("player_aliases", safeAliases, "raw_name");
   await client.upsertRows(
     "player_titles",
@@ -285,7 +360,48 @@ export async function syncDatasetToSupabase(
     "player_id,season_id,title_type"
   );
   await client.upsertRows("matches", safeMatches, "id");
-  await client.upsertRows("match_players", safeMatchPlayers, "match_id,player_id");
+  await client.upsertRows(
+    "match_players",
+    safeMatchPlayers,
+    "match_id,player_id"
+  );
+
+  const prune = options?.pruneReplacedChildren;
+  if (client.deleteByIds && prune?.updatedMatchKeysOrSlugs?.size) {
+    const updatedMatchUuids = new Set<string>();
+    for (const m of safeMatches) {
+      const slug = typeof m.slug === "string" ? m.slug : "";
+      const extKey =
+        typeof m.external_source_key === "string" ? m.external_source_key : "";
+      if (
+        (slug && prune.updatedMatchKeysOrSlugs.has(slug)) ||
+        (extKey && prune.updatedMatchKeysOrSlugs.has(extKey))
+      ) {
+        updatedMatchUuids.add(String(m.id));
+      }
+    }
+
+    if (updatedMatchUuids.size > 0) {
+      const validPairs = new Set(
+        safeMatchPlayers.map(
+          (mp) => `${String(mp.match_id)}|${String(mp.player_id)}`
+        )
+      );
+      const existingMpRows = await client.selectAll(
+        "match_players",
+        "id,match_id,player_id"
+      );
+      const staleMpIds = existingMpRows
+        .filter(
+          (mp) =>
+            updatedMatchUuids.has(String(mp.match_id)) &&
+            !validPairs.has(`${String(mp.match_id)}|${String(mp.player_id)}`)
+        )
+        .map((mp) => String(mp.id));
+      await client.deleteByIds("match_players", staleMpIds);
+    }
+  }
+
   await client.upsertRows("calendar_events", safeCalendarEvents, "external_key");
   await client.upsertRows("announcements", safeAnnouncements, "external_key");
   await client.upsertRows("cup_editions", safeCupEditions, "season_id");
@@ -294,6 +410,49 @@ export async function syncDatasetToSupabase(
     safeCupTies,
     "cup_edition_id,round,slot_order"
   );
+
+  if (client.deleteByIds && prune?.replacedCupSeasonIds?.size) {
+    const replacedSeasonYears = new Set<number>();
+    for (const s of dataset.seasons) {
+      if (prune.replacedCupSeasonIds.has(s.id)) {
+        replacedSeasonYears.add(s.year);
+      }
+    }
+    const targetSeasonUuids = new Set(
+      safeSeasons
+        .filter((s) => replacedSeasonYears.has(Number(s.year)))
+        .map((s) => String(s.id))
+    );
+    const targetEditionUuids = new Set(
+      safeCupEditions
+        .filter((ed) => targetSeasonUuids.has(String(ed.season_id)))
+        .map((ed) => String(ed.id))
+    );
+
+    if (targetEditionUuids.size > 0) {
+      const validTieKeys = new Set(
+        safeCupTies.map(
+          (t) =>
+            `${String(t.cup_edition_id)}|${String(t.round)}|${String(t.slot_order)}`
+        )
+      );
+      const existingTieRows = await client.selectAll(
+        "cup_ties",
+        "id,cup_edition_id,round,slot_order"
+      );
+      const staleTieIds = existingTieRows
+        .filter(
+          (t) =>
+            targetEditionUuids.has(String(t.cup_edition_id)) &&
+            !validTieKeys.has(
+              `${String(t.cup_edition_id)}|${String(t.round)}|${String(t.slot_order)}`
+            )
+        )
+        .map((t) => String(t.id));
+      await client.deleteByIds("cup_ties", staleTieIds);
+    }
+  }
+
   await client.upsertRows(
     "fund_months",
     safeFundMonths,
@@ -309,6 +468,42 @@ export async function syncDatasetToSupabase(
     safeFundTransactions,
     "external_key"
   );
+
+  if (client.deleteByIds && prune?.replacedFundTxSeasonIds?.size) {
+    const replacedSeasonYears = new Set<number>();
+    for (const s of dataset.seasons) {
+      if (prune.replacedFundTxSeasonIds.has(s.id)) {
+        replacedSeasonYears.add(s.year);
+      }
+    }
+    const targetSeasonUuids = new Set(
+      safeSeasons
+        .filter((s) => replacedSeasonYears.has(Number(s.year)))
+        .map((s) => String(s.id))
+    );
+
+    if (targetSeasonUuids.size > 0) {
+      const validTxKeys = new Set(
+        safeFundTransactions.map((tx) => String(tx.external_key ?? ""))
+      );
+      const existingTxRows = await client.selectAll(
+        "fund_transactions",
+        "id,season_id,external_key"
+      );
+      const staleTxIds = existingTxRows
+        .filter((tx) => {
+          const extKey =
+            typeof tx.external_key === "string" ? tx.external_key : "";
+          return (
+            targetSeasonUuids.has(String(tx.season_id)) &&
+            extKey.startsWith("ftx-") &&
+            !validTxKeys.has(extKey)
+          );
+        })
+        .map((tx) => String(tx.id));
+      await client.deleteByIds("fund_transactions", staleTxIds);
+    }
+  }
 
   return {
     seasons: safeSeasons.length,

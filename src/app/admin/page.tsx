@@ -77,6 +77,7 @@ export default async function AdminPage() {
         cupEditions: vm.data.cupEditions,
         cupTies: vm.data.cupTies,
       }}
+      fund={vm.fund}
     />
   );
 }

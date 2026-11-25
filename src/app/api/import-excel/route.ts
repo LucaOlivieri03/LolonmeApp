@@ -1,50 +1,49 @@
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseLolonmebolWorkbookBuffer } from "@/lib/excel";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  applyExcelImportFromDataset,
+  composeFullDataset,
+  previewExcelImportFromDataset,
+} from "@/server/admin/excel-import";
+import { assertAdmin, getViewerSession, isAuthError } from "@/server/auth";
+import { createSupabaseSeedClient } from "@/server/db";
+import { CACHE_TAGS } from "@/server/queries/tags";
+import {
+  getAdminFundRepository,
+  getPublicTournamentRepository,
+} from "@/server/repositories";
 
 const MAX_EXCEL_BYTES = 10 * 1024 * 1024; // 10 MB
 
+function revalidateAllTournamentViews(): void {
+  for (const tag of Object.values(CACHE_TAGS)) {
+    revalidateTag(tag);
+  }
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+}
+
 export async function POST(request: Request) {
   try {
-    // Enforce server-side Admin authorization when Supabase is configured
-    if (isSupabaseConfigured()) {
-      const supabase = await createSupabaseServerClient();
-      if (!supabase) {
-        return NextResponse.json(
-          { error: "Configuración de autenticación no disponible." },
-          { status: 500 }
-        );
+    const session = await getViewerSession();
+    try {
+      assertAdmin(session);
+    } catch (err) {
+      if (isAuthError(err)) {
+        return NextResponse.json({ error: err.message }, { status: err.status });
       }
-
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        return NextResponse.json(
-          { error: "No autenticado. Iniciá sesión como Admin." },
-          { status: 401 }
-        );
-      }
-
-      const { data: player, error: roleError } = await supabase
-        .from("players")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-
-      if (roleError || player?.role !== "admin") {
-        return NextResponse.json(
-          { error: "Acceso denegado. Solo un Admin puede importar Excel." },
-          { status: 403 }
-        );
-      }
+      return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
     }
 
     const formData = await request.formData();
     const file = formData.get("file");
+    const modeRaw = formData.get("mode");
+    const mode = modeRaw === "apply" ? "apply" : "preview";
+    const overwriteRaw = formData.get("overwriteExisting");
+    const overwriteExisting = overwriteRaw !== "false";
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -68,9 +67,57 @@ export async function POST(request: Request) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const dataset = await parseLolonmebolWorkbookBuffer(arrayBuffer);
+    const [incomingDataset, publicData, fundData] = await Promise.all([
+      parseLolonmebolWorkbookBuffer(arrayBuffer),
+      getPublicTournamentRepository().getPublicDataset(),
+      getAdminFundRepository().getFundData(),
+    ]);
 
-    return NextResponse.json({ dataset });
+    const existingDataset = composeFullDataset(publicData, fundData);
+
+    if (mode === "preview") {
+      const previewResult = previewExcelImportFromDataset(
+        session,
+        existingDataset,
+        incomingDataset
+      );
+      if (!previewResult.ok) {
+        return NextResponse.json(
+          { error: previewResult.error },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json({
+        mode: "preview",
+        preview: previewResult.data,
+      });
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const seedClient = supabase
+      ? createSupabaseSeedClient(supabase as unknown as SupabaseClient)
+      : null;
+
+    const applyResult = await applyExcelImportFromDataset(
+      session,
+      existingDataset,
+      incomingDataset,
+      seedClient,
+      { overwriteExisting }
+    );
+
+    if (!applyResult.ok) {
+      const status = applyResult.code === "UNCONFIGURED" ? 503 : 500;
+      return NextResponse.json({ error: applyResult.error }, { status });
+    }
+
+    revalidateAllTournamentViews();
+
+    return NextResponse.json({
+      mode: "apply",
+      summary: applyResult.data,
+      message: applyResult.message,
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Error al procesar el archivo Excel";
