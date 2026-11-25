@@ -358,8 +358,8 @@ describe("Redirect sanitization & auth callback / actions security", () => {
       "real@lolonmebol.test",
       "https://lolonmeapp.vercel.app"
     );
-    expect(firstSent.sentAt).toBeDefined();
-    expect(secondSent.sentAt).toBeDefined();
+    expect(Number.isSafeInteger(firstSent.sentAt)).toBe(true);
+    expect(Number.isSafeInteger(secondSent.sentAt)).toBe(true);
     expect(secondSent.sentAt).not.toBe(firstSent.sentAt);
   });
 

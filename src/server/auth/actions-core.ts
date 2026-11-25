@@ -87,11 +87,11 @@ export async function performRequestEmailOtp(
     };
   }
 
-  otpRequestSeq = (otpRequestSeq + 1) % 1_000_000;
+  otpRequestSeq = (otpRequestSeq + 1) % 1_000;
   return {
     status: "otp_sent",
     email,
-    sentAt: Date.now() * 1_000_000 + otpRequestSeq,
+    sentAt: Date.now() * 1_000 + otpRequestSeq,
     message:
       "Te enviamos un enlace mágico y un código de acceso a tu correo. Podés abrir el enlace o ingresar el código abajo.",
   };
