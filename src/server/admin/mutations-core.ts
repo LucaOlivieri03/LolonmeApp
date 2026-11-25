@@ -676,8 +676,21 @@ export async function performUpdateMatch(
     };
   }
 
+  const resolvedUuids = new Set<string>();
+  for (const entry of input.roster) {
+    const uuid = playerUuidMap.get(entry.playerId.trim())!;
+    if (resolvedUuids.has(uuid)) {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        error: "Un jugador no puede repetirse en el mismo partido.",
+      };
+    }
+    resolvedUuids.add(uuid);
+  }
+
   // Snapshot current state for compensating rollback
-  const { data: prevMatch } = await db
+  const { data: prevMatch, error: prevMatchErr } = await db
     .from("matches")
     .select(
       "id, slug, season_id, match_number, match_date, match_type, modality, team_a_score, team_b_score, result_outcome, counts_for_league, counts_for_stats, notes"
@@ -685,15 +698,32 @@ export async function performUpdateMatch(
     .eq("id", matchUuid)
     .maybeSingle();
 
-  const { data: prevRoster } = await db
+  if (prevMatchErr || !prevMatch) {
+    return dbErrorResult(
+      prevMatchErr ?? { message: "No se pudo leer el estado actual del partido" },
+      "No se pudo leer el partido antes de editarlo"
+    );
+  }
+
+  const { data: prevRoster, error: prevRosterErr } = await db
     .from("match_players")
     .select(
       "match_id, player_id, team, is_cup_captain, goals, assists, admin_rating, is_mvp"
     )
     .eq("match_id", matchUuid);
 
+  if (prevRosterErr) {
+    return dbErrorResult(
+      prevRosterErr,
+      "No se pudo leer el plantel actual del partido antes de editarlo"
+    );
+  }
+
   const prevRosterRows =
     (prevRoster as Array<Record<string, unknown>> | null) ?? [];
+  const prevPlayerUuids = new Set(
+    prevRosterRows.map((row) => String(row.player_id))
+  );
 
   const { error: updateErr } = await db
     .from("matches")
@@ -725,6 +755,9 @@ export async function performUpdateMatch(
   const nextPlayerUuids = new Set(
     nextRosterRows.map((row) => String(row.player_id))
   );
+  const addedPlayerUuids = nextRosterRows
+    .map((row) => String(row.player_id))
+    .filter((pid) => !prevPlayerUuids.has(pid));
   const removedPlayerUuids = prevRosterRows
     .map((row) => String(row.player_id))
     .filter((pid) => !nextPlayerUuids.has(pid));
@@ -734,15 +767,13 @@ export async function performUpdateMatch(
     .upsert(nextRosterRows, { onConflict: "match_id,player_id" });
 
   if (upsertErr) {
-    if (prevMatch) {
-      const { id: _id, slug: _slug, ...restoreFields } = prevMatch as Record<
-        string,
-        unknown
-      >;
-      void _id;
-      void _slug;
-      await db.from("matches").update(restoreFields).eq("id", matchUuid);
-    }
+    const { id: _id, slug: _slug, ...restoreFields } = prevMatch as Record<
+      string,
+      unknown
+    >;
+    void _id;
+    void _slug;
+    await db.from("matches").update(restoreFields).eq("id", matchUuid);
     return dbErrorResult(
       upsertErr,
       "No se pudo actualizar el plantel del partido"
@@ -757,16 +788,21 @@ export async function performUpdateMatch(
       .in("player_id", removedPlayerUuids);
 
     if (delErr) {
-      // Compensating restore of previous match and roster
-      if (prevMatch) {
-        const { id: _id, slug: _slug, ...restoreFields } = prevMatch as Record<
-          string,
-          unknown
-        >;
-        void _id;
-        void _slug;
-        await db.from("matches").update(restoreFields).eq("id", matchUuid);
+      // Compensating restore: remove newly added players, restore previous match and roster
+      if (addedPlayerUuids.length > 0) {
+        await db
+          .from("match_players")
+          .delete()
+          .eq("match_id", matchUuid)
+          .in("player_id", addedPlayerUuids);
       }
+      const { id: _id, slug: _slug, ...restoreFields } = prevMatch as Record<
+        string,
+        unknown
+      >;
+      void _id;
+      void _slug;
+      await db.from("matches").update(restoreFields).eq("id", matchUuid);
       if (prevRosterRows.length > 0) {
         await db
           .from("match_players")
@@ -1305,11 +1341,21 @@ export async function performRegenerateCupBracket(
   const finalists = input.previousFinalists.filter(Boolean);
 
   // Ensure cup_edition exists
-  let { data: edition } = await db
+  const { data: existingEdition, error: editionLookupErr } = await db
     .from("cup_editions")
-    .select("id")
+    .select("id, cutoff_snapshot_json")
     .eq("season_id", season.id)
     .maybeSingle();
+
+  if (editionLookupErr) {
+    return dbErrorResult(
+      editionLookupErr,
+      "No se pudo consultar la edición de Copa"
+    );
+  }
+
+  let edition = existingEdition;
+  let createdEditionInThisCall = false;
 
   if (!edition) {
     const { data: createdEd, error: createEdErr } = await db
@@ -1317,9 +1363,9 @@ export async function performRegenerateCupBracket(
       .insert({
         season_id: season.id,
         name: `Copa LOLONMEBOL ${season.year}`,
-        cutoff_snapshot_json: standingsPlayerIds.slice(0, 9),
+        cutoff_snapshot_json: [],
       })
-      .select("id")
+      .select("id, cutoff_snapshot_json")
       .single();
     if (createEdErr || !createdEd) {
       return dbErrorResult(
@@ -1328,6 +1374,7 @@ export async function performRegenerateCupBracket(
       );
     }
     edition = createdEd;
+    createdEditionInThisCall = true;
   }
 
   const editionUuid = (edition as { id: string }).id;
@@ -1337,7 +1384,8 @@ export async function performRegenerateCupBracket(
     previousLolonmebolFinalistIds: finalists,
   });
 
-  const allPlayerIds = new Set<string>();
+  const top9PlayerIds = standingsPlayerIds.slice(0, 9);
+  const allPlayerIds = new Set<string>(top9PlayerIds);
   for (const tie of generatedTies) {
     if (tie.playerAId) allPlayerIds.add(tie.playerAId);
     if (tie.playerBId) allPlayerIds.add(tie.playerBId);
@@ -1347,23 +1395,26 @@ export async function performRegenerateCupBracket(
     db,
     Array.from(allPlayerIds)
   );
+  const nextCutoffSnapshot = top9PlayerIds.map(
+    (pid) => playerUuidMap.get(pid) ?? pid
+  );
 
-  // Snapshot existing ties for rollback
-  const { data: prevTies } = await db
+  // Snapshot existing ties for rollback (abort before mutating if read fails)
+  const { data: prevTies, error: prevTiesErr } = await db
     .from("cup_ties")
     .select(
       "cup_edition_id, round, slot_order, player_a_id, player_b_id, seed_a, seed_b, leg1_match_id, leg2_match_id, override_score_a, override_score_b, winner_player_id, notes"
     )
     .eq("cup_edition_id", editionUuid);
-  const prevTieRows = (prevTies as Array<Record<string, unknown>> | null) ?? [];
 
-  const { error: edUpdateErr } = await db
-    .from("cup_editions")
-    .update({ cutoff_snapshot_json: standingsPlayerIds.slice(0, 9) })
-    .eq("id", editionUuid);
-  if (edUpdateErr) {
-    return dbErrorResult(edUpdateErr, "No se pudo actualizar la edición de Copa");
+  if (prevTiesErr) {
+    return dbErrorResult(
+      prevTiesErr,
+      "No se pudieron leer las llaves actuales de la Copa"
+    );
   }
+
+  const prevTieRows = (prevTies as Array<Record<string, unknown>> | null) ?? [];
 
   const { error: delErr } = await db
     .from("cup_ties")
@@ -1395,10 +1446,28 @@ export async function performRegenerateCupBracket(
   if (insertErr) {
     if (prevTieRows.length > 0) {
       await db.from("cup_ties").insert(prevTieRows);
+    } else if (createdEditionInThisCall) {
+      await db.from("cup_editions").delete().eq("id", editionUuid);
     }
     return dbErrorResult(
       insertErr,
       "No se pudo guardar el nuevo cuadro de Copa (se restauró el anterior)"
+    );
+  }
+
+  // Update cutoff snapshot only after cup_ties replacement has succeeded
+  const { error: edUpdateErr } = await db
+    .from("cup_editions")
+    .update({ cutoff_snapshot_json: nextCutoffSnapshot })
+    .eq("id", editionUuid);
+  if (edUpdateErr) {
+    await db.from("cup_ties").delete().eq("cup_edition_id", editionUuid);
+    if (prevTieRows.length > 0) {
+      await db.from("cup_ties").insert(prevTieRows);
+    }
+    return dbErrorResult(
+      edUpdateErr,
+      "No se pudo actualizar el corte de Copa (se restauró el cuadro anterior)"
     );
   }
 

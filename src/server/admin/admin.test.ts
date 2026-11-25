@@ -643,6 +643,138 @@ describe("WU-6 Admin Server Actions — Persistence, Validation & Rollback", () 
       "11111111-1111-4111-8111-111111111111"
     );
   });
+
+  it("Probe B1-a: performUpdateMatch removes newly added phantom players on delete failure rollback", async () => {
+    const { db, store } = createFakeDb({
+      failOn: {
+        match_players: {
+          op: "delete",
+          error: { message: "transient delete error" },
+          once: true,
+        },
+      },
+    });
+
+    const res = await performUpdateMatch(db, ADMIN_SESSION, {
+      matchId: "match-2026-1-2026-03-01",
+      seasonId: "season-2026",
+      matchType: "cup",
+      modality: "F6",
+      matchDate: "2026-03-02",
+      matchNumber: 2,
+      teamAScore: 9,
+      teamBScore: 1,
+      countsForLeague: false,
+      countsForStats: true,
+      notes: "Should rollback",
+      roster: [
+        { playerId: "b-aguzzi", team: "A" },
+        { playerId: "luca", team: "B" }, // added P3 while removing pipo (P2)
+      ],
+    });
+
+    expect(res.ok).toBe(false);
+    const match = store.matches.find(
+      (m) => m.slug === "match-2026-1-2026-03-01"
+    );
+    expect(match?.notes).toBe("Inicial");
+    const rosterIds = store.match_players
+      .filter((mp) => mp.match_id === match?.id)
+      .map((mp) => mp.player_id)
+      .sort();
+    expect(rosterIds).toEqual([
+      "11111111-1111-4111-8111-111111111111",
+      "22222222-2222-4222-8222-222222222222",
+    ]);
+  });
+
+  it("Probe B1-b: performUpdateMatch aborts with zero writes when prevRoster snapshot read fails", async () => {
+    const { db, ops } = createFakeDb({
+      failOn: {
+        match_players: {
+          op: "select",
+          error: { message: "snapshot read error" },
+        },
+      },
+    });
+
+    const res = await performUpdateMatch(db, ADMIN_SESSION, {
+      matchId: "match-2026-1-2026-03-01",
+      seasonId: "season-2026",
+      matchType: "league",
+      modality: "F5",
+      matchDate: "2026-03-01",
+      matchNumber: 1,
+      teamAScore: 5,
+      teamBScore: 4,
+      countsForLeague: true,
+      roster: [
+        { playerId: "b-aguzzi", team: "A" },
+        { playerId: "luca", team: "B" },
+      ],
+    });
+
+    expect(res.ok).toBe(false);
+    const writes = ops.filter(
+      (o) =>
+        (o.table === "matches" || o.table === "match_players") &&
+        o.op !== "select"
+    );
+    expect(writes).toHaveLength(0);
+  });
+
+  it("Probe B2-a: performRegenerateCupBracket aborts with zero writes if cup_ties snapshot select fails", async () => {
+    const { db, ops, store } = createFakeDb({
+      failOn: {
+        cup_ties: {
+          op: "select",
+          error: { message: "cup_ties read failed" },
+        },
+      },
+    });
+    const repo = new SeedPublicTournamentRepository();
+    const initialTies = [...store.cup_ties];
+
+    const res = await performRegenerateCupBracket(db, ADMIN_SESSION, repo, {
+      seasonId: "season-2026",
+      previousFinalists: ["b-aguzzi", "pipo"],
+    });
+
+    expect(res.ok).toBe(false);
+    expect(store.cup_ties).toEqual(initialTies);
+    const cupWrites = ops.filter(
+      (o) =>
+        (o.table === "cup_ties" || o.table === "cup_editions") &&
+        o.op !== "select"
+    );
+    expect(cupWrites).toHaveLength(0);
+  });
+
+  it("Probe B2-b: performRegenerateCupBracket preserves cutoff_snapshot_json and restores cup_ties when insert fails", async () => {
+    const { db, store } = createFakeDb({
+      failOn: {
+        cup_ties: {
+          op: "insert",
+          error: { message: "cup_ties insert failed" },
+          once: true,
+        },
+      },
+    });
+    store.cup_editions[0].cutoff_snapshot_json = ["existing-seed-1"];
+    const repo = new SeedPublicTournamentRepository();
+
+    const res = await performRegenerateCupBracket(db, ADMIN_SESSION, repo, {
+      seasonId: "season-2026",
+      previousFinalists: ["b-aguzzi", "pipo"],
+    });
+
+    expect(res.ok).toBe(false);
+    expect(store.cup_editions[0].cutoff_snapshot_json).toEqual([
+      "existing-seed-1",
+    ]);
+    expect(store.cup_ties).toHaveLength(1);
+    expect(store.cup_ties[0].round).toBe("quarterfinal");
+  });
 });
 
 describe("WU-6 SSR Admin Guard & Architectural Contracts", () => {
