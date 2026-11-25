@@ -32,6 +32,78 @@ const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
     "Supabase Auth no está configurado en este entorno todavía.",
 };
 
+interface OtpCodeVerifyFormProps {
+  email: string;
+  requestMessage?: string;
+}
+
+function OtpCodeVerifyForm({ email, requestMessage }: OtpCodeVerifyFormProps) {
+  const [otpVerifyState, otpVerifyAction, isVerifyingOtp] = useActionState(
+    verifyEmailOtpAction,
+    INITIAL_STATE
+  );
+
+  const isVerifyError =
+    otpVerifyState.status === "otp_sent" && Boolean(otpVerifyState.message);
+
+  return (
+    <form
+      action={otpVerifyAction}
+      className="space-y-3 rounded-md border border-pitch-200 bg-pitch-50/60 p-4"
+    >
+      <input type="hidden" name="email" value={email} />
+      <div
+        role={isVerifyError ? "alert" : "status"}
+        className={cn(
+          "flex items-start gap-2 text-xs",
+          isVerifyError ? "font-medium text-crimson-700" : "text-pitch-900"
+        )}
+      >
+        {isVerifyError ? (
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-crimson-700" />
+        ) : (
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-pitch-700" />
+        )}
+        <span>
+          {otpVerifyState.message ??
+            requestMessage ??
+            `Revisá la bandeja de ${email}.`}
+        </span>
+      </div>
+
+      <div>
+        <label
+          htmlFor="login-otp-code"
+          className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-pitch-900"
+        >
+          <KeyRound className="h-3.5 w-3.5" />
+          Código numérico (opcional si no abrís el enlace)
+        </label>
+        <div className="mt-1 flex gap-2">
+          <input
+            id="login-otp-code"
+            name="token"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]{6,8}"
+            maxLength={8}
+            required
+            placeholder="123456"
+            className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={isVerifyingOtp}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-leather-600 px-4 text-xs font-extrabold text-white transition-colors hover:bg-leather-700 disabled:opacity-60"
+          >
+            {isVerifyingOtp ? "Validando..." : "Verificar código"}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export interface LoginCardProps {
   isAuthConfigured: boolean;
   callbackError?: string;
@@ -48,20 +120,18 @@ export function LoginCard({
     requestEmailOtpAction,
     INITIAL_STATE
   );
-  const [otpVerifyState, otpVerifyAction, isVerifyingOtp] = useActionState(
-    verifyEmailOtpAction,
-    INITIAL_STATE
-  );
   const [pwdState, pwdAction, isSigningInPwd] = useActionState(
     signInWithPasswordAction,
     INITIAL_STATE
   );
 
-  const activeEmail =
-    otpVerifyState.email ?? otpReqState.email ?? emailInput.trim();
-  const showCodeVerification =
+  const normalizedDraftEmail = emailInput.trim().toLowerCase();
+  const requestedEmail = otpReqState.email ?? "";
+  const isOtpActiveForCurrentEmail =
     mode === "otp" &&
-    (otpReqState.status === "otp_sent" || otpVerifyState.status === "otp_sent");
+    otpReqState.status === "otp_sent" &&
+    Boolean(requestedEmail) &&
+    (normalizedDraftEmail === "" || normalizedDraftEmail === requestedEmail);
 
   const callbackErrorMessage = callbackError
     ? (CALLBACK_ERROR_MESSAGES[callbackError] ??
@@ -181,57 +251,18 @@ export function LoginCard({
               <LogIn className="h-4 w-4" />
               {isRequestingOtp
                 ? "Enviando enlace..."
-                : showCodeVerification
+                : isOtpActiveForCurrentEmail
                   ? "Reenviar enlace / código"
                   : "Enviar enlace de acceso"}
             </button>
           </form>
 
-          {showCodeVerification && (
-            <form
-              action={otpVerifyAction}
-              className="space-y-3 rounded-md border border-pitch-200 bg-pitch-50/60 p-4"
-            >
-              <input type="hidden" name="email" value={activeEmail} />
-              <div className="flex items-start gap-2 text-xs text-pitch-900">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-pitch-700" />
-                <span>
-                  {otpVerifyState.message ??
-                    otpReqState.message ??
-                    `Revisá la bandeja de ${activeEmail}.`}
-                </span>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="login-otp-code"
-                  className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-pitch-900"
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  Código numérico (opcional si no abrís el enlace)
-                </label>
-                <div className="mt-1 flex gap-2">
-                  <input
-                    id="login-otp-code"
-                    name="token"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]{6,8}"
-                    maxLength={8}
-                    required
-                    placeholder="123456"
-                    className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isVerifyingOtp}
-                    className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-leather-600 px-4 text-xs font-extrabold text-white transition-colors hover:bg-leather-700 disabled:opacity-60"
-                  >
-                    {isVerifyingOtp ? "Validando..." : "Verificar código"}
-                  </button>
-                </div>
-              </div>
-            </form>
+          {isOtpActiveForCurrentEmail && (
+            <OtpCodeVerifyForm
+              key={`${requestedEmail}:${otpReqState.sentAt ?? 0}`}
+              email={requestedEmail}
+              requestMessage={otpReqState.message}
+            />
           )}
         </div>
       ) : (

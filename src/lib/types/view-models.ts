@@ -127,6 +127,7 @@ export interface AuthFormActionState {
   status: "idle" | "otp_sent" | "error";
   email?: string;
   message?: string;
+  sentAt?: number;
 }
 
 export interface ProfileRecentMatchItem {

@@ -1,9 +1,11 @@
 import "server-only";
+import { parseHttpOrigin } from "./redirect";
 
 export interface AuthActionState {
   status: "idle" | "otp_sent" | "error";
   email?: string;
   message?: string;
+  sentAt?: number;
 }
 
 export interface ServerAuthActionsClient {
@@ -29,6 +31,7 @@ export interface ServerAuthActionsClient {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+let otpRequestSeq = 0;
 
 export function normalizeEmailInput(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -61,9 +64,10 @@ export async function performRequestEmailOtp(
     };
   }
 
+  const safeOrigin = parseHttpOrigin(callbackOrigin) ?? "http://localhost:3000";
   const emailRedirectTo = new URL(
     "/auth/callback?next=/perfil",
-    callbackOrigin
+    safeOrigin
   ).toString();
 
   const { error } = await client.auth.signInWithOtp({
@@ -83,9 +87,11 @@ export async function performRequestEmailOtp(
     };
   }
 
+  otpRequestSeq = (otpRequestSeq + 1) % 1_000_000;
   return {
     status: "otp_sent",
     email,
+    sentAt: Date.now() * 1_000_000 + otpRequestSeq,
     message:
       "Te enviamos un enlace mágico y un código de acceso a tu correo. Podés abrir el enlace o ingresar el código abajo.",
   };

@@ -253,7 +253,7 @@ describe("Redirect sanitization & auth callback / actions security", () => {
     expect(sanitizeRedirectPath("/perfil\nSet-Cookie: bad=1")).toBe("/perfil");
   });
 
-  it("resolveSafeAppOrigin prefers explicit env over headers and rejects malformed hosts", () => {
+  it("resolveSafeAppOrigin blocks untrusted Host headers, matches Vercel PKCE aliases, and never produces invalid URLs", async () => {
     expect(
       resolveSafeAppOrigin({
         siteUrlEnv: "https://lolonmebol.app/some/path",
@@ -261,28 +261,106 @@ describe("Redirect sanitization & auth callback / actions security", () => {
       })
     ).toBe("https://lolonmebol.app");
 
+    // Probe 1a & 1b: untrusted external Host and localhost-prefixed spoofed domain fall back safely
     expect(
       resolveSafeAppOrigin({
         siteUrlEnv: "",
-        vercelUrlEnv: "lolonme-preview.vercel.app",
-      })
-    ).toBe("https://lolonme-preview.vercel.app");
-
-    expect(
-      resolveSafeAppOrigin({
-        siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
         vercelUrlEnv: "",
-        hostHeader: "localhost:3000",
+        hostHeader: "evil.example",
       })
     ).toBe("http://localhost:3000");
 
     expect(
       resolveSafeAppOrigin({
         siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
         vercelUrlEnv: "",
-        hostHeader: "evil.example/path?bad=1",
+        hostHeader: "localhost.evil.example",
       })
     ).toBe("http://localhost:3000");
+
+    // Probe 1c: Vercel production alias matches incoming Host ahead of immutable deployment hash (PKCE cookie match)
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "lolonmeapp.vercel.app",
+        vercelBranchUrlEnv: "lolonmeapp-git-main.vercel.app",
+        vercelUrlEnv: "lolonmeapp-9x8y7z.vercel.app",
+        hostHeader: "lolonmeapp.vercel.app",
+      })
+    ).toBe("https://lolonmeapp.vercel.app");
+
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "lolonmeapp.vercel.app",
+        vercelBranchUrlEnv: "lolonmeapp-git-feat.vercel.app",
+        vercelUrlEnv: "lolonmeapp-9x8y7z.vercel.app",
+        hostHeader: "lolonmeapp-git-feat.vercel.app",
+      })
+    ).toBe("https://lolonmeapp-git-feat.vercel.app");
+
+    // Exact loopback allowed for local dev on custom valid port
+    expect(
+      resolveSafeAppOrigin({
+        siteUrlEnv: "",
+        vercelProdUrlEnv: "",
+        vercelBranchUrlEnv: "",
+        vercelUrlEnv: "",
+        hostHeader: "localhost:3001",
+      })
+    ).toBe("http://localhost:3001");
+
+    // Probe 1d & 1e: invalid port (>65535) and non-HTTP scheme (`javascript:`) never crash performRequestEmailOtp
+    const signInWithOtp = vi.fn().mockResolvedValue({ error: null });
+    const mockActionsClient: ServerAuthActionsClient = {
+      auth: {
+        signInWithOtp,
+        verifyOtp: vi.fn().mockResolvedValue({ error: null }),
+        signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
+        signOut: vi.fn().mockResolvedValue({ error: null }),
+      },
+    };
+
+    const badPortOrigin = resolveSafeAppOrigin({
+      siteUrlEnv: "",
+      vercelProdUrlEnv: "",
+      vercelBranchUrlEnv: "",
+      vercelUrlEnv: "",
+      hostHeader: "localhost:99999",
+    });
+    expect(badPortOrigin).toBe("http://localhost:3000");
+    await expect(
+      performRequestEmailOtp(
+        mockActionsClient,
+        "jugador@lolonmebol.test",
+        badPortOrigin
+      )
+    ).resolves.toMatchObject({ status: "otp_sent" });
+
+    const jsSchemeOrigin = resolveSafeAppOrigin({
+      siteUrlEnv: "javascript:alert(1)",
+      vercelProdUrlEnv: "",
+      vercelBranchUrlEnv: "",
+      vercelUrlEnv: "",
+    });
+    expect(jsSchemeOrigin).toBe("http://localhost:3000");
+    const firstSent = await performRequestEmailOtp(
+      mockActionsClient,
+      "typo@lolonmebol.test",
+      "javascript:alert(1)"
+    );
+    const secondSent = await performRequestEmailOtp(
+      mockActionsClient,
+      "real@lolonmebol.test",
+      "https://lolonmeapp.vercel.app"
+    );
+    expect(firstSent.sentAt).toBeDefined();
+    expect(secondSent.sentAt).toBeDefined();
+    expect(secondSent.sentAt).not.toBe(firstSent.sentAt);
   });
 
   it("resolveAuthCallback exchanges PKCE code or verifies token_hash and neutralizes open-redirects", async () => {
