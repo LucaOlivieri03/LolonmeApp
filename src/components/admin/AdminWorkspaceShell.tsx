@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
@@ -12,12 +13,6 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { AdminAnnouncementsTab } from "@/components/admin/AdminAnnouncementsTab";
-import { AdminCupTab } from "@/components/admin/AdminCupTab";
-import { AdminExcelTab } from "@/components/admin/AdminExcelTab";
-import { AdminMatchesTab } from "@/components/admin/AdminMatchesTab";
-import { AdminPlayersTab } from "@/components/admin/AdminPlayersTab";
-import { AdminPozoTab } from "@/components/admin/AdminPozoTab";
 import { resolveDefaultSeasonId } from "@/lib/engine";
 import type {
   Announcement,
@@ -37,6 +32,66 @@ import type {
 } from "@/lib/types/view-models";
 import { cn } from "@/lib/utils";
 import { createSeasonAction } from "@/server/actions/players";
+
+function AdminTabSkeleton() {
+  return (
+    <div
+      role="status"
+      aria-label="Cargando sección..."
+      className="space-y-3 rounded-lg border border-rule bg-surface p-4"
+    >
+      <div className="h-6 w-48 rounded-sm bg-surface-subtle motion-safe:animate-pulse" />
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <div className="h-11 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+        <div className="h-11 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+        <div className="h-11 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+      </div>
+      <div className="h-24 rounded-md bg-surface-subtle motion-safe:animate-pulse" />
+    </div>
+  );
+}
+
+const AdminMatchesTab = dynamic(
+  () =>
+    import("@/components/admin/AdminMatchesTab").then(
+      (mod) => mod.AdminMatchesTab
+    ),
+  { loading: () => <AdminTabSkeleton /> }
+);
+
+const AdminAnnouncementsTab = dynamic(
+  () =>
+    import("@/components/admin/AdminAnnouncementsTab").then(
+      (mod) => mod.AdminAnnouncementsTab
+    ),
+  { loading: () => <AdminTabSkeleton /> }
+);
+
+const AdminCupTab = dynamic(
+  () =>
+    import("@/components/admin/AdminCupTab").then((mod) => mod.AdminCupTab),
+  { loading: () => <AdminTabSkeleton /> }
+);
+
+const AdminPlayersTab = dynamic(
+  () =>
+    import("@/components/admin/AdminPlayersTab").then(
+      (mod) => mod.AdminPlayersTab
+    ),
+  { loading: () => <AdminTabSkeleton /> }
+);
+
+const AdminPozoTab = dynamic(
+  () =>
+    import("@/components/admin/AdminPozoTab").then((mod) => mod.AdminPozoTab),
+  { loading: () => <AdminTabSkeleton /> }
+);
+
+const AdminExcelTab = dynamic(
+  () =>
+    import("@/components/admin/AdminExcelTab").then((mod) => mod.AdminExcelTab),
+  { loading: () => <AdminTabSkeleton /> }
+);
 
 type AdminTab =
   | "matches"
@@ -85,6 +140,15 @@ export function AdminWorkspaceShell({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState<AdminTab>("matches");
+  const [initialMatchId, setInitialMatchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const matchId = new URLSearchParams(window.location.search).get("matchId");
+    if (matchId) {
+      setActiveTab("matches");
+      setInitialMatchId(matchId);
+    }
+  }, []);
 
   const isAdmin = session.role === "admin";
 
@@ -340,19 +404,28 @@ export function AdminWorkspaceShell({
                 </form>
               </div>
               {isDuplicateSeasonYear && !seasonErrorMsg && (
-                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                <p
+                  role="alert"
+                  className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700"
+                >
                   La temporada {Math.round(parsedNewSeasonYear)} ya existe en el
                   sistema ({sortedSeasons.map((s) => s.year).join(", ")}). Ingresá
                   un año que no esté cargado.
                 </p>
               )}
               {seasonErrorMsg && (
-                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                <p
+                  role="alert"
+                  className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700"
+                >
                   {seasonErrorMsg}
                 </p>
               )}
               {seasonCreatedMsg && (
-                <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
+                <p
+                  role="status"
+                  className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800"
+                >
                   {seasonCreatedMsg}
                 </p>
               )}
@@ -368,6 +441,7 @@ export function AdminWorkspaceShell({
           matches={data.matches}
           isAdmin={isAdmin}
           defaultSeasonId={defaultSeasonId}
+          initialMatchId={initialMatchId}
         />
       )}
 

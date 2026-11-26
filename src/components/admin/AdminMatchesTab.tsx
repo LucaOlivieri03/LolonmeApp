@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { Minus, Pencil, Plus, PlusCircle, Trash2 } from "lucide-react";
 import { MatchEditModal } from "@/components/tournament/MatchEditModal";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { filterMatches, resolveDefaultSeasonId } from "@/lib/engine";
@@ -34,6 +34,7 @@ interface AdminMatchesTabProps {
   matches: Match[];
   isAdmin: boolean;
   defaultSeasonId: string;
+  initialMatchId?: string | null;
 }
 
 export function AdminMatchesTab({
@@ -42,9 +43,12 @@ export function AdminMatchesTab({
   matches,
   isAdmin,
   defaultSeasonId,
+  initialMatchId = null,
 }: AdminMatchesTabProps) {
   const router = useRouter();
+  const idPrefix = useId();
   const [isPending, startTransition] = useTransition();
+  const consumedInitialMatchIdRef = useRef<string | null>(null);
 
   const [rawSeasonId, setRawSeasonId] = useState(defaultSeasonId);
   const seasonId = resolveDefaultSeasonId(seasons, rawSeasonId);
@@ -72,6 +76,60 @@ export function AdminMatchesTab({
   const [numberQuery, setNumberQuery] = useState("");
   const [playerFilter, setPlayerFilter] = useState("ALL");
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+
+  useEffect(() => {
+    if (!initialMatchId || !isAdmin) return;
+    if (consumedInitialMatchIdRef.current === initialMatchId) return;
+    const targetMatch = matches.find((m) => m.id === initialMatchId);
+    if (targetMatch) {
+      consumedInitialMatchIdRef.current = initialMatchId;
+      setEditingMatch(targetMatch);
+    }
+  }, [initialMatchId, isAdmin, matches]);
+
+  const stepQuickScore = (
+    current: string,
+    delta: number,
+    setter: (val: string) => void
+  ) => {
+    const trimmed = current.trim();
+    if (trimmed === "") {
+      setter(delta > 0 ? "1" : "0");
+      return;
+    }
+    const parsed = Number(trimmed);
+    const base = Number.isFinite(parsed) ? parsed : 0;
+    setter(String(Math.max(0, base + delta)));
+  };
+
+  const quickScoreSummary = useMemo(() => {
+    const sA = mScoreA.trim() === "" ? null : Number(mScoreA);
+    const sB = mScoreB.trim() === "" ? null : Number(mScoreB);
+    const hasBoth =
+      sA !== null && sB !== null && Number.isFinite(sA) && Number.isFinite(sB);
+
+    let verdict = "Sin definir";
+    let verdictTone = "text-ink-muted";
+    if (hasBoth) {
+      if (sA > sB) {
+        verdict = "Ganó Equipo A";
+        verdictTone = "text-pitch-800";
+      } else if (sB > sA) {
+        verdict = "Ganó Equipo B";
+        verdictTone = "text-navy-800";
+      } else {
+        verdict = "Empate";
+        verdictTone = "text-leather-700";
+      }
+    }
+
+    return {
+      displayA: sA !== null && Number.isFinite(sA) ? String(sA) : "—",
+      displayB: sB !== null && Number.isFinite(sB) ? String(sB) : "—",
+      verdict,
+      verdictTone,
+    };
+  }, [mScoreA, mScoreB]);
 
   const filteredMatches = useMemo(
     () =>
@@ -287,36 +345,112 @@ export function AdminMatchesTab({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm font-bold text-pitch-800">
-            Goles Eq. A
-            <input
-              type="number"
-              min={0}
-              value={mScoreA}
-              onChange={(e) => setMScoreA(e.target.value)}
-              className="font-display min-h-11 w-16 rounded-md border border-rule bg-paper px-2 text-center text-lg font-bold text-ink"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm font-bold text-navy-800">
-            Goles Eq. B
-            <input
-              type="number"
-              min={0}
-              value={mScoreB}
-              onChange={(e) => setMScoreB(e.target.value)}
-              className="font-display min-h-11 w-16 rounded-md border border-rule bg-paper px-2 text-center text-lg font-bold text-ink"
-            />
-          </label>
-          <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
-            <input
-              type="checkbox"
-              checked={mCountsLeague}
-              onChange={(e) => setMCountsLeague(e.target.checked)}
-              className="h-4 w-4 accent-pitch-800"
-            />
-            Suma en Tabla Anual
-          </label>
+        <div className="space-y-3 rounded-md bg-paper p-3">
+          {/* Live scoreboard preview strip */}
+          <div
+            aria-live="polite"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-surface px-3 py-2"
+          >
+            <div className="font-display flex items-center gap-2 text-base font-extrabold tracking-wide tabular-nums sm:text-lg">
+              <span className="text-pitch-800">Equipo A</span>
+              <span className="inline-flex min-w-7 items-center justify-center rounded-sm bg-pitch-800 px-1.5 py-0.5 text-white">
+                {quickScoreSummary.displayA}
+              </span>
+              <span className="text-ink-muted">–</span>
+              <span className="inline-flex min-w-7 items-center justify-center rounded-sm bg-navy-800 px-1.5 py-0.5 text-white">
+                {quickScoreSummary.displayB}
+              </span>
+              <span className="text-navy-800">Equipo B</span>
+            </div>
+            <span
+              className={cn(
+                "text-xs font-bold uppercase tracking-wider",
+                quickScoreSummary.verdictTone
+              )}
+            >
+              {quickScoreSummary.verdict}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label
+                htmlFor={`${idPrefix}-quick-score-a`}
+                className="block text-xs font-bold uppercase tracking-wider text-pitch-800"
+              >
+                Goles Eq. A
+              </label>
+              <div className="mt-1 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => stepQuickScore(mScoreA, -1, setMScoreA)}
+                  aria-label="Restar gol a Equipo A"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700 hover:bg-pitch-50"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <input
+                  id={`${idPrefix}-quick-score-a`}
+                  type="number"
+                  min={0}
+                  value={mScoreA}
+                  onChange={(e) => setMScoreA(e.target.value)}
+                  className="font-display min-h-10 w-16 rounded-md border border-rule bg-surface px-2 text-center text-lg font-bold tabular-nums text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => stepQuickScore(mScoreA, 1, setMScoreA)}
+                  aria-label="Sumar gol a Equipo A"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700 hover:bg-pitch-50"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                htmlFor={`${idPrefix}-quick-score-b`}
+                className="block text-xs font-bold uppercase tracking-wider text-navy-800"
+              >
+                Goles Eq. B
+              </label>
+              <div className="mt-1 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => stepQuickScore(mScoreB, -1, setMScoreB)}
+                  aria-label="Restar gol a Equipo B"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-navy-700 hover:bg-navy-50"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <input
+                  id={`${idPrefix}-quick-score-b`}
+                  type="number"
+                  min={0}
+                  value={mScoreB}
+                  onChange={(e) => setMScoreB(e.target.value)}
+                  className="font-display min-h-10 w-16 rounded-md border border-rule bg-surface px-2 text-center text-lg font-bold tabular-nums text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => stepQuickScore(mScoreB, 1, setMScoreB)}
+                  aria-label="Sumar gol a Equipo B"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-navy-700 hover:bg-navy-50"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+              <input
+                type="checkbox"
+                checked={mCountsLeague}
+                onChange={(e) => setMCountsLeague(e.target.checked)}
+                className="h-4 w-4 accent-pitch-800"
+              />
+              Suma en Tabla Anual
+            </label>
+          </div>
         </div>
 
         <div className="space-y-2.5">
@@ -452,6 +586,7 @@ export function AdminMatchesTab({
 
         {feedback && (
           <p
+            role={feedback.type === "error" ? "alert" : "status"}
             className={cn(
               "rounded-md border px-3.5 py-2.5 text-sm font-semibold",
               feedback.type === "success"
@@ -469,8 +604,8 @@ export function AdminMatchesTab({
           <h3 className="font-display text-lg font-bold tracking-wide text-ink">
             Todos los Partidos ({filteredMatches.length})
           </h3>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="w-56">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="w-full sm:w-56">
               <PlayerCombobox
                 options={playerFilterOptions}
                 value={playerFilter}
@@ -483,7 +618,7 @@ export function AdminMatchesTab({
               aria-label="Filtrar temporada en admin"
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
-              className="min-h-11 rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:text-sm"
+              className="min-h-11 w-full rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:w-auto sm:text-sm"
             >
               <option value="ALL">Todas las temporadas</option>
               {seasons.map((s) => (
@@ -498,7 +633,7 @@ export function AdminMatchesTab({
               placeholder="N° Fecha (ej. 12)"
               value={numberQuery}
               onChange={(e) => setNumberQuery(e.target.value)}
-              className="min-h-11 w-36 rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:text-sm"
+              className="min-h-11 w-full rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:w-36 sm:text-sm"
             />
           </div>
         </div>

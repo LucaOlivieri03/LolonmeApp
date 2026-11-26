@@ -65,6 +65,11 @@ export function PlayerCombobox({
     );
   }, [options, query]);
 
+  const activeOptionId =
+    isOpen && filteredOptions[highlightedIndex]
+      ? `${listboxId}-opt-${filteredOptions[highlightedIndex].id}`
+      : undefined;
+
   useEffect(() => {
     if (!isOpen) return;
     const currentIdx = filteredOptions.findIndex((o) => o.id === value);
@@ -230,7 +235,7 @@ export function PlayerCombobox({
           <div
             aria-hidden="true"
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-50 bg-ink/45 sm:hidden"
+            className="fixed inset-0 z-50 bg-black/55 sm:hidden"
           />
 
           <div
@@ -261,6 +266,11 @@ export function PlayerCombobox({
                 <input
                   ref={inputRef}
                   type="search"
+                  role="combobox"
+                  aria-controls={listboxId}
+                  aria-expanded={isOpen}
+                  aria-autocomplete="list"
+                  aria-activedescendant={activeOptionId}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -268,7 +278,7 @@ export function PlayerCombobox({
                   }}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
-                  className="min-h-10 w-full rounded-md border border-rule bg-paper pr-11 pl-9 text-base text-ink placeholder:text-ink-muted focus:border-pitch-800 focus:outline-none sm:text-sm"
+                  className="min-h-10 w-full rounded-md border border-rule bg-paper pr-11 pl-9 text-base text-ink placeholder:text-ink-muted focus:border-pitch-800 sm:text-sm"
                 />
                 {query && (
                   <button
