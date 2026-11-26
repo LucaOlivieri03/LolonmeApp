@@ -414,4 +414,23 @@ describe("WU-1 Verification Probes (B1-B4)", () => {
     const sortedEventDates = [...eventDates].sort((a, b) => b.localeCompare(a));
     expect(eventDates).toEqual(sortedEventDates);
   });
+
+  it("defines 0003 migration for player_link_requests, RLS guards, case-insensitive email uniqueness, and admin auth-link RPC", () => {
+    const migrationPath = path.resolve(
+      process.cwd(),
+      "supabase/migrations/0003_player_link_requests.sql"
+    );
+    expect(fs.existsSync(migrationPath)).toBe(true);
+
+    const sql = fs.readFileSync(migrationPath, "utf8");
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS public\.player_link_requests/i);
+    expect(sql).toMatch(/status IN \('pending', 'approved', 'rejected'\)/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX[\s\S]*ON public\.player_link_requests \(user_id\)[\s\S]*WHERE status = 'pending'/i);
+    expect(sql).toMatch(/ALTER TABLE public\.player_link_requests ENABLE ROW LEVEL SECURITY/i);
+    expect(sql).toMatch(/p\.user_id IS NULL[\s\S]*p\.role <> 'admin'/i);
+    expect(sql).toMatch(/public\.is_admin\(\)/);
+    expect(sql).toMatch(/CREATE UNIQUE INDEX[\s\S]*ON public\.players \(lower\(email\)\)[\s\S]*WHERE email IS NOT NULL/i);
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.admin_list_player_auth_links\(\)/i);
+    expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.handle_new_auth_user\(\)/i);
+  });
 });
