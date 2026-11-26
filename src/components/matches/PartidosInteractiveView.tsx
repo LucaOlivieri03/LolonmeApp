@@ -42,7 +42,7 @@ const MATCH_TYPE_META: Record<
     badgeClass: "border-gold-500/40 bg-gold-50 text-gold-700",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
+    label: "LOLONMEBOL",
     badgeClass: "border-pitch-900 bg-pitch-800 text-gold-400",
   },
   special_f11: {
@@ -140,7 +140,7 @@ export function PartidosInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <Trophy className="h-6 w-6 text-pitch-700" />
-            Partidos y Fechas Especiales
+            Partidos y Fechas especiales
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             {matches.length} partido{matches.length === 1 ? "" : "s"} en registro
@@ -200,8 +200,8 @@ export function PartidosInteractiveView({
                 { id: "league", label: "Liga" },
                 { id: "league_tiebreaker", label: "Desempate" },
                 { id: "cup", label: "Copa" },
-                { id: "special_f11", label: "Fechas Especiales" },
-                { id: "lolonmebol", label: "Final LOLONMEBOL" },
+                { id: "special_f11", label: "Fechas especiales" },
+                { id: "lolonmebol", label: "LOLONMEBOL" },
               ] as const
             ).map((item) => (
               <button

@@ -57,21 +57,21 @@ const SECTIONS: ReglasSectionMeta[] = [
   },
   {
     id: "copa",
-    label: "3. Formato Copa Anual",
-    shortLabel: "3. Copa Anual",
-    title: "3. Formato de la Copa Anual",
+    label: "3. Formato Copa",
+    shortLabel: "3. Copa",
+    title: "3. Formato de la Copa",
   },
   {
     id: "lolonmebol",
-    label: "4. Final LOLONMEBOL y Estrellas",
+    label: "4. LOLONMEBOL y Estrellas",
     shortLabel: "4. Estrellas",
-    title: "4. Final LOLONMEBOL y Sistema de Estrellas",
+    title: "4. LOLONMEBOL y Sistema de Estrellas",
   },
   {
     id: "especiales",
-    label: "5. Fechas Especiales (F11)",
+    label: "5. Fechas especiales (F11)",
     shortLabel: "5. Especiales",
-    title: "5. Fechas Especiales y Excepciones Históricas",
+    title: "5. Fechas especiales y Excepciones Históricas",
   },
   {
     id: "rendimientos",
@@ -108,7 +108,7 @@ export default function ReglasPage() {
               <tbody className="divide-y divide-rule text-sm">
                 <tr>
                   <td className="px-3.5 py-3 font-bold text-pitch-800">
-                    Liga Anual
+                    Liga
                   </td>
                   <td className="px-3.5 py-3 text-ink">
                     Partidos semanales con equipos armados de forma rotativa
@@ -121,7 +121,7 @@ export default function ReglasPage() {
                 </tr>
                 <tr>
                   <td className="px-3.5 py-3 font-bold text-pitch-800">
-                    Copa Anual
+                    Copa
                   </td>
                   <td className="px-3.5 py-3 text-ink">
                     Eliminación directa <strong>1 vs 1 entre capitanes</strong>{" "}
@@ -141,7 +141,7 @@ export default function ReglasPage() {
                 </tr>
                 <tr>
                   <td className="px-3.5 py-3 font-bold text-pitch-800">
-                    Final LOLONMEBOL
+                    LOLONMEBOL
                   </td>
                   <td className="px-3.5 py-3 text-ink">
                     Supercopa anual entre el <strong>Campeón de Liga</strong> y
@@ -157,7 +157,7 @@ export default function ReglasPage() {
                 </tr>
                 <tr>
                   <td className="px-3.5 py-3 font-bold text-pitch-800">
-                    Fechas Especiales
+                    Fechas especiales
                   </td>
                   <td className="px-3.5 py-3 text-ink">
                     Eventos conmemorativos (ej. <em>F11 Aniversario</em>,{" "}
@@ -207,7 +207,7 @@ export default function ReglasPage() {
                 <tbody className="divide-y divide-rule text-sm">
                   <tr>
                     <td className="px-3.5 py-2.5 font-bold text-ink">
-                      Liga Anual
+                      Liga
                     </td>
                     <td className="px-3.5 py-2.5 text-ink-muted">
                       Cualquier jugador
@@ -227,7 +227,7 @@ export default function ReglasPage() {
                   </tr>
                   <tr className="bg-pitch-50/40">
                     <td className="px-3.5 py-2.5 font-bold text-pitch-800">
-                      Copa Anual
+                      Copa
                     </td>
                     <td className="px-3.5 py-2.5 font-semibold text-pitch-800">
                       Compañero de equipo
@@ -247,7 +247,7 @@ export default function ReglasPage() {
                   </tr>
                   <tr>
                     <td className="px-3.5 py-2.5 font-bold text-ink">
-                      Copa Anual
+                      Copa
                     </td>
                     <td className="px-3.5 py-2.5 font-semibold text-leather-700">
                       Capitán del cruce
@@ -267,7 +267,7 @@ export default function ReglasPage() {
                   </tr>
                   <tr>
                     <td className="px-3.5 py-2.5 font-bold text-ink">
-                      Final LOLONMEBOL
+                      LOLONMEBOL
                     </td>
                     <td className="px-3.5 py-2.5 text-ink-muted">
                       Cualquier jugador
@@ -378,7 +378,7 @@ export default function ReglasPage() {
               </li>
               <li>
                 <strong>2 Cupos automáticos:</strong> Los{" "}
-                <strong>2 finalistas de la Final LOLONMEBOL anterior</strong>{" "}
+                <strong>2 finalistas de la LOLONMEBOL anterior</strong>{" "}
                 clasifican siempre.
               </li>
               <li>
@@ -478,19 +478,19 @@ export default function ReglasPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 rounded-md bg-paper p-4">
             <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-              Supercopa Anual: Final LOLONMEBOL
+              Supercopa Anual: LOLONMEBOL
             </h3>
             <ul className="space-y-2 text-sm leading-relaxed text-ink">
               <li>
                 <strong>Protagonistas:</strong> Se enfrentan el{" "}
-                <strong>Campeón de la Liga Anual</strong> contra el{" "}
-                <strong>Campeón de la Copa Anual</strong>.
+                <strong>Campeón de la Liga</strong> contra el{" "}
+                <strong>Campeón de la Copa</strong>.
               </li>
               <li>
                 <strong>Bicampeón Liga + Copa:</strong> Si un mismo jugador
                 conquista tanto la Liga como la Copa en la misma temporada,
-                disputa la Final LOLONMEBOL frente al{" "}
-                <strong>Subcampeón de la Liga Anual</strong>.
+                disputa la LOLONMEBOL frente al{" "}
+                <strong>Subcampeón de la Liga</strong>.
               </li>
               <li>
                 <strong>Efecto en tablas:</strong> Se juega con la Liga anual ya
@@ -529,7 +529,7 @@ export default function ReglasPage() {
                     className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
                     aria-hidden="true"
                   />{" "}
-                  Liga Anual
+                  Liga
                 </span>
                 <span className="text-[11px] text-ink-muted">
                   Campeón anual
@@ -541,7 +541,7 @@ export default function ReglasPage() {
                     className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
                     aria-hidden="true"
                   />{" "}
-                  Copa Anual
+                  Copa
                 </span>
                 <span className="text-[11px] text-ink-muted">
                   Campeón llaves
@@ -574,7 +574,7 @@ export default function ReglasPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 rounded-md bg-paper p-4">
             <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-              Regla General para Fechas Especiales (F11)
+              Regla General para Fechas especiales (F11)
             </h3>
             <p className="text-sm leading-relaxed text-ink">
               Los encuentros conmemorativos de cancha grande (como{" "}
@@ -811,8 +811,8 @@ export default function ReglasPage() {
               Reglamento Oficial · LOLONMEBOL
             </h1>
             <p className="max-w-2xl text-sm text-pitch-100">
-              Especificación deportiva oficial para la Liga Anual, Copa Anual,
-              Final LOLONMEBOL, criterios de desempate y cálculo de estadísticas
+              Especificación deportiva oficial para la Liga, Copa,
+              LOLONMEBOL, criterios de desempate y cálculo de estadísticas
               avanzadas.
             </p>
           </div>

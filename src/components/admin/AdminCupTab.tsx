@@ -17,7 +17,7 @@ const ROUND_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos de Final",
   semifinal: "Semifinales",
   final: "Final de Copa",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 interface AdminCupTabProps {

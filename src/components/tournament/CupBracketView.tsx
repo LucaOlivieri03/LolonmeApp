@@ -15,7 +15,7 @@ const ROUND_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos",
   semifinal: "Semifinales",
   final: "Final de Copa",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 const ROUND_TAB_LABELS: Record<string, string> = {
@@ -23,7 +23,7 @@ const ROUND_TAB_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos",
   semifinal: "Semis",
   final: "Final",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 const ROUND_ORDER = [

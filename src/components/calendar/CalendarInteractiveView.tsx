@@ -35,7 +35,7 @@ const EVENT_TYPE_META: Record<
     badge: "border-gold-500/40 bg-gold-50 text-gold-700",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
+    label: "LOLONMEBOL",
     dot: "bg-pitch-900",
     badge: "border-pitch-900 bg-pitch-800 text-gold-400",
   },
@@ -259,7 +259,7 @@ export function CalendarInteractiveView({
             Calendario Oficial
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Grilla mensual interactiva y agenda de Liga, Copa, Final LOLONMEBOL, F11 y descansos
+            Grilla mensual interactiva y agenda de Liga, Copa, LOLONMEBOL, F11 y descansos
           </p>
           {nextUpcoming && countdownLabel && (
             <div className="mt-2">

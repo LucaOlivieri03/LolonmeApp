@@ -25,9 +25,9 @@ const ROLE_LABELS: Record<PlayerRole, string> = {
 };
 
 const TITLE_LABELS: Record<TitleType, string> = {
-  league: "Campeón de Liga Anual",
-  cup: "Campeón de Copa LOLONMEBOL",
-  lolonmebol: "Campeón Final LOLONMEBOL",
+  league: "Campeón de Liga",
+  cup: "Campeón de Copa",
+  lolonmebol: "Campeón LOLONMEBOL",
 };
 
 function scoreBadgeLabel(m: ProfileRecentMatchItem): string {

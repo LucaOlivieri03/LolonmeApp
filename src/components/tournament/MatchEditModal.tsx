@@ -344,7 +344,7 @@ export function MatchEditModal({
                 <option value="cup">Copa</option>
                 <option value="special_f11">Fecha Especial F11</option>
                 <option value="league_tiebreaker">Desempate Liga</option>
-                <option value="lolonmebol">Final LOLONMEBOL</option>
+                <option value="lolonmebol">LOLONMEBOL</option>
               </select>
             </div>
             <div>
