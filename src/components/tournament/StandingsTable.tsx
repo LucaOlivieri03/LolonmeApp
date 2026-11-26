@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, Award, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { Fragment, useState } from "react";
+import { AlertTriangle, Award, ChevronDown, ChevronUp, Crown, Star } from "lucide-react";
 import type { StandingsResult } from "@/lib/engine";
 import { cn } from "@/lib/utils";
 
@@ -56,121 +56,196 @@ export function StandingsTable({
         <table className="w-full min-w-[540px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-rule bg-surface-subtle text-xs font-bold uppercase tracking-wider text-ink-muted">
-              <th className="sticky left-0 z-20 w-12 bg-surface-subtle py-2.5 pl-3 pr-1.5 text-center">
+              <th
+                scope="col"
+                className="sticky left-0 z-20 w-12 bg-surface-subtle py-2.5 pl-3 pr-1.5 text-center"
+              >
                 #
               </th>
-              <th className="sticky left-12 z-20 border-r border-rule/80 bg-surface-subtle py-2.5 px-2.5">
+              <th
+                scope="col"
+                className="sticky left-12 z-20 border-r border-rule/80 bg-surface-subtle py-2.5 px-2.5"
+              >
                 Jugador
               </th>
-              <th className="py-2.5 px-2.5 text-center font-extrabold text-pitch-800">
+              <th
+                scope="col"
+                className="py-2.5 px-2.5 text-center font-extrabold text-pitch-800"
+              >
                 Pts
               </th>
-              <th className="py-2.5 px-2 text-center">PJ</th>
-              <th className="py-2.5 px-2 text-center">G-E-P</th>
-              <th className="py-2.5 px-2 text-center">PG%</th>
-              <th className="py-2.5 px-2 text-center">MVPs</th>
+              <th scope="col" className="py-2.5 px-2 text-center">
+                PJ
+              </th>
+              <th scope="col" className="py-2.5 px-2 text-center">
+                G-E-P
+              </th>
+              <th scope="col" className="py-2.5 px-2 text-center">
+                PG%
+              </th>
+              <th scope="col" className="py-2.5 px-2 text-center">
+                MVPs
+              </th>
               {mode === "annual" && (
                 <>
-                  <th className="py-2.5 px-2 text-center">G/A</th>
-                  <th className="py-2.5 pl-2 pr-3 text-center">Prom</th>
+                  <th scope="col" className="py-2.5 px-2 text-center">
+                    G/A
+                  </th>
+                  <th scope="col" className="py-2.5 pl-2 pr-3 text-center">
+                    Prom
+                  </th>
                 </>
               )}
             </tr>
           </thead>
           <tbody className="divide-y divide-rule/75">
-            {visibleRows.map((row) => {
+            {visibleRows.map((row, idx) => {
               const isLeader = row.position === 1;
               const isDirectCup = mode === "annual" && row.position <= 7;
               const isPrelimCup =
                 mode === "annual" && row.position >= 8 && row.position <= 9;
               const rowBg = isLeader ? "bg-gold-50" : "bg-surface";
+              const trHover = isLeader
+                ? "hover:bg-gold-100"
+                : "hover:bg-pitch-50";
+              const stickyHover = isLeader
+                ? "group-hover:bg-gold-100"
+                : "group-hover:bg-pitch-50";
+              const hasMoreBelow = idx < visibleRows.length - 1;
+              const showTop7Cut =
+                mode === "annual" && row.position === 7 && hasMoreBelow;
+              const showPrelimCut =
+                mode === "annual" && row.position === 9 && hasMoreBelow;
 
               return (
-                <tr
-                  key={row.playerId}
-                  className={cn(
-                    "transition-colors hover:bg-pitch-50/60",
-                    rowBg
-                  )}
-                >
-                  <td
+                <Fragment key={row.playerId}>
+                  <tr
                     className={cn(
-                      "sticky left-0 z-10 py-2.5 pl-3 pr-1.5 text-center",
-                      rowBg
+                      "group transition-colors",
+                      rowBg,
+                      trHover
                     )}
                   >
-                    <span
+                    <td
                       className={cn(
-                        "font-display inline-flex h-7 w-7 items-center justify-center rounded-sm text-sm font-extrabold",
-                        isLeader
-                          ? "bg-gold-500 text-ink"
-                          : isDirectCup
-                            ? "bg-pitch-800 text-white"
-                            : isPrelimCup
-                              ? "border border-gold-600/40 bg-gold-100 text-gold-700"
-                              : "bg-surface-subtle text-ink-muted"
+                        "sticky left-0 z-10 py-2.5 pl-3 pr-1.5 text-center transition-colors",
+                        rowBg,
+                        stickyHover
                       )}
                     >
-                      {row.position}
-                    </span>
-                  </td>
-                  <td
-                    className={cn(
-                      "sticky left-12 z-10 border-r border-rule/60 py-2.5 px-2.5 font-semibold text-ink",
-                      rowBg
-                    )}
-                  >
-                    <div className="flex items-center gap-1.5 whitespace-nowrap">
-                      <span>{row.displayName}</span>
-                      {row.stars > 0 && (
-                        <span
-                          className="inline-flex items-center gap-0.5 text-gold-600"
-                          title={`${row.stars} título${row.stars > 1 ? "s" : ""} oficial${row.stars > 1 ? "es" : ""}`}
-                          aria-label={`${row.stars} título${row.stars > 1 ? "s" : ""}`}
-                        >
-                          {Array.from({ length: row.stars }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className="h-3.5 w-3.5 fill-gold-500 text-gold-600"
-                            />
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="font-display py-2.5 px-2.5 text-center text-lg font-extrabold text-pitch-800">
-                    {row.points}
-                  </td>
-                  <td className="py-2.5 px-2 text-center font-medium text-ink-muted">
-                    {row.pj}
-                  </td>
-                  <td className="py-2.5 px-2 text-center text-xs font-medium text-ink-muted">
-                    {row.pg}-{row.pe}-{row.pp}
-                  </td>
-                  <td className="py-2.5 px-2 text-center font-medium text-ink">
-                    {row.winRate.toFixed(0)}%
-                  </td>
-                  <td className="py-2.5 px-2 text-center">
-                    {row.mvps > 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-sm border border-leather-600/25 bg-leather-50 px-2 py-0.5 text-xs font-bold text-leather-700">
-                        <Award className="h-3 w-3 text-leather-600" />
-                        {row.mvps}
+                      <span
+                        className={cn(
+                          "font-display inline-flex h-7 w-7 items-center justify-center rounded-sm text-sm font-extrabold",
+                          isLeader
+                            ? "bg-gold-500 text-ink"
+                            : isDirectCup
+                              ? "bg-pitch-800 text-white"
+                              : isPrelimCup
+                                ? "border border-gold-600/40 bg-gold-100 text-gold-700"
+                                : "bg-surface-subtle text-ink-muted"
+                        )}
+                      >
+                        {row.position}
                       </span>
-                    ) : (
-                      <span className="text-rule-strong">—</span>
+                    </td>
+                    <td
+                      className={cn(
+                        "sticky left-12 z-10 border-r border-rule/60 py-2.5 px-2.5 font-semibold text-ink transition-colors",
+                        rowBg,
+                        stickyHover
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {isLeader && row.points > 0 && (
+                          <Crown
+                            className="h-3.5 w-3.5 shrink-0 text-gold-500"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span>{row.displayName}</span>
+                        {row.stars > 0 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-gold-600"
+                            title={`${row.stars} título${row.stars > 1 ? "s" : ""} oficial${row.stars > 1 ? "es" : ""}`}
+                            aria-label={`${row.stars} título${row.stars > 1 ? "s" : ""}`}
+                          >
+                            {Array.from({ length: row.stars }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className="h-3.5 w-3.5 fill-gold-500 text-gold-600"
+                                aria-hidden="true"
+                              />
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="font-display py-2.5 px-2.5 text-center text-lg font-extrabold text-pitch-800">
+                      {row.points}
+                    </td>
+                    <td className="py-2.5 px-2 text-center font-medium text-ink-muted">
+                      {row.pj}
+                    </td>
+                    <td className="py-2.5 px-2 text-center text-xs font-medium text-ink-muted">
+                      {row.pg}-{row.pe}-{row.pp}
+                    </td>
+                    <td className="py-2.5 px-2 text-center font-medium text-ink">
+                      {row.winRate.toFixed(0)}%
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      {row.mvps > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-sm border border-leather-600/25 bg-leather-50 px-2 py-0.5 text-xs font-bold text-leather-700">
+                          <Award className="h-3 w-3 text-leather-600" aria-hidden="true" />
+                          {row.mvps}
+                        </span>
+                      ) : (
+                        <span className="text-rule-strong">—</span>
+                      )}
+                    </td>
+                    {mode === "annual" && (
+                      <>
+                        <td className="py-2.5 px-2 text-center text-xs font-semibold text-ink">
+                          {row.goals}/{row.assists}
+                        </td>
+                        <td className="py-2.5 pl-2 pr-3 text-center text-xs font-bold text-navy-700">
+                          {row.avgRating !== null ? row.avgRating.toFixed(2) : "—"}
+                        </td>
+                      </>
                     )}
-                  </td>
-                  {mode === "annual" && (
-                    <>
-                      <td className="py-2.5 px-2 text-center text-xs font-semibold text-ink">
-                        {row.goals}/{row.assists}
+                  </tr>
+
+                  {(showTop7Cut || showPrelimCut) && (
+                    <tr aria-hidden="true">
+                      <td
+                        colSpan={9}
+                        className={cn(
+                          "border-y border-dashed px-3 py-1",
+                          showTop7Cut
+                            ? "border-pitch-600/45 bg-pitch-50/40"
+                            : "border-gold-600/45 bg-gold-50/50"
+                        )}
+                      >
+                        <div className="sticky left-3 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider">
+                          <span
+                            className={cn(
+                              "inline-block h-1.5 w-1.5 rounded-full",
+                              showTop7Cut ? "bg-pitch-700" : "bg-gold-600"
+                            )}
+                          />
+                          <span
+                            className={
+                              showTop7Cut ? "text-pitch-800" : "text-gold-700"
+                            }
+                          >
+                            {showTop7Cut
+                              ? "Corte directo a Copa · Top 7"
+                              : "Corte Fase Previa · #8–#9"}
+                          </span>
+                        </div>
                       </td>
-                      <td className="py-2.5 pl-2 pr-3 text-center text-xs font-bold text-navy-700">
-                        {row.avgRating !== null ? row.avgRating.toFixed(2) : "—"}
-                      </td>
-                    </>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               );
             })}
           </tbody>

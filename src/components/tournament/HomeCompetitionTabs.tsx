@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { StandingsResult } from "@/lib/engine";
 import type { Season } from "@/lib/types/domain";
@@ -10,6 +10,12 @@ import { CupBracketView } from "@/components/tournament/CupBracketView";
 import { cn } from "@/lib/utils";
 
 type HomeTab = "annual" | "historical" | "cup";
+
+const HOME_TABS: readonly { id: HomeTab; label: string }[] = [
+  { id: "annual", label: "Tabla Anual" },
+  { id: "historical", label: "Histórica" },
+  { id: "cup", label: "Copa" },
+];
 
 interface HomeCompetitionTabsProps {
   seasons: Season[];
@@ -29,6 +35,30 @@ export function HomeCompetitionTabs({
   cupTies,
 }: HomeCompetitionTabsProps) {
   const [activeTab, setActiveTab] = useState<HomeTab>("annual");
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const baseId = useId();
+  const panelId = `${baseId}-panel`;
+
+  const handleTabKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    idx: number
+  ) => {
+    const count = HOME_TABS.length;
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight") {
+      nextIdx = (idx + 1) % count;
+    } else if (e.key === "ArrowLeft") {
+      nextIdx = (idx - 1 + count) % count;
+    } else if (e.key === "Home") {
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      nextIdx = count - 1;
+    }
+    if (nextIdx === null) return;
+    e.preventDefault();
+    setActiveTab(HOME_TABS[nextIdx].id);
+    tabRefs.current[nextIdx]?.focus();
+  };
 
   return (
     <section className="space-y-3" aria-label="Competencias del torneo">
@@ -38,29 +68,33 @@ export function HomeCompetitionTabs({
           aria-label="Vista de competencia"
           className="inline-flex rounded-md border border-rule bg-surface p-0.5"
         >
-          {(
-            [
-              { id: "annual", label: "Tabla Anual" },
-              { id: "historical", label: "Histórica" },
-              { id: "cup", label: "Copa" },
-            ] as const
-          ).map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === id}
-              onClick={() => setActiveTab(id)}
-              className={cn(
-                "min-h-10 rounded-sm px-3.5 text-sm font-semibold transition-colors",
-                activeTab === id
-                  ? "bg-pitch-800 text-white"
-                  : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
-              )}
-            >
-              {label}
-            </button>
-          ))}
+          {HOME_TABS.map(({ id, label }, idx) => {
+            const isActive = activeTab === id;
+            return (
+              <button
+                key={id}
+                ref={(el) => {
+                  tabRefs.current[idx] = el;
+                }}
+                id={`${baseId}-tab-${id}`}
+                type="button"
+                role="tab"
+                tabIndex={isActive ? 0 : -1}
+                aria-selected={isActive}
+                aria-controls={panelId}
+                onClick={() => setActiveTab(id)}
+                onKeyDown={(e) => handleTabKeyDown(e, idx)}
+                className={cn(
+                  "min-h-10 rounded-sm px-3.5 text-sm font-semibold transition-colors",
+                  isActive
+                    ? "bg-pitch-800 text-white"
+                    : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {activeTab !== "historical" && (
@@ -89,7 +123,11 @@ export function HomeCompetitionTabs({
         )}
       </div>
 
-      <div role="tabpanel">
+      <div
+        id={panelId}
+        role="tabpanel"
+        aria-labelledby={`${baseId}-tab-${activeTab}`}
+      >
         {activeTab === "annual" && (
           <StandingsTable result={annualStandings} mode="annual" />
         )}
