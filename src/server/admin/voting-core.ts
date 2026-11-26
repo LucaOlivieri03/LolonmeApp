@@ -336,6 +336,20 @@ export async function performSubmitMatchVotes(
     };
   }
 
+  const resetMvpRes = await client
+    .from("match_votes")
+    .update({ voted_mvp: false })
+    .eq("match_id", matchRow.id)
+    .eq("voter_player_id", voter.playerUuid)
+    .eq("voted_mvp", true);
+
+  if (resetMvpRes.error) {
+    return dbErrorResult(
+      resetMvpRes.error,
+      "No se pudo actualizar tu voto de MVP."
+    );
+  }
+
   const rowsToUpsert = validation.entries.map((entry) => ({
     match_id: matchRow.id,
     voter_player_id: voter.playerUuid,

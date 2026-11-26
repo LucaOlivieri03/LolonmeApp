@@ -178,8 +178,9 @@ describe("voting-core server mutations", () => {
     if (!res.ok) expect(res.code).toBe("CONFLICT");
   });
 
-  it("accepts valid participant ballot using domain slugs and upserts UUIDs", async () => {
+  it("accepts valid participant ballot using domain slugs, clears prior MVP flag, and upserts UUIDs", async () => {
     const upsertSpy = vi.fn();
+    const updates: Array<{ table: string; payload: unknown }> = [];
     const client = createMockClient({
       matchRow: { id: MATCH_UUID, voting_status: "open" },
       roster: [{ player_id: PLAYER_1_UUID }, { player_id: PLAYER_2_UUID }],
@@ -187,6 +188,7 @@ describe("voting-core server mutations", () => {
         { id: PLAYER_1_UUID, slug: "luca" },
         { id: PLAYER_2_UUID, slug: "nico" },
       ],
+      onUpdate: (table, payload) => updates.push({ table, payload }),
       onUpsert: upsertSpy,
     });
 
@@ -196,6 +198,10 @@ describe("voting-core server mutations", () => {
     });
 
     expect(res.ok).toBe(true);
+    expect(updates).toContainEqual({
+      table: "match_votes",
+      payload: { voted_mvp: false },
+    });
     expect(upsertSpy).toHaveBeenCalledWith([
       {
         match_id: MATCH_UUID,
