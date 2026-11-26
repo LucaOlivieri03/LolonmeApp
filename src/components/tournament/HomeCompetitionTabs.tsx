@@ -39,6 +39,12 @@ export function HomeCompetitionTabs({
   const baseId = useId();
   const panelId = `${baseId}-panel`;
 
+  const hasCupStarted = cupTies.some(
+    (tie) =>
+      tie.round !== "lolonmebol" &&
+      (tie.hasScores || tie.isAWin || tie.isBWin)
+  );
+
   const handleTabKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
     idx: number
@@ -133,7 +139,11 @@ export function HomeCompetitionTabs({
         aria-labelledby={`${baseId}-tab-${activeTab}`}
       >
         {activeTab === "annual" && (
-          <StandingsTable result={annualStandings} mode="annual" />
+          <StandingsTable
+            result={annualStandings}
+            mode="annual"
+            hasCupStarted={hasCupStarted}
+          />
         )}
         {activeTab === "historical" && (
           <StandingsTable
