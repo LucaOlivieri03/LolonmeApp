@@ -268,7 +268,7 @@ export function AdminPlayersTab({
                         e.target.value as Exclude<PlayerRole, "guest">
                       )
                     }
-                    className="min-h-9 rounded-md border border-rule bg-surface px-2 text-xs font-semibold text-ink disabled:opacity-60"
+                    className="min-h-10 rounded-md border border-rule bg-surface px-2.5 text-base font-semibold text-ink disabled:opacity-60 sm:text-sm"
                   >
                     <option value="player">Jugador</option>
                     <option value="authorized">Autorizado</option>

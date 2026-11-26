@@ -216,7 +216,7 @@ export function AdminAnnouncementsTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => handleDeleteAnnouncement(a.id)}
-                        className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white disabled:opacity-50"
+                        className="min-h-10 rounded-md bg-crimson-600 px-3 text-xs font-bold text-white disabled:opacity-50"
                       >
                         Borrar
                       </button>
@@ -224,7 +224,7 @@ export function AdminAnnouncementsTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => setPendingDeleteKey(null)}
-                        className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                        className="min-h-10 rounded-md border border-rule bg-paper px-3 text-xs font-semibold text-ink-muted"
                       >
                         No
                       </button>
@@ -349,7 +349,7 @@ export function AdminAnnouncementsTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => handleDeleteEvent(ev.id)}
-                        className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white disabled:opacity-50"
+                        className="min-h-10 rounded-md bg-crimson-600 px-3 text-xs font-bold text-white disabled:opacity-50"
                       >
                         Borrar
                       </button>
@@ -357,7 +357,7 @@ export function AdminAnnouncementsTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => setPendingDeleteKey(null)}
-                        className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                        className="min-h-10 rounded-md border border-rule bg-paper px-3 text-xs font-semibold text-ink-muted"
                       >
                         No
                       </button>

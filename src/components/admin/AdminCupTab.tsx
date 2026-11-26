@@ -47,6 +47,7 @@ export function AdminCupTab({
   const seasonId = resolveDefaultSeasonId(sortedSeasons, selectedSeasonId);
   const [finalist1, setFinalist1] = useState("b-aguzzi");
   const [finalist2, setFinalist2] = useState("pipo");
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
@@ -75,6 +76,7 @@ export function AdminCupTab({
 
   const handleRegenerate = () => {
     setFeedback(null);
+    setConfirmRegenerate(false);
     startTransition(async () => {
       const res = await regenerateCupBracketAction({
         seasonId,
@@ -144,7 +146,10 @@ export function AdminCupTab({
               <button
                 key={s.id}
                 type="button"
-                onClick={() => setSeasonId(s.id)}
+                onClick={() => {
+                  setSeasonId(s.id);
+                  setConfirmRegenerate(false);
+                }}
                 className={cn(
                   "font-display min-h-10 rounded-md border px-3.5 text-base font-bold transition-colors",
                   seasonId === s.id
@@ -179,15 +184,46 @@ export function AdminCupTab({
               searchPlaceholder="Buscar jugador..."
             />
           </div>
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={handleRegenerate}
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900 disabled:opacity-50"
-          >
-            <RefreshCw className={cn("h-4 w-4", isPending && "animate-spin")} />
-            {isPending ? "Generando..." : "Generar / Regenerar Cuadro"}
-          </button>
+          {confirmRegenerate ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2">
+              <span className="text-xs font-semibold text-crimson-700">
+                Esto sobrescribirá las ediciones manuales del cuadro actual.
+              </span>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleRegenerate}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-crimson-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-crimson-700 disabled:opacity-50"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", isPending && "animate-spin")} />
+                {isPending ? "Generando..." : "Confirmar regeneración"}
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setConfirmRegenerate(false)}
+                className="min-h-10 rounded-md border border-rule bg-surface px-3 text-xs font-semibold text-ink-muted hover:text-ink"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                if (ties.length > 0) {
+                  setConfirmRegenerate(true);
+                } else {
+                  handleRegenerate();
+                }
+              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900 disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-4 w-4", isPending && "animate-spin")} />
+              {isPending ? "Generando..." : "Generar / Regenerar Cuadro"}
+            </button>
+          )}
         </div>
       </section>
 

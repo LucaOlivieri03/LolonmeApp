@@ -7,10 +7,10 @@ import { getAdminViewModel } from "@/server/queries/admin";
 export const dynamic = "force-dynamic";
 
 const ROLE_LABELS: Record<PlayerRole, string> = {
-  admin: "Admin (Presidente)",
+  admin: "Admin · Presidente",
   authorized: "Jugador Autorizado",
   player: "Jugador",
-  guest: "Invitado (sin cuenta)",
+  guest: "Invitado — sin cuenta",
 };
 
 export default async function AdminPage() {
@@ -37,7 +37,7 @@ export default async function AdminPage() {
         <div className="rounded-lg border border-crimson-600/35 bg-surface p-8 text-center">
           <Lock className="mx-auto h-8 w-8 text-crimson-600" />
           <h2 className="font-display mt-2 text-xl font-bold tracking-wide text-ink">
-            Acceso Restringido ({ROLE_LABELS[vm.role]})
+            Acceso Restringido · {ROLE_LABELS[vm.role]}
           </h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-ink-muted">
             Solo los usuarios con rol <strong className="text-ink">Admin</strong>{" "}
