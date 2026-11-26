@@ -19,8 +19,9 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF NOT public.is_operator() THEN
-    IF NEW.match_id IS DISTINCT FROM OLD.match_id
+  IF auth.uid() IS NOT NULL AND NOT public.is_operator() THEN
+    IF NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.match_id IS DISTINCT FROM OLD.match_id
        OR NEW.player_id IS DISTINCT FROM OLD.player_id
        OR NEW.team IS DISTINCT FROM OLD.team
        OR NEW.is_cup_captain IS DISTINCT FROM OLD.is_cup_captain
@@ -48,6 +49,7 @@ DROP POLICY IF EXISTS captain_update_team_tactical_positions ON public.match_pla
 CREATE POLICY captain_update_team_tactical_positions
   ON public.match_players
   FOR UPDATE
+  TO authenticated
   USING (
     EXISTS (
       SELECT 1
