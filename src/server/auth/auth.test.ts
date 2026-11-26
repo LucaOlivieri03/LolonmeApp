@@ -5,7 +5,9 @@ import {
   AuthError,
   GUEST_SESSION,
   isAuthError,
+  loadUnlinkedProfileState,
   performRequestEmailOtp,
+  performRequestPlayerLink,
   performSignInWithGoogle,
   performSignInWithPassword,
   performVerifyEmailOtp,
@@ -527,5 +529,218 @@ describe("Redirect sanitization & auth callback / actions security", () => {
     );
     expect(loginCardSrc).toContain("signInWithGoogleAction");
     expect(loginCardSrc).toContain("Continuar con Google");
+  });
+
+  it("loadUnlinkedProfileState & performRequestPlayerLink enforce unlinked-only access, exclude admins/linked/inactive players, and block duplicate pending requests", async () => {
+    const playersTable = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        slug: "free-player",
+        display_name: "Jugador Libre",
+        nickname: "Libre",
+        role: "player" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        slug: "free-authorized",
+        display_name: "Autorizado Libre",
+        nickname: null,
+        role: "authorized" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        slug: "admin-boss",
+        display_name: "Admin Presidente",
+        nickname: null,
+        role: "admin" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        slug: "already-linked",
+        display_name: "Ya Vinculado",
+        nickname: null,
+        role: "player" as const,
+        is_active: true,
+        user_id: "existing-auth-uid",
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        slug: "inactive-player",
+        display_name: "Inactivo",
+        nickname: null,
+        role: "player" as const,
+        is_active: false,
+        user_id: null as string | null,
+      },
+    ];
+    const requestsTable: Array<{
+      id: string;
+      user_id: string;
+      email: string;
+      requested_player_id: string;
+      status: "pending" | "approved" | "rejected";
+      created_at: string;
+      review_note: string | null;
+    }> = [];
+
+    const mockDb = {
+      players: playersTable,
+      requests: requestsTable,
+    };
+
+    const dbAdapter = {
+      async listCandidatePlayers() {
+        return mockDb.players;
+      },
+      async findPendingRequestByUserId(userId: string) {
+        return (
+          mockDb.requests.find(
+            (r) => r.user_id === userId && r.status === "pending"
+          ) ?? null
+        );
+      },
+      async findPlayerByUserId(userId: string) {
+        return mockDb.players.find((p) => p.user_id === userId) ?? null;
+      },
+      async findPlayerByIdentifier(identifier: string) {
+        return (
+          mockDb.players.find(
+            (p) => p.slug === identifier || p.id === identifier
+          ) ?? null
+        );
+      },
+      async insertPendingRequest(row: {
+        user_id: string;
+        email: string;
+        requested_player_id: string;
+      }) {
+        if (
+          mockDb.requests.some(
+            (r) => r.user_id === row.user_id && r.status === "pending"
+          )
+        ) {
+          return {
+            data: null,
+            error: { code: "23505", message: "duplicate pending request" },
+          };
+        }
+        const created = {
+          id: `req-${mockDb.requests.length + 1}`,
+          ...row,
+          status: "pending" as const,
+          created_at: "2026-11-25T22:00:00Z",
+          review_note: null,
+        };
+        mockDb.requests.push(created);
+        return { data: created, error: null };
+      },
+    };
+
+    // 1. loadUnlinkedProfileState exposes ONLY active, unlinked, non-admin players without email or userId
+    const initialState = await loadUnlinkedProfileState(dbAdapter, "user-new-1");
+    expect(initialState).toEqual({
+      pendingRequest: null,
+      availablePlayers: [
+        { id: "free-authorized", displayName: "Autorizado Libre" },
+        { id: "free-player", displayName: "Jugador Libre", nickname: "Libre" },
+      ],
+    });
+    expect(JSON.stringify(initialState)).not.toContain("admin-boss");
+    expect(JSON.stringify(initialState)).not.toContain("already-linked");
+    expect(JSON.stringify(initialState)).not.toContain("existing-auth-uid");
+
+    // 2. Guest (unauthenticated) rejected with UNAUTHENTICATED
+    expect(
+      await performRequestPlayerLink(dbAdapter, GUEST_SESSION, {
+        playerId: "free-player",
+      })
+    ).toMatchObject({ ok: false, code: "UNAUTHENTICATED" });
+
+    // 3. Already-linked session rejected with CONFLICT
+    const linkedSession: ViewerSession = {
+      role: "player",
+      userId: "existing-auth-uid",
+      playerId: "already-linked",
+      playerUuid: "44444444-4444-4444-8444-444444444444",
+      displayName: "Ya Vinculado",
+      email: "linked@lolonmebol.test",
+    };
+    expect(
+      await performRequestPlayerLink(dbAdapter, linkedSession, {
+        playerId: "free-player",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    const unlinkedSession: ViewerSession = {
+      role: "guest",
+      userId: "user-new-1",
+      playerId: null,
+      playerUuid: null,
+      displayName: null,
+      email: "  NuevoJugador@Gmail.com ",
+    };
+
+    // 4. Rejects admin, already-linked, and inactive target players
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "admin-boss",
+      })
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "already-linked",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "inactive-player",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
+
+    // 5. Valid unlinked player request succeeds with normalized lowercase email
+    const createdRes = await performRequestPlayerLink(
+      dbAdapter,
+      unlinkedSession,
+      { playerId: "free-player" }
+    );
+    expect(createdRes).toMatchObject({
+      ok: true,
+      data: { requestId: "req-1" },
+    });
+    expect(requestsTable[0]).toMatchObject({
+      user_id: "user-new-1",
+      email: "nuevojugador@gmail.com",
+      requested_player_id: "11111111-1111-4111-8111-111111111111",
+      status: "pending",
+    });
+
+    // 6. Second request while first is pending fails with CONFLICT
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "free-authorized",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    // 7. Reloading state returns pendingRequest with resolved player name
+    const reloadedState = await loadUnlinkedProfileState(
+      dbAdapter,
+      "user-new-1"
+    );
+    expect(reloadedState.pendingRequest).toEqual({
+      id: "req-1",
+      requestedPlayerId: "free-player",
+      requestedPlayerName: "Jugador Libre",
+      status: "pending",
+      createdAt: "2026-11-25T22:00:00Z",
+      reviewNote: null,
+    });
   });
 });

@@ -145,6 +145,21 @@ export interface ProfileRecentMatchItem {
   resultOutcome: "A" | "B" | "draw" | null;
 }
 
+export interface AvailableUnlinkedPlayer {
+  id: string;
+  displayName: string;
+  nickname?: string;
+}
+
+export interface PlayerLinkRequestSummary {
+  id: string;
+  requestedPlayerId: string;
+  requestedPlayerName: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  reviewNote?: string | null;
+}
+
 export type ProfileViewModel =
   | {
       status: "guest";
@@ -153,6 +168,8 @@ export type ProfileViewModel =
   | {
       status: "unlinked";
       email: string | null;
+      pendingRequest: PlayerLinkRequestSummary | null;
+      availablePlayers: AvailableUnlinkedPlayer[];
     }
   | {
       status: "linked";

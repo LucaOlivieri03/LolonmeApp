@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type {
+  ActionResult,
+  RequestPlayerLinkInput,
+} from "@/lib/types/admin-actions";
 import {
+  createSupabaseLinkRequestAdapter,
+  getViewerSession,
   performRequestEmailOtp,
+  performRequestPlayerLink,
   performSignInWithGoogle,
   performSignInWithPassword,
   performVerifyEmailOtp,
@@ -97,4 +104,22 @@ export async function signOutAction(): Promise<void> {
   }
   revalidatePath("/", "layout");
   redirect("/perfil");
+}
+
+export async function requestPlayerLinkAction(
+  input: RequestPlayerLinkInput
+): Promise<ActionResult<{ requestId: string }>> {
+  const [session, client] = await Promise.all([
+    getViewerSession(),
+    createSupabaseServerClient(),
+  ]);
+  const adapter = createSupabaseLinkRequestAdapter(client);
+  const result = await performRequestPlayerLink(adapter, session, input);
+
+  if (result.ok) {
+    revalidatePath("/perfil");
+    revalidatePath("/admin");
+  }
+
+  return result;
 }

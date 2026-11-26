@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   Award,
   BarChart3,
@@ -11,6 +10,7 @@ import {
   UserCircle2,
 } from "lucide-react";
 import { LoginCard } from "@/components/profile/LoginCard";
+import { UnlinkedAccountCard } from "@/components/profile/UnlinkedAccountCard";
 import type { PlayerRole, TitleType } from "@/lib/types/domain";
 import type { ProfileRecentMatchItem } from "@/lib/types/view-models";
 import { signOutAction } from "@/server/actions/auth";
@@ -99,46 +99,11 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           callbackError={params.authError}
         />
       ) : vm.status === "unlinked" ? (
-        <section className="mx-auto max-w-xl rounded-lg border border-leather-600/40 bg-surface p-6 text-center sm:p-8">
-          <AlertTriangle className="mx-auto h-10 w-10 text-leather-600" />
-          <h2 className="font-display mt-3 text-2xl font-extrabold tracking-wide text-ink">
-            Cuenta pendiente de vinculación
-          </h2>
-          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-muted">
-            Iniciaste sesión correctamente
-            {vm.email ? (
-              <>
-                {" "}
-                con <strong className="text-ink">{vm.email}</strong>
-              </>
-            ) : null}
-            , pero ese correo todavía no figura asociado a un jugador activo del
-            padrón oficial LOLONMEBOL.
-          </p>
-          <p className="mx-auto mt-2 max-w-md text-xs text-ink-muted">
-            Pedile a un Administrador del torneo que asocie tu correo a tu ficha
-            en el padrón de jugadores para habilitar tus estadísticas personales
-            y permisos.
-          </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/stats?tab=player"
-              className="inline-flex min-h-11 items-center gap-2 rounded-md border border-rule bg-paper px-4 text-sm font-semibold text-ink transition-colors hover:border-pitch-700"
-            >
-              <BarChart3 className="h-4 w-4 text-pitch-700" />
-              Explorar Stats por Jugador
-            </Link>
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                className="inline-flex min-h-11 items-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-bold text-white transition-colors hover:bg-pitch-900"
-              >
-                <LogOut className="h-4 w-4" />
-                Usar otro correo
-              </button>
-            </form>
-          </div>
-        </section>
+        <UnlinkedAccountCard
+          email={vm.email}
+          pendingRequest={vm.pendingRequest}
+          availablePlayers={vm.availablePlayers}
+        />
       ) : (
         <>
           {/* Personal Federation Card */}
