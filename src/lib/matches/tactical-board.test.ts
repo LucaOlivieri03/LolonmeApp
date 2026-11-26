@@ -47,4 +47,13 @@ describe("tactical-board formation & clamping", () => {
       expect(pos.y).toBeLessThanOrEqual(PITCH_BOUNDS.teamB.maxY);
     }
   });
+
+  it("uses saved official pitchX/pitchY coordinates when present (clamped to half)", () => {
+    const positions = computeInitialFormation(
+      [{ id: "a-1", pitchX: 30, pitchY: 22 }],
+      [{ id: "b-1", pitchX: 70, pitchY: 80 }]
+    );
+    expect(positions["a-1"]).toEqual({ x: 30, y: 22 });
+    expect(positions["b-1"]).toEqual({ x: 70, y: 80 });
+  });
 });

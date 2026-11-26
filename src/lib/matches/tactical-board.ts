@@ -57,7 +57,7 @@ function buildFormationRows(count: number): number[] {
 }
 
 function layoutHalf(
-  players: Pick<MatchLedgerPlayerItem, "id">[],
+  players: Pick<MatchLedgerPlayerItem, "id" | "pitchX" | "pitchY">[],
   team: "A" | "B"
 ): Record<string, TokenPosition> {
   const result: Record<string, TokenPosition> = {};
@@ -88,14 +88,27 @@ function layoutHalf(
     for (let c = 0; c < rowSize; c++) {
       const player = players[cursor];
       if (!player) break;
-      const rawX =
-        rowSize === 1
-          ? 50
-          : PITCH_BOUNDS.minX +
-            8 +
-            (c / (rowSize - 1)) * (PITCH_BOUNDS.maxX - PITCH_BOUNDS.minX - 16);
+      if (
+        typeof player.pitchX === "number" &&
+        Number.isFinite(player.pitchX) &&
+        typeof player.pitchY === "number" &&
+        Number.isFinite(player.pitchY)
+      ) {
+        result[player.id] = clampTokenPosition(
+          team,
+          player.pitchX,
+          player.pitchY
+        );
+      } else {
+        const rawX =
+          rowSize === 1
+            ? 50
+            : PITCH_BOUNDS.minX +
+              8 +
+              (c / (rowSize - 1)) * (PITCH_BOUNDS.maxX - PITCH_BOUNDS.minX - 16);
 
-      result[player.id] = clampTokenPosition(team, rawX, rawY);
+        result[player.id] = clampTokenPosition(team, rawX, rawY);
+      }
       cursor += 1;
     }
   }
@@ -104,8 +117,8 @@ function layoutHalf(
 }
 
 export function computeInitialFormation(
-  teamA: Pick<MatchLedgerPlayerItem, "id">[],
-  teamB: Pick<MatchLedgerPlayerItem, "id">[]
+  teamA: Pick<MatchLedgerPlayerItem, "id" | "pitchX" | "pitchY">[],
+  teamB: Pick<MatchLedgerPlayerItem, "id" | "pitchX" | "pitchY">[]
 ): Record<string, TokenPosition> {
   return {
     ...layoutHalf(teamA, "A"),

@@ -367,6 +367,8 @@ export function buildMatchesViewModel(
         isMvp: mp.isMvp,
         isCupCaptain: mp.isCupCaptain,
         adminRating: mp.adminRating,
+        pitchX: mp.pitchX ?? null,
+        pitchY: mp.pitchY ?? null,
       };
       if (mp.team === "A") {
         teamA.push(item);

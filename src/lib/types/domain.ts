@@ -69,6 +69,8 @@ export interface MatchPlayer {
   assists: number;
   adminRating: number | null;
   isMvp: boolean;
+  pitchX?: number | null;
+  pitchY?: number | null;
 }
 
 export interface MatchVote {

@@ -464,6 +464,8 @@ export function mapDatabaseRowsToDataset(
       assists: mp.assists,
       adminRating: parseNullableNumber(mp.admin_rating),
       isMvp: mp.is_mvp,
+      ...(mp.pitch_x !== undefined ? { pitchX: parseNullableNumber(mp.pitch_x) } : {}),
+      ...(mp.pitch_y !== undefined ? { pitchY: parseNullableNumber(mp.pitch_y) } : {}),
     };
     const bucket = matchPlayersByMatchUuid.get(mp.match_id);
     if (bucket) {

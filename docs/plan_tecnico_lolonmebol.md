@@ -81,6 +81,7 @@ flowchart TD
 | `0001_initial_schema.sql` | Esquema base, enums, RLS por rol (`is_admin()`, `is_operator()`), `REVOKE SELECT (email)` y trigger inicial `handle_new_auth_user()` |
 | `0002_align_domain_and_historical_outcomes.sql` | `players.slug`, `players.political_orientation`, `matches.result_outcome` y claves externas naturales para sync idempotente con Excel |
 | `0003_player_link_requests.sql` | Tabla `player_link_requests` + índice único parcial `pending` + RLS, unicidad case-insensitive de `players.email`, hardening de `handle_new_auth_user()` y RPC `admin_list_player_auth_links()` |
+| `0004_tactical_positions.sql` | Columnas `pitch_x`/`pitch_y` en `match_players`, trigger `guard_captain_match_player_update()` y política RLS `captain_update_team_tactical_positions` para persistencia de pizarra táctica por Admin/Autorizado o Capitán de equipo |
 
 ---
 

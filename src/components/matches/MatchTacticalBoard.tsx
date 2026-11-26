@@ -1,28 +1,38 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { RotateCcw, Star } from "lucide-react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { RotateCcw, Save, Star } from "lucide-react";
 import type { MatchLedgerPlayerItem } from "@/lib/types/view-models";
 import {
   clampTokenPosition,
   computeInitialFormation,
   type TokenPosition,
 } from "@/lib/matches/tactical-board";
+import { saveTacticalPositionsAction } from "@/server/actions/tactical";
 import { cn } from "@/lib/utils";
 
 interface MatchTacticalBoardProps {
+  matchId: string;
   teamA: MatchLedgerPlayerItem[];
   teamB: MatchLedgerPlayerItem[];
   teamAScore?: number | null;
   teamBScore?: number | null;
+  viewerPlayerId?: string | null;
+  isOperator?: boolean;
 }
 
 export function MatchTacticalBoard({
+  matchId,
   teamA,
   teamB,
   teamAScore,
   teamBScore,
+  viewerPlayerId = null,
+  isOperator = false,
 }: MatchTacticalBoardProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const pitchRef = useRef<HTMLDivElement | null>(null);
   const initialPositions = useMemo(
     () => computeInitialFormation(teamA, teamB),
@@ -32,6 +42,28 @@ export function MatchTacticalBoard({
   const [positions, setPositions] =
     useState<Record<string, TokenPosition>>(initialPositions);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<{
+    type: "ok" | "error";
+    text: string;
+  } | null>(null);
+
+  const editableTeams = useMemo(() => {
+    const teams = new Set<"A" | "B">();
+    if (isOperator) {
+      teams.add("A");
+      teams.add("B");
+      return teams;
+    }
+    if (viewerPlayerId) {
+      if (teamA.some((p) => p.playerId === viewerPlayerId && p.isCupCaptain)) {
+        teams.add("A");
+      }
+      if (teamB.some((p) => p.playerId === viewerPlayerId && p.isCupCaptain)) {
+        teams.add("B");
+      }
+    }
+    return teams;
+  }, [isOperator, teamA, teamB, viewerPlayerId]);
 
   const hasCustomPositions = useMemo(() => {
     for (const [id, initPos] of Object.entries(initialPositions)) {
@@ -43,6 +75,57 @@ export function MatchTacticalBoard({
     }
     return false;
   }, [initialPositions, positions]);
+
+  const hasSaveableChanges = useMemo(() => {
+    if (editableTeams.size === 0) return false;
+    const editablePlayers = [
+      ...(editableTeams.has("A") ? teamA : []),
+      ...(editableTeams.has("B") ? teamB : []),
+    ];
+    for (const p of editablePlayers) {
+      const initPos = initialPositions[p.id];
+      const cur = positions[p.id];
+      if (!initPos || !cur) continue;
+      if (Math.abs(cur.x - initPos.x) > 0.5 || Math.abs(cur.y - initPos.y) > 0.5) {
+        return true;
+      }
+    }
+    return false;
+  }, [editableTeams, initialPositions, positions, teamA, teamB]);
+
+  const handleSaveOfficialFormation = () => {
+    setFeedback(null);
+    const editablePlayers = [
+      ...(editableTeams.has("A") ? teamA : []),
+      ...(editableTeams.has("B") ? teamB : []),
+    ];
+
+    const payload = editablePlayers
+      .map((p) => {
+        const cur = positions[p.id] ?? initialPositions[p.id];
+        if (!cur) return null;
+        return { playerId: p.playerId, x: cur.x, y: cur.y };
+      })
+      .filter((entry): entry is { playerId: string; x: number; y: number } =>
+        Boolean(entry)
+      );
+
+    startTransition(async () => {
+      const res = await saveTacticalPositionsAction({
+        matchId,
+        positions: payload,
+      });
+      if (!res.ok) {
+        setFeedback({ type: "error", text: res.error });
+        return;
+      }
+      setFeedback({
+        type: "ok",
+        text: res.message ?? "Formación oficial guardada.",
+      });
+      router.refresh();
+    });
+  };
 
   const updateFromPointer = (
     playerId: string,
@@ -98,21 +181,58 @@ export function MatchTacticalBoard({
             Equipo B{teamBScore !== null && teamBScore !== undefined ? ` (${teamBScore})` : ""}
           </span>
           <span className="hidden text-[11px] text-ink-muted sm:inline">
-            · Arrastrá cada ficha dentro de su mitad
+            {editableTeams.size > 0
+              ? isOperator
+                ? "· Podés mover fichas y guardar la formación oficial"
+                : `· Como capitán podés guardar la formación de Equipo ${Array.from(editableTeams).join("/")}`
+              : "· Arrastrá fichas para probar (solo visible en tu pantalla)"}
           </span>
         </div>
 
-        {hasCustomPositions && (
-          <button
-            type="button"
-            onClick={() => setPositions(initialPositions)}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-rule bg-surface px-2.5 text-xs font-bold text-ink transition-colors hover:bg-ledger"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Resetear
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {hasSaveableChanges && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleSaveOfficialFormation}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md bg-pitch-800 px-2.5 text-xs font-bold text-white transition-colors hover:bg-pitch-900 disabled:opacity-50"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {isOperator
+                ? "Guardar formación"
+                : `Guardar Eq. ${Array.from(editableTeams).join("/")}`}
+            </button>
+          )}
+          {hasCustomPositions && (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                setPositions(initialPositions);
+                setFeedback(null);
+              }}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-rule bg-surface px-2.5 text-xs font-bold text-ink transition-colors hover:bg-ledger disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Resetear
+            </button>
+          )}
+        </div>
       </div>
+
+      {feedback && (
+        <div
+          role="status"
+          className={cn(
+            "mb-2 rounded-md border px-3 py-1.5 text-xs font-semibold",
+            feedback.type === "ok"
+              ? "border-pitch-700/40 bg-pitch-50 text-pitch-800"
+              : "border-crimson-600/40 bg-crimson-50 text-crimson-700"
+          )}
+        >
+          {feedback.text}
+        </div>
+      )}
 
       {/* Magnetic Coach Tactical Board Frame */}
       <div className="mx-auto max-w-[440px] rounded-xl border-[5px] border-[#1a1c1b] bg-[#2a271f] p-1.5 shadow-sm ring-1 ring-[#c89b3c]/50">

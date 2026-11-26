@@ -73,6 +73,17 @@ export interface SubmitMatchVotesInput {
   entries: MatchVoteEntryInput[];
 }
 
+export interface TacticalPositionEntryInput {
+  playerId: string;
+  x: number;
+  y: number;
+}
+
+export interface SaveTacticalPositionsInput {
+  matchId: string;
+  positions: TacticalPositionEntryInput[];
+}
+
 export interface CreateAnnouncementInput {
   title: string;
   body: string;

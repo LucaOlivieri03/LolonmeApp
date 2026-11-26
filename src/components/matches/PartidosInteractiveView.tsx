@@ -487,10 +487,13 @@ export function PartidosInteractiveView({
                       </div>
                     )}
                     <MatchTacticalBoard
+                      matchId={m.id}
                       teamA={m.teamA}
                       teamB={m.teamB}
                       teamAScore={m.teamAScore}
                       teamBScore={m.teamBScore}
+                      viewerPlayerId={viewerPlayerId}
+                      isOperator={isOperator || isAdmin}
                     />
                     <div className="grid gap-4 sm:grid-cols-2 sm:divide-x sm:divide-rule">
                       {(

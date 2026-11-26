@@ -66,6 +66,8 @@ export interface MatchLedgerPlayerItem {
   isMvp: boolean;
   isCupCaptain: boolean;
   adminRating: number | null;
+  pitchX?: number | null;
+  pitchY?: number | null;
 }
 
 export interface MatchVotePlayerSummary {
