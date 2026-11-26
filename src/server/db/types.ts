@@ -85,6 +85,16 @@ export interface DbMatchPlayerRow {
   is_mvp: boolean;
 }
 
+export interface DbMatchVoteRow {
+  id: string;
+  match_id: string;
+  voter_player_id: string;
+  target_player_id: string;
+  rating: DbNumeric;
+  voted_mvp: boolean;
+  created_at?: string;
+}
+
 export interface DbCalendarEventRow {
   id: string;
   external_key?: string | null;

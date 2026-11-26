@@ -71,6 +71,16 @@ export interface MatchPlayer {
   isMvp: boolean;
 }
 
+export interface MatchVote {
+  id: string;
+  matchId: string;
+  voterPlayerId: string;
+  targetPlayerId: string;
+  rating: number;
+  votedMvp: boolean;
+  createdAt?: string;
+}
+
 export interface Match {
   id: string;
   seasonId: string;

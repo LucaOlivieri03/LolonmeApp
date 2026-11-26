@@ -10,6 +10,7 @@ import type {
   MatchType,
   PlayerRole,
   PlayerTitle,
+  VotingStatus,
 } from "./domain";
 
 /**
@@ -67,6 +68,50 @@ export interface MatchLedgerPlayerItem {
   adminRating: number | null;
 }
 
+export interface MatchVotePlayerSummary {
+  playerId: string;
+  displayName: string;
+  team: "A" | "B";
+  averageRating: number | null;
+  ratingsCount: number;
+  mvpVotes: number;
+  isTopMvp: boolean;
+}
+
+export interface MatchTransparentBallotEntry {
+  targetPlayerId: string;
+  targetName: string;
+  rating: number;
+  votedMvp: boolean;
+}
+
+export interface MatchTransparentBallot {
+  voterPlayerId: string;
+  voterName: string;
+  mvpTargetId: string | null;
+  mvpTargetName: string | null;
+  entries: MatchTransparentBallotEntry[];
+}
+
+export interface MatchViewerBallotEntry {
+  targetPlayerId: string;
+  rating: number;
+  votedMvp: boolean;
+}
+
+export interface MatchVotingSummary {
+  matchId: string;
+  votingStatus: VotingStatus;
+  totalVoters: number;
+  totalParticipants: number;
+  hasViewerVoted: boolean;
+  canViewerVote: boolean;
+  viewerEntries: MatchViewerBallotEntry[];
+  playerSummaries: MatchVotePlayerSummary[];
+  transparentBallots: MatchTransparentBallot[];
+  winningMvpPlayerIds: string[];
+}
+
 export interface MatchLedgerItem {
   id: string;
   seasonId: string;
@@ -77,6 +122,7 @@ export interface MatchLedgerItem {
   teamAScore: number | null;
   teamBScore: number | null;
   resultOutcome: "A" | "B" | "draw" | null;
+  votingStatus: VotingStatus;
   notes?: string | null;
   mvpNames: string[];
   teamA: MatchLedgerPlayerItem[];

@@ -388,6 +388,7 @@ export function buildMatchesViewModel(
       teamAScore: match.teamAScore,
       teamBScore: match.teamBScore,
       resultOutcome: match.resultOutcome ?? null,
+      votingStatus: match.votingStatus,
       ...(match.notes !== undefined && match.notes !== null
         ? { notes: match.notes }
         : {}),

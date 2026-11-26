@@ -52,6 +52,27 @@ export interface DeleteMatchInput {
   matchId: string;
 }
 
+export interface OpenMatchVotingInput {
+  matchId: string;
+}
+
+export interface CloseMatchVotingInput {
+  matchId: string;
+  applyVotedMvp?: boolean;
+  overrideMvpPlayerIds?: string[];
+}
+
+export interface MatchVoteEntryInput {
+  targetPlayerId: string;
+  rating: number;
+  votedMvp: boolean;
+}
+
+export interface SubmitMatchVotesInput {
+  matchId: string;
+  entries: MatchVoteEntryInput[];
+}
+
 export interface CreateAnnouncementInput {
   title: string;
   body: string;
