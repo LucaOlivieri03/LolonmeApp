@@ -142,11 +142,11 @@ const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
     key: "minThreshold",
     title: "Umbral mínimo de 3 PJ",
     description:
-      "Filtro de estabilidad estadística aplicado al padrón activo y a los rankings de Mejores Socios e Historial vs Rivales para descartar cruces aislados.",
+      "Filtro de estabilidad estadística aplicado al padrón activo y a los rankings de Mejores socios e Historial vs rivales para descartar cruces aislados.",
     formula:
       "Condición de inclusión: PJ_totales ≥ 3 (padrón activo) · PJ_juntos ≥ 3 (socios) · PJ_enfrentados ≥ 3 (rivales)",
     example:
-      "Ejemplo: una dupla con 2 victorias en 2 PJ juntos aún no ingresa al ranking de Mejores Socios hasta disputar su 3.º partido compartido.",
+      "Ejemplo: una dupla con 2 victorias en 2 PJ juntos aún no ingresa al ranking de Mejores socios hasta disputar su 3.º partido compartido.",
   },
 };
 
@@ -430,7 +430,7 @@ export function StatsInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <BarChart3 className="h-6 w-6 text-pitch-700" />
-            Estadísticas y Lab Grupal
+            Estadísticas y lab grupal
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             Química (%), Consistencia Wilson (z = 1.28) e Historial mano a mano
@@ -480,7 +480,7 @@ export function StatsInteractiveView({
             )}
           >
             <User className="h-4 w-4" />
-            Stats por Jugador
+            Stats por jugador
           </button>
         </div>
       </header>
@@ -748,7 +748,7 @@ export function StatsInteractiveView({
                   <div>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
                       <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-                        Jugando Juntos · {lab.selectedPlayerNames.join(" + ")}
+                        Jugando juntos · {lab.selectedPlayerNames.join(" + ")}
                       </h3>
                       {labVerdict && (
                         <span
@@ -847,7 +847,7 @@ export function StatsInteractiveView({
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
                       <h3 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
                         <Swords className="h-4 w-4 text-crimson-600" />
-                        Historial Mano a Mano (Rivales)
+                        Historial mano a mano (rivales)
                       </h3>
                       <MetricFormulaButton
                         metricKey="h2h"
@@ -913,7 +913,7 @@ export function StatsInteractiveView({
           <section className="rounded-lg border border-rule bg-surface p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <PlayerCombobox
-                label="Explorar Ficha Estadística de Jugador"
+                label="Explorar ficha estadística de jugador"
                 options={activePlayers}
                 value={profile.selectedPlayerId}
                 onChange={(id) => navigateWithParams({ playerId: id })}
@@ -1053,7 +1053,7 @@ export function StatsInteractiveView({
               <div className="mb-3 border-b border-rule pb-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-                    Mejores Socios (Wilson CT%)
+                    Mejores socios (Wilson CT%)
                   </h3>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <MetricFormulaButton
@@ -1134,7 +1134,7 @@ export function StatsInteractiveView({
               <div className="mb-3 border-b border-rule pb-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-ink">
-                    Historial vs Rivales (V − D)
+                    Historial vs rivales (V − D)
                   </h3>
                   <MetricFormulaButton
                     metricKey="h2h"

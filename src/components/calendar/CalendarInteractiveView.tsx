@@ -41,7 +41,7 @@ const EVENT_TYPE_META: Record<
       "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "F11 Especial",
+    label: "F11 especial",
     dot: "bg-comp-f11",
     badge: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
@@ -257,7 +257,7 @@ export function CalendarInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <CalendarDays className="h-6 w-6 text-pitch-700" />
-            Calendario Oficial
+            Calendario oficial
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             Grilla mensual interactiva y agenda de Liga, Copa, LOLONMEBOL, F11 y descansos

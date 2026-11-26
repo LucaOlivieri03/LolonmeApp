@@ -45,15 +45,15 @@ const TIEBREAK_CRITERIA = [
 const SECTIONS: ReglasSectionMeta[] = [
   {
     id: "estructura",
-    label: "1. Estructura y Competencias",
+    label: "1. Estructura y competencias",
     shortLabel: "1. Estructura",
-    title: "1. Estructura de la Temporada y Competencias",
+    title: "1. Estructura de la temporada y competencias",
   },
   {
     id: "puntajes",
-    label: "2. Puntajes y Desempates",
+    label: "2. Puntajes y desempates",
     shortLabel: "2. Puntajes",
-    title: "2. Sistema de Puntajes y Criterios de Desempate",
+    title: "2. Sistema de puntajes y criterios de desempate",
   },
   {
     id: "copa",
@@ -63,21 +63,21 @@ const SECTIONS: ReglasSectionMeta[] = [
   },
   {
     id: "lolonmebol",
-    label: "4. LOLONMEBOL y Estrellas",
+    label: "4. LOLONMEBOL y estrellas",
     shortLabel: "4. Estrellas",
-    title: "4. LOLONMEBOL y Sistema de Estrellas",
+    title: "4. LOLONMEBOL y sistema de estrellas",
   },
   {
     id: "especiales",
     label: "5. Fechas especiales (F11)",
     shortLabel: "5. Especiales",
-    title: "5. Fechas especiales y Excepciones Históricas",
+    title: "5. Fechas especiales y excepciones históricas",
   },
   {
     id: "rendimientos",
-    label: "6. Rendimientos y Estadísticas",
+    label: "6. Rendimientos y estadísticas",
     shortLabel: "6. Stats y MVP",
-    title: "6. Rendimientos, Votación de MVP y Estadísticas Avanzadas",
+    title: "6. Rendimientos, votación de MVP y estadísticas avanzadas",
   },
 ];
 

@@ -63,7 +63,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
             <UserCircle2 className="mt-0.5 h-8 w-8 shrink-0 text-gold-400" />
             <div>
               <h1 className="font-display text-2xl font-extrabold tracking-wide text-white sm:text-3xl">
-                Mi Perfil · Cuenta de Jugador
+                Mi perfil · Cuenta de jugador
               </h1>
               <p className="text-xs text-pitch-100">
                 Estado de sesión:{" "}
@@ -84,7 +84,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/25 bg-pitch-900/70 px-3.5 text-xs font-bold text-pitch-50 transition-colors hover:bg-pitch-950"
               >
                 <LogOut className="h-4 w-4" />
-                Cerrar Sesión
+                Cerrar sesión
               </button>
             </form>
           )}
@@ -114,12 +114,19 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                 ? {
                     label: `PG% ${vm.activeSeasonName}`,
                     winRate: vm.annualRow.winRate,
+                    pg: vm.annualRow.pg,
+                    pj: vm.annualRow.pg + vm.annualRow.pe + vm.annualRow.pp,
                   }
                 : vm.historicalRow &&
                     vm.historicalRow.pg + vm.historicalRow.pe + vm.historicalRow.pp > 0
                   ? {
                       label: "PG% histórico",
                       winRate: vm.historicalRow.winRate,
+                      pg: vm.historicalRow.pg,
+                      pj:
+                        vm.historicalRow.pg +
+                        vm.historicalRow.pe +
+                        vm.historicalRow.pp,
                     }
                   : null;
             const winRatePct = winRateSource
@@ -337,7 +344,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           <section className="rounded-lg border border-rule bg-surface p-4">
             <div className="mb-3 flex items-center justify-between border-b border-rule pb-2">
               <h2 className="font-display text-lg font-bold tracking-wide text-ink">
-                Mis Últimos Partidos ({vm.recentMatches.length})
+                Mis últimos partidos ({vm.recentMatches.length})
               </h2>
               <Link
                 href={`/partidos?season=all&player=${encodeURIComponent(vm.player.id)}`}
@@ -362,7 +369,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                       <span className="font-bold text-ink">
                         {m.matchNumber !== null
                           ? `Fecha #${m.matchNumber}`
-                          : m.notes || "Fecha Especial"}
+                          : m.notes || "Fecha especial"}
                       </span>{" "}
                       <span className="text-xs text-ink-muted">
                         · {formatDateEs(m.matchDate)} · Equipo {m.team}

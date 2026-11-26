@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 type HomeTab = "annual" | "historical" | "cup";
 
 const HOME_TABS: readonly { id: HomeTab; label: string }[] = [
-  { id: "annual", label: "Tabla Anual" },
+  { id: "annual", label: "Tabla anual" },
   { id: "historical", label: "Histórica" },
   { id: "cup", label: "Copa" },
 ];

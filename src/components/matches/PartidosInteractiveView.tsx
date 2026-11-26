@@ -51,7 +51,7 @@ const MATCH_TYPE_META: Record<
       "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "Fecha Especial F11",
+    label: "Fecha especial F11",
     badgeClass: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
 };
@@ -139,7 +139,7 @@ export function PartidosInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <Trophy className="h-6 w-6 text-pitch-700" />
-            Partidos y Fechas especiales
+            Partidos y fechas especiales
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             {matches.length} partido{matches.length === 1 ? "" : "s"} en registro
