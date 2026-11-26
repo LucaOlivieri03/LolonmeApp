@@ -22,7 +22,7 @@
 | :--- | :--- | :--- |
 | **Framework & UI** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide, Recharts | `package.json`, `src/app/layout.tsx`, `src/app/globals.css` |
 | **PWA & Media** | Manifest instalable, Service Worker, escudos SVG y reproductor de himno (estribillo desde `10.8s` / completo) | `public/manifest.json`, `public/sw.js`, `src/components/layout/AnthemPlayer.tsx` |
-| **Base de datos & Auth** | Esquema PostgreSQL (`0001`–`0003`) + políticas RLS por roles (`admin`, `authorized`, `player`, `guest`), Google OAuth, pre-vinculación por email y cola de solicitudes `player_link_requests` | `supabase/migrations/`, `src/lib/supabase/`, `src/server/auth/` |
+| **Base de datos & Auth** | Esquema PostgreSQL (`0001`–`0004`) + políticas RLS por roles (`admin`, `authorized`, `player`, `guest`), Google OAuth, pre-vinculación por email, cola `player_link_requests` y persistencia táctica por Admin/Capitán | `supabase/migrations/`, `src/lib/supabase/`, `src/server/auth/` |
 | **Arquitectura Server-First** | Repositorios SSR (`SupabaseTournamentRepository` + `SeedPublicTournamentRepository`), queries cacheadas y Server Actions con guards de rol | `src/server/repositories/`, `src/server/queries/`, `src/server/actions/`, `src/server/admin/` |
 | **Motor de reglas & Votación** | Tablas Anual/Histórica, Copa (4/2/0 compañeros y capitanes), Química, Consistencia Wilson (`z = 1.28`), H2H, Pozo, layout táctico y motor de votación transparente | `src/lib/engine/`, `src/lib/matches/`, `src/lib/voting/` |
 | **Importador Excel** | Parser de `LOLONMEBOL.xlsx` (filtrando filas resumen como `Rendimientos`/`Total`), normalización de estrellas/alias y motor de diff Dry-Run | `src/lib/excel/`, `src/app/api/import-excel/route.ts` |
@@ -34,7 +34,7 @@
 | Ruta | Propósito | Funcionalidades clave |
 | :--- | :--- | :--- |
 | `/` | **Inicio** | Franja compacta de fecha (líder, partidos, próximo evento), pizarrón táctico de anuncios (carrusel), pestañas `Tabla Anual` / `Histórica` / `Copa` arriba del fold, columna `Jugador` sticky y cuadro horizontal de Copa con conectores. |
-| `/partidos` | **Historial de Partidos** | Filtros por temporada, competencia (`Liga`, `Copa`, `LOLONMEBOL`, `Fechas especiales`), fecha, N° de fecha y jugador; planillas desplegables con **Pizarra táctica interactiva** (fichas arrastrables restringidas a la mitad de cancha de cada equipo), datos `0G / 0A` en 2026, enlace directo a Admin y **Votación post-partido transparente** (puntajes 1–10 + 1 MVP). |
+| `/partidos` | **Historial de Partidos** | Filtros por temporada, competencia (`Liga`, `Copa`, `LOLONMEBOL`, `Fechas especiales`), fecha, N° de fecha y jugador; planillas desplegables con **Pizarra táctica interactiva** (fichas arrastrables restringidas a la mitad de cancha de cada equipo, con guardado oficial para Admin/Autorizado y Capitán de equipo y modo libre local para el resto), datos `0G / 0A` en 2026, enlace directo a Admin y **Votación post-partido transparente** (puntajes 1–10 + 1 MVP). |
 | `/stats` | **Stats & Lab Grupal** | Selector multi-jugador con buscador, filtro de competencia, toggle `< 3 PJ`, métricas de `Química (%)`, `Wilson CT%`, efectividad `3/1/0` y `4/2/0`, confrontación `V − D` y gráficos `recharts`. |
 | `/calendario` | **Calendario Oficial** | Agenda agrupada por mes en español con filtros por temporada y categoría (`Liga`, `Copa`, `LOLONMEBOL`, `F11 Especial`, `Descanso`, `Aplazado`). |
 | `/reglas` | **Reglamento** | Consulta directa del reglamento oficial de Liga, Copa, LOLONMEBOL y sistema de puntuación. |

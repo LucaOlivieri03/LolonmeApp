@@ -26,6 +26,7 @@ Aplicación web mobile-first para gestionar el torneo LOLONMEBOL: Tabla Anual e 
    - `supabase/migrations/0001_initial_schema.sql`
    - `supabase/migrations/0002_align_domain_and_historical_outcomes.sql`
    - `supabase/migrations/0003_player_link_requests.sql`
+   - `supabase/migrations/0004_tactical_positions.sql`
 4. Poblar la base de datos de forma idempotente desde el historial oficial:
    ```bash
    npm run seed:excel      # Regenera src/lib/data/seed-data.json desde docs/LOLONMEBOL.xlsx
