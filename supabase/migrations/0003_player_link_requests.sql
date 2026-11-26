@@ -124,15 +124,18 @@ BEGIN
             reviewed_at = now(),
             review_note = COALESCE(review_note, 'Auto-vinculado por email precargado.')
         WHERE user_id = NEW.id
+          AND requested_player_id = v_linked_player_id
           AND status = 'pending';
 
         UPDATE public.player_link_requests
         SET status = 'rejected',
             reviewed_at = now(),
             review_note = COALESCE(review_note, 'Rechazada automáticamente al vincularse este jugador.')
-        WHERE requested_player_id = v_linked_player_id
-          AND user_id <> NEW.id
-          AND status = 'pending';
+        WHERE status = 'pending'
+          AND (
+            (requested_player_id = v_linked_player_id AND user_id <> NEW.id)
+            OR (user_id = NEW.id AND requested_player_id <> v_linked_player_id)
+          );
       END IF;
     END IF;
   END IF;
@@ -175,5 +178,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_list_player_auth_links() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_list_player_auth_links() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_list_player_auth_links() TO authenticated;

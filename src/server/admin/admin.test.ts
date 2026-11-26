@@ -1087,4 +1087,196 @@ describe("WU-6 SSR Admin Guard & Architectural Contracts", () => {
       })
     ).toMatchObject({ ok: false, code: "VALIDATION" });
   });
+
+  it("Issue #29 Probes (B1 & B2): performApprovePlayerLinkRequest restores pre-existing email on failure/CAS race and performRejectPlayerLinkRequest rejects 0-row CAS races", async () => {
+    const reqFailId = "77777777-7777-4777-8777-777777777710";
+    const reqRaceId = "77777777-7777-4777-8777-777777777720";
+
+    // 1. B1 (null initial email): DB failure updating player_link_requests rolls back BOTH user_id and email
+    const failCaseNull = createFakeDb({
+      tables: {
+        players: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            slug: "b-aguzzi",
+            display_name: "B. Aguzzi",
+            role: "player",
+            is_active: true,
+            user_id: null,
+            email: null,
+          },
+        ],
+        player_link_requests: [
+          {
+            id: reqFailId,
+            user_id: "auth-impostor-99",
+            email: "impostor@gmail.com",
+            requested_player_id: "11111111-1111-4111-8111-111111111111",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-26T00:00:00Z",
+            reviewed_at: null,
+          },
+        ],
+      },
+      failOn: {
+        player_link_requests: {
+          op: "update",
+          error: { message: "transient request update failure" },
+          once: true,
+        },
+      },
+    });
+    const beforeNullSnapshot = JSON.stringify(failCaseNull.store);
+    const failResNull = await performApprovePlayerLinkRequest(
+      failCaseNull.db,
+      ADMIN_SESSION,
+      { requestId: reqFailId }
+    );
+    expect(failResNull.ok).toBe(false);
+    expect(JSON.stringify(failCaseNull.store)).toBe(beforeNullSnapshot);
+
+    // 2. B1 (preloaded initial email via admin_list_player_auth_links RPC): rollback preserves preloaded email without selecting players.email
+    const failCasePreloaded = createFakeDb({
+      tables: {
+        players: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            slug: "b-aguzzi",
+            display_name: "B. Aguzzi",
+            role: "player",
+            is_active: true,
+            user_id: null,
+            email: "real-preloaded@gmail.com",
+          },
+        ],
+        player_link_requests: [
+          {
+            id: reqFailId,
+            user_id: "auth-alt-email-99",
+            email: "alt-email@gmail.com",
+            requested_player_id: "11111111-1111-4111-8111-111111111111",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-26T00:00:00Z",
+            reviewed_at: null,
+          },
+        ],
+      },
+      failOn: {
+        player_link_requests: {
+          op: "update",
+          error: { message: "transient request update failure" },
+          once: true,
+        },
+      },
+    });
+    const dbWithRpc: AdminDbClient = {
+      ...failCasePreloaded.db,
+      rpc: vi.fn().mockResolvedValue({
+        data: [
+          {
+            player_id: "11111111-1111-4111-8111-111111111111",
+            player_slug: "b-aguzzi",
+            email: "real-preloaded@gmail.com",
+            is_linked: false,
+          },
+        ],
+        error: null,
+      }),
+    };
+    const beforePreloadedSnapshot = JSON.stringify(failCasePreloaded.store);
+    const failResPreloaded = await performApprovePlayerLinkRequest(
+      dbWithRpc,
+      ADMIN_SESSION,
+      { requestId: reqFailId }
+    );
+    expect(failResPreloaded.ok).toBe(false);
+    expect(JSON.stringify(failCasePreloaded.store)).toBe(
+      beforePreloadedSnapshot
+    );
+
+    // 3. B2 (CAS race): concurrent status transition before UPDATE player_link_requests returns CONFLICT and rolls back players
+    const baseRace = createFakeDb({
+      tables: {
+        players: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            slug: "b-aguzzi",
+            display_name: "B. Aguzzi",
+            role: "player",
+            is_active: true,
+            user_id: null,
+            email: null,
+          },
+        ],
+        player_link_requests: [
+          {
+            id: reqRaceId,
+            user_id: "auth-user-race-1",
+            email: "race@gmail.com",
+            requested_player_id: "11111111-1111-4111-8111-111111111111",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-26T00:00:00Z",
+            reviewed_at: null,
+          },
+        ],
+      },
+    });
+    let flipped = false;
+    const racingApproveDb: AdminDbClient = {
+      from(table: string) {
+        const inner = baseRace.db.from(table);
+        if (table !== "player_link_requests") return inner;
+        const origUpdate = inner.update.bind(inner);
+        inner.update = (values) => {
+          if (!flipped) {
+            flipped = true;
+            baseRace.store.player_link_requests[0].status = "rejected";
+          }
+          return origUpdate(values);
+        };
+        return inner;
+      },
+    };
+    const approveRaceRes = await performApprovePlayerLinkRequest(
+      racingApproveDb,
+      ADMIN_SESSION,
+      { requestId: reqRaceId }
+    );
+    expect(approveRaceRes).toMatchObject({ ok: false, code: "CONFLICT" });
+    expect(baseRace.store.players[0].user_id).toBeNull();
+    expect(baseRace.store.players[0].email).toBeNull();
+    expect(baseRace.store.player_link_requests[0].status).toBe("rejected");
+
+    // Concurrent approval right before performRejectPlayerLinkRequest's UPDATE must also return CONFLICT
+    baseRace.store.player_link_requests[0].status = "pending";
+    let rejectFlipped = false;
+    const racingRejectDb: AdminDbClient = {
+      from(table: string) {
+        const inner = baseRace.db.from(table);
+        if (table !== "player_link_requests") return inner;
+        const origUpdate = inner.update.bind(inner);
+        inner.update = (values) => {
+          if (!rejectFlipped) {
+            rejectFlipped = true;
+            baseRace.store.player_link_requests[0].status = "approved";
+          }
+          return origUpdate(values);
+        };
+        return inner;
+      },
+    };
+    const rejectRaceRes = await performRejectPlayerLinkRequest(
+      racingRejectDb,
+      ADMIN_SESSION,
+      { requestId: reqRaceId, reviewNote: "Demasiado tarde" }
+    );
+    expect(rejectRaceRes).toMatchObject({ ok: false, code: "CONFLICT" });
+    expect(baseRace.store.player_link_requests[0].status).toBe("approved");
+  });
 });

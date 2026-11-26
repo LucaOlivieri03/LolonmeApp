@@ -132,6 +132,7 @@ export interface DbQueryBuilder {
 
 export interface AdminDbClient {
   from(table: string): DbQueryBuilder;
+  rpc?(fn: string): Promise<DbQueryResult>;
 }
 
 export function slugifyIdentifier(raw: string): string {
@@ -1212,7 +1213,7 @@ export async function performApprovePlayerLinkRequest(
     await Promise.all([
       db
         .from("players")
-        .select("id, slug, display_name, user_id, is_active")
+        .select("id, slug, display_name, role, user_id, is_active")
         .eq("id", req.requested_player_id)
         .maybeSingle(),
       db
@@ -1240,6 +1241,7 @@ export async function performApprovePlayerLinkRequest(
     id: string;
     slug: string;
     display_name: string;
+    role?: PlayerRole;
     user_id?: string | null;
     is_active?: boolean;
   };
@@ -1249,6 +1251,15 @@ export async function performApprovePlayerLinkRequest(
       ok: false,
       code: "VALIDATION",
       error: "No se puede vincular un jugador inactivo.",
+    };
+  }
+
+  if (target.role === "admin") {
+    return {
+      ok: false,
+      code: "FORBIDDEN",
+      error:
+        "Las fichas de administrador no admiten aprobación por solicitud de auto-vinculación.",
     };
   }
 
@@ -1266,6 +1277,23 @@ export async function performApprovePlayerLinkRequest(
       code: "CONFLICT",
       error: "Ese usuario ya se encuentra vinculado a otra ficha del padrón.",
     };
+  }
+
+  let previousEmail: string | null = null;
+  if (typeof db.rpc === "function") {
+    const rpcRes = await db.rpc("admin_list_player_auth_links");
+    if (rpcRes.error) {
+      return dbErrorResult(
+        rpcRes.error,
+        "No se pudo verificar el estado previo de vinculación"
+      );
+    }
+    if (Array.isArray(rpcRes.data)) {
+      const matched = (
+        rpcRes.data as Array<{ player_id?: string; email?: string | null }>
+      ).find((r) => r.player_id === target.id);
+      previousEmail = matched?.email ?? null;
+    }
   }
 
   const claimQuery = whereColumnIsNull(
@@ -1298,7 +1326,7 @@ export async function performApprovePlayerLinkRequest(
   }
 
   const nowIso = new Date().toISOString();
-  const { error: approveErr } = await db
+  const { data: approvedRow, error: approveErr } = await db
     .from("player_link_requests")
     .update({
       status: "approved",
@@ -1306,15 +1334,27 @@ export async function performApprovePlayerLinkRequest(
       reviewed_at: nowIso,
     })
     .eq("id", req.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
 
-  if (approveErr) {
+  if (approveErr || !approvedRow) {
     await db
       .from("players")
-      .update({ user_id: null })
+      .update({ user_id: null, email: previousEmail })
       .eq("id", target.id)
       .eq("user_id", req.user_id);
-    return dbErrorResult(approveErr, "No se pudo confirmar la solicitud aprobada");
+    if (approveErr) {
+      return dbErrorResult(
+        approveErr,
+        "No se pudo confirmar la solicitud aprobada"
+      );
+    }
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: "Esta solicitud ya fue procesada anteriormente.",
+    };
   }
 
   await db
@@ -1388,7 +1428,7 @@ export async function performRejectPlayerLinkRequest(
     };
   }
 
-  const { error: updateErr } = await db
+  const { data: rejectedRow, error: updateErr } = await db
     .from("player_link_requests")
     .update({
       status: "rejected",
@@ -1397,10 +1437,19 @@ export async function performRejectPlayerLinkRequest(
       review_note: cleanNote,
     })
     .eq("id", req.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) {
     return dbErrorResult(updateErr, "No se pudo rechazar la solicitud");
+  }
+  if (!rejectedRow) {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: "Esta solicitud ya fue procesada anteriormente.",
+    };
   }
 
   return {

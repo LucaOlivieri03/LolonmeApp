@@ -743,4 +743,117 @@ describe("Redirect sanitization & auth callback / actions security", () => {
       reviewNote: null,
     });
   });
+
+  it("createSupabaseLinkRequestAdapter never selects players.email and preserves DB state across rejected link requests", async () => {
+    const selectedPlayerCols: string[] = [];
+    const playersRows = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        slug: "b-aguzzi",
+        display_name: "B. Aguzzi",
+        nickname: "Bauti",
+        role: "player" as const,
+        is_active: true,
+        user_id: null,
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        slug: "luca-admin",
+        display_name: "Luca Admin",
+        nickname: null,
+        role: "admin" as const,
+        is_active: true,
+        user_id: null,
+      },
+    ];
+    const requestRows: Array<Record<string, unknown>> = [];
+
+    const mockSupabase = {
+      from(table: string) {
+        const filters: Array<(r: Record<string, unknown>) => boolean> = [];
+        const chain = {
+          select(cols: string) {
+            if (table === "players") {
+              selectedPlayerCols.push(cols);
+              if (/\bemail\b/i.test(cols) || cols.includes("*")) {
+                throw new Error(
+                  "42501: SELECT (email) revoked on public.players"
+                );
+              }
+            }
+            return chain;
+          },
+          insert(row: Record<string, unknown>) {
+            requestRows.push(row);
+            return chain;
+          },
+          eq(col: string, val: unknown) {
+            filters.push((r) => r[col] === val);
+            return chain;
+          },
+          is(col: string, val: unknown) {
+            filters.push((r) => (r[col] ?? null) === val);
+            return chain;
+          },
+          neq(col: string, val: unknown) {
+            filters.push((r) => r[col] !== val);
+            return chain;
+          },
+          async order() {
+            const src = table === "players" ? playersRows : requestRows;
+            return {
+              data: src.filter((r) => filters.every((f) => f(r))),
+              error: null,
+            };
+          },
+          async maybeSingle() {
+            const src = table === "players" ? playersRows : requestRows;
+            return {
+              data: src.filter((r) => filters.every((f) => f(r)))[0] ?? null,
+              error: null,
+            };
+          },
+          async single() {
+            return {
+              data: requestRows[requestRows.length - 1] ?? null,
+              error: null,
+            };
+          },
+        };
+        return chain;
+      },
+    };
+
+    const { createSupabaseLinkRequestAdapter } = await import(
+      "./link-requests"
+    );
+    const adapter = createSupabaseLinkRequestAdapter(mockSupabase as never)!;
+
+    const state = await loadUnlinkedProfileState(adapter, "uid-1");
+    expect(state.availablePlayers).toEqual([
+      { id: "b-aguzzi", displayName: "B. Aguzzi", nickname: "Bauti" },
+    ]);
+    expect(selectedPlayerCols.length).toBeGreaterThan(0);
+
+    const unlinkedCaller: ViewerSession = {
+      role: "guest",
+      userId: "uid-1",
+      playerId: null,
+      playerUuid: null,
+      displayName: null,
+      email: "caller@gmail.com",
+    };
+    const snapshotBefore = JSON.stringify({ playersRows, requestRows });
+    expect(
+      await performRequestPlayerLink(adapter, unlinkedCaller, {
+        playerId: "luca-admin",
+      })
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(
+      await performRequestPlayerLink(adapter, unlinkedCaller, {
+        playerId: "   ",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(JSON.stringify({ playersRows, requestRows })).toBe(snapshotBefore);
+  });
 });
