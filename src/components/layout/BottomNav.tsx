@@ -1,9 +1,20 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, BookOpen, CalendarDays, Home, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function BottomNavPendingIndicator() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-x-2 top-0 h-[3px] bg-gold-500 motion-safe:animate-pulse"
+    />
+  );
+}
 
 const NAV_ITEMS = [
   { href: "/", label: "Inicio", icon: Home },
@@ -39,6 +50,7 @@ export function BottomNav() {
               {isActive && (
                 <span className="absolute inset-x-2 top-0 h-[3px] bg-leather-600" />
               )}
+              <BottomNavPendingIndicator />
               <Icon className={cn("h-5 w-5", isActive && "stroke-[2.4]")} />
               <span className="truncate">{label}</span>
             </Link>

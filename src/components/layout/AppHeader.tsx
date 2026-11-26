@@ -1,12 +1,34 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Shield, UserCircle2 } from "lucide-react";
 import type { PlayerRole } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+
+function NavLinkPendingIndicator() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-x-2 bottom-0 h-1 bg-gold-400 motion-safe:animate-pulse"
+    />
+  );
+}
+
+function ActionLinkPendingDot() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold-400 motion-safe:animate-pulse"
+    />
+  );
+}
 
 const DESKTOP_NAV = [
   { href: "/", label: "Inicio", soon: false },
@@ -85,6 +107,7 @@ export function AppHeader({
                   {isActive && (
                     <span className="absolute inset-x-2 bottom-0 h-1 bg-leather-500" />
                   )}
+                  <NavLinkPendingIndicator />
                 </Link>
               );
             })}
@@ -112,6 +135,7 @@ export function AppHeader({
             <span className="hidden max-w-[6.5rem] truncate lg:inline xl:max-w-[8.5rem]">
               {profileLabel}
             </span>
+            <ActionLinkPendingDot />
           </Link>
           {canAccessAdmin && (
             <Link
@@ -128,6 +152,7 @@ export function AppHeader({
             >
               <Shield className="h-4 w-4 shrink-0" />
               <span className="hidden lg:inline">Admin</span>
+              <ActionLinkPendingDot />
             </Link>
           )}
         </div>

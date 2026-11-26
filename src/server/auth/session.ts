@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlayerRole } from "@/lib/types/domain";
 import type { DbPlayerRole } from "@/server/db/types";
@@ -114,8 +115,9 @@ export async function resolveViewerSession(
 
 /**
  * Reads the current viewer's SSR session and linked player role from Supabase.
+ * Memoized per React server render via `cache()` so layout + page + guards share one lookup.
  */
-export async function getViewerSession(): Promise<ViewerSession> {
+export const getViewerSession = cache(async (): Promise<ViewerSession> => {
   const client = await createSupabaseServerClient();
   return resolveViewerSession(client as unknown as AuthSessionClient | null);
-}
+});
