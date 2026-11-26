@@ -16,7 +16,7 @@ Branch: `feat/google-oauth-and-player-linking` | Issues: `#33`, `#34`, `#35`, `#
 - [x] **T2** (S2, S3) — route: inline — 2025/2026 match cards: remove `"Ganó Eq. A"` for 2025 and show `0G / 0A` for 2026 (#34) + unit tests (`src/lib/matches/display.test.ts`) — commit: `a279bbe` — Risk: none
 - [x] **T3** (S4) — route: inline — Apply exact Sheets tournament colors (`#8E7CC3`, `#3D85C6`, `#E06666`, `#C27BA0`) across globals, matches, calendar, cup bracket, and home tabs (#35) — commit: `24820bb` — Risk: none
 - [x] **T4** (S7) — route: inline — Annual standings: once Copa starts, hide Copa qualification cutlines/legends and show only LOLONMEBOL qualification for 1st place (#38) — commit: `49198c1` — Risk: none
-- [ ] **T5** (S5) — route: blocked — Replace all old logos with new logo (#36) — waiting on new logo asset from user — commit: blocked
+- [x] **T5** (S5) — route: inline — Replace all old logos with new official SVG logos (`assets/Logo.svg`, `public/assets/Logo.svg`, `assets/LogoLOLONMEBOL.svg`, `public/assets/LogoLOLONMEBOL.svg`), bump SW cache to `lolonmeapp-v2`, and size `LoginCard` wordmark logo (#36) — commit: `feat/replace-official-logos-36` — Risk: none
 
 ## Log
 - **L1:** `Avanzá con los casi obligatorio` (following validated issues `#33`–`#39` from Google Doc `10a_wRGgUvyz_ZSh08Wr6RC_VIz9e2aZLRW2g2ZIjZZo` and Sheet `17lmhs4oVIT-GuxaQ-wi9r3UdC1k7LqVUDP--QCpnYuE`).

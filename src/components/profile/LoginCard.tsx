@@ -187,7 +187,7 @@ export function LoginCard({
         <img
           src="/assets/LogoLOLONMEBOL.svg"
           alt="Logo oficial LOLONMEBOL"
-          className="mx-auto h-12 w-auto"
+          className="mx-auto h-24 w-auto object-contain sm:h-28"
         />
         <h2 className="font-display mt-3 text-2xl font-extrabold tracking-wide text-ink">
           Acceso oficial de jugadores
