@@ -1,9 +1,14 @@
+import { readFileSync } from "fs";
+import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import {
   AuthError,
   GUEST_SESSION,
   isAuthError,
+  loadUnlinkedProfileState,
   performRequestEmailOtp,
+  performRequestPlayerLink,
+  performSignInWithGoogle,
   performSignInWithPassword,
   performVerifyEmailOtp,
   requireAdmin,
@@ -447,5 +452,408 @@ describe("Redirect sanitization & auth callback / actions security", () => {
     expect(
       await performSignInWithPassword(actionsClient, "jugador@lolonmebol.test", "secret123")
     ).toEqual({ ok: true });
+  });
+
+  it("performSignInWithGoogle initiates Google OAuth with safe /auth/callback?next=/perfil redirect and rejects unsafe or missing URLs", async () => {
+    expect(await performSignInWithGoogle(null, "https://lolonmebol.app")).toMatchObject({
+      ok: false,
+      errorCode: "not_configured",
+    });
+
+    const signInWithOAuth = vi.fn().mockResolvedValue({
+      data: { url: "https://accounts.google.com/o/oauth2/v2/auth?state=pkce" },
+      error: null,
+    });
+    const oauthClient: ServerAuthActionsClient = {
+      auth: {
+        signInWithOtp: vi.fn(),
+        verifyOtp: vi.fn(),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+        signInWithOAuth,
+      },
+    };
+
+    const okResult = await performSignInWithGoogle(
+      oauthClient,
+      "https://lolonmebol.app"
+    );
+    expect(okResult).toEqual({
+      ok: true,
+      url: "https://accounts.google.com/o/oauth2/v2/auth?state=pkce",
+    });
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "https://lolonmebol.app/auth/callback?next=/perfil",
+      },
+    });
+
+    // Malicious callbackOrigin falls back to http://localhost:3000
+    await performSignInWithGoogle(oauthClient, "javascript:alert(1)");
+    expect(signInWithOAuth).toHaveBeenLastCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3000/auth/callback?next=/perfil",
+      },
+    });
+
+    // Rejects non-HTTP(S) provider URLs
+    signInWithOAuth.mockResolvedValueOnce({
+      data: { url: "javascript:evil()" },
+      error: null,
+    });
+    expect(
+      await performSignInWithGoogle(oauthClient, "https://lolonmebol.app")
+    ).toMatchObject({
+      ok: false,
+      errorCode: "provider_error",
+    });
+
+    // Surfaces provider errors cleanly
+    signInWithOAuth.mockResolvedValueOnce({
+      data: { url: null },
+      error: { message: "OAuth disabled" },
+    });
+    expect(
+      await performSignInWithGoogle(oauthClient, "https://lolonmebol.app")
+    ).toMatchObject({
+      ok: false,
+      errorCode: "provider_error",
+    });
+
+    // LoginCard highlights "Continuar con Google" as primary CTA wired to signInWithGoogleAction
+    const loginCardSrc = readFileSync(
+      path.join(process.cwd(), "src/components/profile/LoginCard.tsx"),
+      "utf8"
+    );
+    expect(loginCardSrc).toContain("signInWithGoogleAction");
+    expect(loginCardSrc).toContain("Continuar con Google");
+  });
+
+  it("loadUnlinkedProfileState & performRequestPlayerLink enforce unlinked-only access, exclude admins/linked/inactive players, and block duplicate pending requests", async () => {
+    const playersTable = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        slug: "free-player",
+        display_name: "Jugador Libre",
+        nickname: "Libre",
+        role: "player" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "22222222-2222-4222-8222-222222222222",
+        slug: "free-authorized",
+        display_name: "Autorizado Libre",
+        nickname: null,
+        role: "authorized" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        slug: "admin-boss",
+        display_name: "Admin Presidente",
+        nickname: null,
+        role: "admin" as const,
+        is_active: true,
+        user_id: null as string | null,
+      },
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        slug: "already-linked",
+        display_name: "Ya Vinculado",
+        nickname: null,
+        role: "player" as const,
+        is_active: true,
+        user_id: "existing-auth-uid",
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        slug: "inactive-player",
+        display_name: "Inactivo",
+        nickname: null,
+        role: "player" as const,
+        is_active: false,
+        user_id: null as string | null,
+      },
+    ];
+    const requestsTable: Array<{
+      id: string;
+      user_id: string;
+      email: string;
+      requested_player_id: string;
+      status: "pending" | "approved" | "rejected";
+      created_at: string;
+      review_note: string | null;
+    }> = [];
+
+    const mockDb = {
+      players: playersTable,
+      requests: requestsTable,
+    };
+
+    const dbAdapter = {
+      async listCandidatePlayers() {
+        return mockDb.players;
+      },
+      async findPendingRequestByUserId(userId: string) {
+        return (
+          mockDb.requests.find(
+            (r) => r.user_id === userId && r.status === "pending"
+          ) ?? null
+        );
+      },
+      async findPlayerByUserId(userId: string) {
+        return mockDb.players.find((p) => p.user_id === userId) ?? null;
+      },
+      async findPlayerByIdentifier(identifier: string) {
+        return (
+          mockDb.players.find(
+            (p) => p.slug === identifier || p.id === identifier
+          ) ?? null
+        );
+      },
+      async insertPendingRequest(row: {
+        user_id: string;
+        email: string;
+        requested_player_id: string;
+      }) {
+        if (
+          mockDb.requests.some(
+            (r) => r.user_id === row.user_id && r.status === "pending"
+          )
+        ) {
+          return {
+            data: null,
+            error: { code: "23505", message: "duplicate pending request" },
+          };
+        }
+        const created = {
+          id: `req-${mockDb.requests.length + 1}`,
+          ...row,
+          status: "pending" as const,
+          created_at: "2026-11-25T22:00:00Z",
+          review_note: null,
+        };
+        mockDb.requests.push(created);
+        return { data: created, error: null };
+      },
+    };
+
+    // 1. loadUnlinkedProfileState exposes ONLY active, unlinked, non-admin players without email or userId
+    const initialState = await loadUnlinkedProfileState(dbAdapter, "user-new-1");
+    expect(initialState).toEqual({
+      pendingRequest: null,
+      availablePlayers: [
+        { id: "free-authorized", displayName: "Autorizado Libre" },
+        { id: "free-player", displayName: "Jugador Libre", nickname: "Libre" },
+      ],
+    });
+    expect(JSON.stringify(initialState)).not.toContain("admin-boss");
+    expect(JSON.stringify(initialState)).not.toContain("already-linked");
+    expect(JSON.stringify(initialState)).not.toContain("existing-auth-uid");
+
+    // 2. Guest (unauthenticated) rejected with UNAUTHENTICATED
+    expect(
+      await performRequestPlayerLink(dbAdapter, GUEST_SESSION, {
+        playerId: "free-player",
+      })
+    ).toMatchObject({ ok: false, code: "UNAUTHENTICATED" });
+
+    // 3. Already-linked session rejected with CONFLICT
+    const linkedSession: ViewerSession = {
+      role: "player",
+      userId: "existing-auth-uid",
+      playerId: "already-linked",
+      playerUuid: "44444444-4444-4444-8444-444444444444",
+      displayName: "Ya Vinculado",
+      email: "linked@lolonmebol.test",
+    };
+    expect(
+      await performRequestPlayerLink(dbAdapter, linkedSession, {
+        playerId: "free-player",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    const unlinkedSession: ViewerSession = {
+      role: "guest",
+      userId: "user-new-1",
+      playerId: null,
+      playerUuid: null,
+      displayName: null,
+      email: "  NuevoJugador@Gmail.com ",
+    };
+
+    // 4. Rejects admin, already-linked, and inactive target players
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "admin-boss",
+      })
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "already-linked",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "inactive-player",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
+
+    // 5. Valid unlinked player request succeeds with normalized lowercase email
+    const createdRes = await performRequestPlayerLink(
+      dbAdapter,
+      unlinkedSession,
+      { playerId: "free-player" }
+    );
+    expect(createdRes).toMatchObject({
+      ok: true,
+      data: { requestId: "req-1" },
+    });
+    expect(requestsTable[0]).toMatchObject({
+      user_id: "user-new-1",
+      email: "nuevojugador@gmail.com",
+      requested_player_id: "11111111-1111-4111-8111-111111111111",
+      status: "pending",
+    });
+
+    // 6. Second request while first is pending fails with CONFLICT
+    expect(
+      await performRequestPlayerLink(dbAdapter, unlinkedSession, {
+        playerId: "free-authorized",
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    // 7. Reloading state returns pendingRequest with resolved player name
+    const reloadedState = await loadUnlinkedProfileState(
+      dbAdapter,
+      "user-new-1"
+    );
+    expect(reloadedState.pendingRequest).toEqual({
+      id: "req-1",
+      requestedPlayerId: "free-player",
+      requestedPlayerName: "Jugador Libre",
+      status: "pending",
+      createdAt: "2026-11-25T22:00:00Z",
+      reviewNote: null,
+    });
+  });
+
+  it("createSupabaseLinkRequestAdapter never selects players.email and preserves DB state across rejected link requests", async () => {
+    const selectedPlayerCols: string[] = [];
+    const playersRows = [
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        slug: "b-aguzzi",
+        display_name: "B. Aguzzi",
+        nickname: "Bauti",
+        role: "player" as const,
+        is_active: true,
+        user_id: null,
+      },
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        slug: "luca-admin",
+        display_name: "Luca Admin",
+        nickname: null,
+        role: "admin" as const,
+        is_active: true,
+        user_id: null,
+      },
+    ];
+    const requestRows: Array<Record<string, unknown>> = [];
+
+    const mockSupabase = {
+      from(table: string) {
+        const filters: Array<(r: Record<string, unknown>) => boolean> = [];
+        const chain = {
+          select(cols: string) {
+            if (table === "players") {
+              selectedPlayerCols.push(cols);
+              if (/\bemail\b/i.test(cols) || cols.includes("*")) {
+                throw new Error(
+                  "42501: SELECT (email) revoked on public.players"
+                );
+              }
+            }
+            return chain;
+          },
+          insert(row: Record<string, unknown>) {
+            requestRows.push(row);
+            return chain;
+          },
+          eq(col: string, val: unknown) {
+            filters.push((r) => r[col] === val);
+            return chain;
+          },
+          is(col: string, val: unknown) {
+            filters.push((r) => (r[col] ?? null) === val);
+            return chain;
+          },
+          neq(col: string, val: unknown) {
+            filters.push((r) => r[col] !== val);
+            return chain;
+          },
+          async order() {
+            const src = table === "players" ? playersRows : requestRows;
+            return {
+              data: src.filter((r) => filters.every((f) => f(r))),
+              error: null,
+            };
+          },
+          async maybeSingle() {
+            const src = table === "players" ? playersRows : requestRows;
+            return {
+              data: src.filter((r) => filters.every((f) => f(r)))[0] ?? null,
+              error: null,
+            };
+          },
+          async single() {
+            return {
+              data: requestRows[requestRows.length - 1] ?? null,
+              error: null,
+            };
+          },
+        };
+        return chain;
+      },
+    };
+
+    const { createSupabaseLinkRequestAdapter } = await import(
+      "./link-requests"
+    );
+    const adapter = createSupabaseLinkRequestAdapter(mockSupabase as never)!;
+
+    const state = await loadUnlinkedProfileState(adapter, "uid-1");
+    expect(state.availablePlayers).toEqual([
+      { id: "b-aguzzi", displayName: "B. Aguzzi", nickname: "Bauti" },
+    ]);
+    expect(selectedPlayerCols.length).toBeGreaterThan(0);
+
+    const unlinkedCaller: ViewerSession = {
+      role: "guest",
+      userId: "uid-1",
+      playerId: null,
+      playerUuid: null,
+      displayName: null,
+      email: "caller@gmail.com",
+    };
+    const snapshotBefore = JSON.stringify({ playersRows, requestRows });
+    expect(
+      await performRequestPlayerLink(adapter, unlinkedCaller, {
+        playerId: "luca-admin",
+      })
+    ).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(
+      await performRequestPlayerLink(adapter, unlinkedCaller, {
+        playerId: "   ",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(JSON.stringify({ playersRows, requestRows })).toBe(snapshotBefore);
   });
 });

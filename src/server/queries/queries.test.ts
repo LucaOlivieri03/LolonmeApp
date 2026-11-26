@@ -360,6 +360,17 @@ describe("RSC architectural contract for /, /calendario, /reglas, /blog, /partid
     expect(loginCard).not.toContain("useTournament");
     expect(loginCard).not.toContain("localStorage");
     expect(loginCard).not.toContain("@/lib/engine");
+
+    const unlinkedCard = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        "src/components/profile/UnlinkedAccountCard.tsx"
+      ),
+      "utf8"
+    );
+    expect(unlinkedCard).not.toContain("useTournament");
+    expect(unlinkedCard).not.toContain("localStorage");
+    expect(unlinkedCard).not.toContain("@/lib/engine");
   });
 });
 
@@ -389,6 +400,38 @@ describe("Server Profile Query — guest, unlinked, and linked states", () => {
     expect(unlinkedVm).toEqual({
       status: "unlinked",
       email: "nuevo@lolonmebol.test",
+      pendingRequest: null,
+      availablePlayers: [],
+    });
+    expect(datasetSpy).not.toHaveBeenCalled();
+
+    const hydratedUnlinkedVm = await loadProfileViewModel(unlinkedSession, repo, {
+      unlinkedLoader: async () => ({
+        pendingRequest: {
+          id: "req-1",
+          requestedPlayerId: "l-olivieri",
+          requestedPlayerName: "L. Olivieri",
+          status: "pending",
+          createdAt: "2026-11-25T20:00:00Z",
+        },
+        availablePlayers: [
+          { id: "l-olivieri", displayName: "L. Olivieri", nickname: "Lolo" },
+        ],
+      }),
+    });
+    expect(hydratedUnlinkedVm).toEqual({
+      status: "unlinked",
+      email: "nuevo@lolonmebol.test",
+      pendingRequest: {
+        id: "req-1",
+        requestedPlayerId: "l-olivieri",
+        requestedPlayerName: "L. Olivieri",
+        status: "pending",
+        createdAt: "2026-11-25T20:00:00Z",
+      },
+      availablePlayers: [
+        { id: "l-olivieri", displayName: "L. Olivieri", nickname: "Lolo" },
+      ],
     });
     expect(datasetSpy).not.toHaveBeenCalled();
   });

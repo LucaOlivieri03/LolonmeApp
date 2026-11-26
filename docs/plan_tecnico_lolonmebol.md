@@ -24,8 +24,16 @@ flowchart TD
 
 ## 2. Modelo de Datos (PostgreSQL / Supabase)
 
-### 2.1 Usuarios, Jugadores y Títulos
-- **`players`**: `id`, `user_id` (nullable, se vincula automáticamente al registrarse con el mismo email), `email` (unique, nullable para invitados históricos), `display_name`, `nickname`, `avatar_url`, `role` (`admin` | `authorized` | `player`), `favorite_club_id`, `is_active`, `created_at`.
+### 2.1 Usuarios, Jugadores, Vinculación y Títulos
+- **`players`**: `id`, `slug` (unique, identificador estable de dominio agregado en `0002`), `user_id` (unique, nullable — se vincula automáticamente al iniciar sesión con Google/OTP con el mismo email), `email` (unique case-insensitive vía `idx_players_email_lower`, nullable; protegido con `REVOKE SELECT (email) ON public.players FROM anon, authenticated`), `display_name`, `nickname`, `avatar_url`, `role` (`admin` | `authorized` | `player`), `favorite_club_id`, `political_orientation` (nullable, agregado en `0002`), `is_active`, `created_at`.
+- **`player_link_requests`** *(agregado en `0003`)*: cola de auto-solicitudes de vinculación para usuarios autenticados cuyo email aún no está precargado en `players`.
+  - Columnas: `id` (PK), `user_id` (`REFERENCES auth.users(id) ON DELETE CASCADE`), `email`, `requested_player_id` (`REFERENCES public.players(id) ON DELETE CASCADE`), `status` (`pending` | `approved` | `rejected`), `reviewed_by` (`REFERENCES public.players(id) ON DELETE SET NULL`), `review_note`, `created_at`, `reviewed_at`.
+  - Índice único parcial: `UNIQUE (user_id) WHERE status = 'pending'` (máximo una solicitud activa por cuenta).
+  - RLS: usuarios autenticados solo leen e insertan su propia solicitud `pending` hacia un jugador activo con `user_id IS NULL` y `role <> 'admin'` (y solo si el solicitante no está ya vinculado); únicamente `public.is_admin()` puede listar todas las solicitudes y aprobarlas/rechazarlas.
+- **Triggers y RPCs de autenticación (`0001` + `0003`)**:
+  - `public.handle_new_auth_user()` (`AFTER INSERT OR UPDATE OF email_confirmed_at, last_sign_in_at ON auth.users`): vincula automáticamente `players.user_id` cuando coincide `lower(email)` en una ficha activa libre y resuelve solicitudes `pending` relacionadas.
+  - `public.guard_player_self_update()`: impide que usuarios no-`admin` modifiquen `role`, `email`, `user_id` o `is_active`.
+  - `public.admin_list_player_auth_links()` (`SECURITY DEFINER`, `REVOKE ALL FROM PUBLIC, anon`, `GRANT EXECUTE TO authenticated`, guarda `public.is_admin()`): expone `(player_id, player_slug, email, is_linked)` exclusivamente para el panel `/admin` sin otorgar `SELECT (email)` directo ni filtrar `user_id`.
 - **`player_aliases`**: `id`, `player_id`, `raw_name` — mapea variantes del Excel (ej. `B. Aguzzi ⭐⭐⭐`, `B. Aguzzi ⭐️⭐️⭐️`, `Pipo ⭐`) al mismo `player_id` para el importador constante.
 - **`player_titles`**: `id`, `player_id`, `season_id`, `title_type` (`league` | `cup` | `lolonmebol`), `awarded_at` — cada fila equivale a `1 ⭐` en el perfil.
 
@@ -36,7 +44,7 @@ flowchart TD
 
 ### 2.3 Partidos, Participaciones y Votaciones
 - **`matches`**:
-  - `id`, `season_id`, `match_number` (nullable para F11), `match_date`, `match_type` (`league` | `cup` | `lolonmebol` | `special_f11` | `league_tiebreaker`), `modality` (`F5` | `F6` | `F7` | `F11`), `team_a_score`, `team_b_score`.
+  - `id`, `slug` (unique, `0002`), `season_id`, `match_number` (nullable para F11), `match_date`, `match_type` (`league` | `cup` | `lolonmebol` | `special_f11` | `league_tiebreaker`), `modality` (`F5` | `F6` | `F7` | `F11`), `team_a_score`, `team_b_score`, `result_outcome` (`'A'` | `'B'` | `'draw'`, nullable — agregado en `0002` para partidos históricos sin marcador exacto).
   - Flags configurables para excepciones: `counts_for_league` (bool), `counts_for_stats` (bool) — permite manejar `F11 Aniversario 2025` sin lógica hardcodeada.
   - Votación: `voting_status` (`open` | `closed`), `voting_closed_at`, `voting_closed_by`.
   - Sincronización Excel: `external_source_key` (para detectar actualizaciones en el importador constante).
@@ -65,6 +73,14 @@ flowchart TD
 - **`blog_comments`**: `id`, `topic_id`, `author_player_id`, `body`, `created_at`.
 - **`match_media`**: `id`, `match_id`, `media_type` (`photo` | `video`), `url`, `uploaded_by`, `created_at`.
 - **`clubs_cache`**: `club_id`, `name`, `logo_url`, `league_name`, `last_match_json`, `next_match_json`, `synced_at`.
+
+### 2.7 Migraciones SQL (`supabase/migrations/`)
+
+| Archivo | Alcance |
+| :--- | :--- |
+| `0001_initial_schema.sql` | Esquema base, enums, RLS por rol (`is_admin()`, `is_operator()`), `REVOKE SELECT (email)` y trigger inicial `handle_new_auth_user()` |
+| `0002_align_domain_and_historical_outcomes.sql` | `players.slug`, `players.political_orientation`, `matches.result_outcome` y claves externas naturales para sync idempotente con Excel |
+| `0003_player_link_requests.sql` | Tabla `player_link_requests` + índice único parcial `pending` + RLS, unicidad case-insensitive de `players.email`, hardening de `handle_new_auth_user()` y RPC `admin_list_player_auth_links()` |
 
 ---
 

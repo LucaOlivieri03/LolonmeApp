@@ -86,6 +86,24 @@ export interface UpdatePlayerRoleInput {
   role: Exclude<PlayerRole, "guest">;
 }
 
+export interface RequestPlayerLinkInput {
+  playerId: string;
+}
+
+export interface ApprovePlayerLinkRequestInput {
+  requestId: string;
+}
+
+export interface RejectPlayerLinkRequestInput {
+  requestId: string;
+  reviewNote?: string | null;
+}
+
+export interface UpdatePlayerEmailInput {
+  playerId: string;
+  email: string | null;
+}
+
 export interface AwardPlayerTitleInput {
   playerId: string;
   seasonId: string;

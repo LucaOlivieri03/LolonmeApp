@@ -145,6 +145,38 @@ export interface ProfileRecentMatchItem {
   resultOutcome: "A" | "B" | "draw" | null;
 }
 
+export interface AvailableUnlinkedPlayer {
+  id: string;
+  displayName: string;
+  nickname?: string;
+}
+
+export interface PlayerLinkRequestSummary {
+  id: string;
+  requestedPlayerId: string;
+  requestedPlayerName: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  reviewNote?: string | null;
+}
+
+export type AdminPlayerLinkStatus = "linked" | "preloaded" | "unlinked";
+
+export interface AdminPlayerAuthLinkInfo {
+  playerId: string;
+  email: string | null;
+  isLinked: boolean;
+  status: AdminPlayerLinkStatus;
+}
+
+export interface AdminPendingLinkRequestItem {
+  id: string;
+  email: string;
+  requestedPlayerId: string;
+  requestedPlayerName: string;
+  createdAt: string;
+}
+
 export type ProfileViewModel =
   | {
       status: "guest";
@@ -153,6 +185,8 @@ export type ProfileViewModel =
   | {
       status: "unlinked";
       email: string | null;
+      pendingRequest: PlayerLinkRequestSummary | null;
+      availablePlayers: AvailableUnlinkedPlayer[];
     }
   | {
       status: "linked";

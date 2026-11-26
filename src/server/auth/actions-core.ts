@@ -26,9 +26,27 @@ export interface ServerAuthActionsClient {
       email: string;
       password: string;
     }) => Promise<{ error: { message: string } | null }>;
+    signInWithOAuth?: (params: {
+      provider: "google";
+      options?: {
+        redirectTo?: string;
+        queryParams?: Record<string, string>;
+      };
+    }) => Promise<{
+      data: { url: string | null };
+      error: { message: string } | null;
+    }>;
     signOut: () => Promise<{ error: { message: string } | null }>;
   };
 }
+
+export type GoogleOAuthResult =
+  | { ok: true; url: string }
+  | {
+      ok: false;
+      errorCode: "not_configured" | "provider_error";
+      message: string;
+    };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 let otpRequestSeq = 0;
@@ -200,4 +218,58 @@ export async function performSignInWithPassword(
   }
 
   return { ok: true };
+}
+
+export async function performSignInWithGoogle(
+  client: ServerAuthActionsClient | null,
+  callbackOrigin: string
+): Promise<GoogleOAuthResult> {
+  if (!client || typeof client.auth.signInWithOAuth !== "function") {
+    return {
+      ok: false,
+      errorCode: "not_configured",
+      message:
+        "Supabase Auth no está configurado en este entorno (variables NEXT_PUBLIC_SUPABASE_* ausentes).",
+    };
+  }
+
+  const safeOrigin = parseHttpOrigin(callbackOrigin) ?? "http://localhost:3000";
+  const redirectTo = new URL(
+    "/auth/callback?next=/perfil",
+    safeOrigin
+  ).toString();
+
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error || !data?.url) {
+    return {
+      ok: false,
+      errorCode: "provider_error",
+      message:
+        "No se pudo iniciar la autenticación con Google. Intentá nuevamente.",
+    };
+  }
+
+  try {
+    const parsed = new URL(data.url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return {
+        ok: false,
+        errorCode: "provider_error",
+        message: "URL de proveedor OAuth inválida.",
+      };
+    }
+    return { ok: true, url: parsed.toString() };
+  } catch {
+    return {
+      ok: false,
+      errorCode: "provider_error",
+      message: "URL de proveedor OAuth inválida.",
+    };
+  }
 }

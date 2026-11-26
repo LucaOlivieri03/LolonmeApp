@@ -2,11 +2,18 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { computeStandings, resolveDefaultSeasonId } from "@/lib/engine";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   ProfileRecentMatchItem,
   ProfileViewModel,
 } from "@/lib/types/view-models";
-import { getViewerSession, type ViewerSession } from "@/server/auth";
+import {
+  createSupabaseLinkRequestAdapter,
+  getViewerSession,
+  loadUnlinkedProfileState,
+  type UnlinkedProfileState,
+  type ViewerSession,
+} from "@/server/auth";
 import {
   getPublicTournamentRepository,
   type PublicTournamentData,
@@ -106,7 +113,10 @@ export function buildLinkedProfileViewModel(
 export async function loadProfileViewModel(
   session: ViewerSession,
   repo: PublicTournamentRepository,
-  options?: { isAuthConfigured?: boolean }
+  options?: {
+    isAuthConfigured?: boolean;
+    unlinkedLoader?: (userId: string) => Promise<UnlinkedProfileState>;
+  }
 ): Promise<ProfileViewModel> {
   if (!session.userId) {
     return {
@@ -116,9 +126,15 @@ export async function loadProfileViewModel(
   }
 
   if (!session.playerId || session.role === "guest") {
+    const unlinkedState = options?.unlinkedLoader
+      ? await options.unlinkedLoader(session.userId)
+      : { pendingRequest: null, availablePlayers: [] };
+
     return {
       status: "unlinked",
       email: session.email,
+      pendingRequest: unlinkedState.pendingRequest,
+      availablePlayers: unlinkedState.availablePlayers,
     };
   }
 
@@ -151,9 +167,17 @@ export async function getAuthenticatedProfileViewModel(): Promise<ProfileViewMod
   }
 
   if (!session.playerId || session.role === "guest") {
+    const client = await createSupabaseServerClient();
+    const adapter = createSupabaseLinkRequestAdapter(client);
+    const unlinkedState = await loadUnlinkedProfileState(
+      adapter,
+      session.userId
+    );
     return {
       status: "unlinked",
       email: session.email,
+      pendingRequest: unlinkedState.pendingRequest,
+      availablePlayers: unlinkedState.availablePlayers,
     };
   }
 
