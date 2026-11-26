@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -118,6 +118,13 @@ export function CalendarInteractiveView({
   const [currentMonth, setCurrentMonth] = useState<string>(initialMonth);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const detailPanelRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      setViewMode("agenda");
+    }
+  }, []);
 
   const filtered = useMemo(() => {
     if (typeFilter === "ALL") return events;
@@ -164,6 +171,28 @@ export function CalendarInteractiveView({
     return [];
   }, [selectedEventId, selectedDate, filtered, eventsByDate]);
 
+  useEffect(() => {
+    if (selectedDayEvents.length === 0) return;
+    if (detailPanelRef.current) {
+      detailPanelRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [selectedDate, selectedEventId, selectedDayEvents.length]);
+
+  useEffect(() => {
+    if (selectedDayEvents.length === 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedDate(null);
+        setSelectedEventId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedDayEvents.length]);
+
   const handleGoToday = () => {
     const todayIso = new Date().toISOString().slice(0, 10);
     const todayMonth = todayIso.slice(0, 7);
@@ -201,8 +230,9 @@ export function CalendarInteractiveView({
             <button
               type="button"
               onClick={() => setViewMode("grid")}
+              aria-pressed={viewMode === "grid"}
               className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+                "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
                 viewMode === "grid"
                   ? "bg-pitch-800 text-white"
                   : "text-ink-muted hover:text-ink"
@@ -214,8 +244,9 @@ export function CalendarInteractiveView({
             <button
               type="button"
               onClick={() => setViewMode("agenda")}
+              aria-pressed={viewMode === "agenda"}
               className={cn(
-                "inline-flex min-h-9 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+                "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
                 viewMode === "agenda"
                   ? "bg-pitch-800 text-white"
                   : "text-ink-muted hover:text-ink"
@@ -271,7 +302,7 @@ export function CalendarInteractiveView({
 
       {/* Event Type Filter */}
       <div
-        className="flex flex-wrap gap-1.5"
+        className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0"
         role="group"
         aria-label="Tipo de evento"
       >
@@ -279,7 +310,7 @@ export function CalendarInteractiveView({
           type="button"
           onClick={() => setTypeFilter("ALL")}
           className={cn(
-            "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
+            "min-h-10 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
             typeFilter === "ALL"
               ? "border-pitch-800 bg-pitch-800 text-white"
               : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
@@ -295,7 +326,7 @@ export function CalendarInteractiveView({
               type="button"
               onClick={() => setTypeFilter(key)}
               className={cn(
-                "inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition-colors",
+                "inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
                 typeFilter === key
                   ? "border-pitch-800 bg-pitch-800 text-white"
                   : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
@@ -303,7 +334,7 @@ export function CalendarInteractiveView({
             >
               <span
                 className={cn(
-                  "h-2 w-2 rounded-full",
+                  "h-2 w-2 shrink-0 rounded-full",
                   typeFilter === key ? "bg-gold-400" : meta.dot
                 )}
               />
@@ -313,110 +344,16 @@ export function CalendarInteractiveView({
         })}
       </div>
 
-      {/* Selected Day / Event Detail Drawer / Panel */}
-      {selectedDayEvents.length > 0 && (
-        <section
-          aria-label="Detalle del evento seleccionado"
-          className="pitch-chalk-surface rounded-lg border border-pitch-900 p-4 text-paper shadow-md"
-        >
-          <div className="flex items-start justify-between gap-2 border-b border-white/15 pb-2.5">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-gold-400">
-                Detalle de Fecha · {formatDateEs(selectedDayEvents[0].eventDate)}
-              </span>
-              <h2 className="font-display text-xl font-extrabold tracking-wide text-white">
-                {selectedDayEvents.length === 1
-                  ? selectedDayEvents[0].title
-                  : `${selectedDayEvents.length} eventos en este día`}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDate(null);
-                setSelectedEventId(null);
-              }}
-              aria-label="Cerrar detalle"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/20 bg-pitch-900/60 text-white hover:bg-pitch-900"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {selectedDayEvents.map((ev) => {
-              const meta = EVENT_TYPE_META[ev.eventType];
-              const linkedMatch = ev.linkedMatch;
-              return (
-                <div
-                  key={ev.id}
-                  className="flex flex-col justify-between rounded-md border border-white/20 bg-pitch-950/55 p-3.5"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={cn(
-                          "rounded-sm border px-2 py-0.5 text-xs font-bold",
-                          meta.badge
-                        )}
-                      >
-                        {meta.label}
-                      </span>
-                      <span className="text-xs font-semibold text-pitch-100">
-                        {formatDateEs(ev.eventDate)}
-                      </span>
-                    </div>
-                    <h3 className="font-display mt-2 text-lg font-bold tracking-wide text-white">
-                      {ev.title}
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-pitch-100">
-                      {ev.description ||
-                        "Sin notas adicionales para esta jornada."}
-                    </p>
-
-                    {linkedMatch && (
-                      <div className="mt-2.5 flex items-center justify-between rounded border border-white/15 bg-pitch-900/70 px-2.5 py-1.5 text-xs">
-                        <span className="flex items-center gap-1.5 font-semibold text-gold-400">
-                          <Trophy className="h-3.5 w-3.5" />
-                          Modalidad {linkedMatch.modality}
-                          {linkedMatch.matchNumber !== null
-                            ? ` · Fecha #${linkedMatch.matchNumber}`
-                            : ""}
-                        </span>
-                        <span className="font-display text-sm font-extrabold text-white">
-                          {linkedMatch.teamAScore ?? "—"} –{" "}
-                          {linkedMatch.teamBScore ?? "—"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {ev.matchId && (
-                    <Link
-                      href="/partidos"
-                      className="mt-3 inline-flex min-h-9 items-center justify-between rounded-md bg-gold-400 px-3 text-xs font-extrabold text-ink transition-colors hover:bg-gold-500"
-                    >
-                      <span>Ver planilla del partido asociado</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       {/* VIEW MODE 1: INTERACTIVE MONTHLY GRID */}
       {viewMode === "grid" ? (
         <section className="overflow-hidden rounded-lg border border-rule bg-surface">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule bg-surface-subtle px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule bg-surface-subtle px-3 py-3 sm:px-4">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setCurrentMonth((m) => shiftMonthKey(m, -1))}
                 aria-label="Mes anterior"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
+                className="inline-flex h-10 w-10 min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -427,7 +364,7 @@ export function CalendarInteractiveView({
                 type="button"
                 onClick={() => setCurrentMonth((m) => shiftMonthKey(m, 1))}
                 aria-label="Mes siguiente"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
+                className="inline-flex h-10 w-10 min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink hover:border-pitch-700"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -437,7 +374,7 @@ export function CalendarInteractiveView({
               <button
                 type="button"
                 onClick={handleGoToday}
-                className="min-h-9 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
+                className="min-h-10 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
               >
                 Hoy / Último mes activo
               </button>
@@ -445,7 +382,7 @@ export function CalendarInteractiveView({
                 aria-label="Saltar a mes con actividad"
                 value={currentMonth}
                 onChange={(e) => setCurrentMonth(e.target.value)}
-                className="min-h-9 rounded-md border border-rule bg-surface px-2.5 text-xs font-semibold text-ink"
+                className="h-10 rounded-md border border-rule bg-surface px-2.5 text-base font-semibold leading-normal text-ink sm:text-sm"
               >
                 {!groupedByMonth.some((g) => g.monthKey === currentMonth) && (
                   <option value={currentMonth}>
@@ -469,13 +406,13 @@ export function CalendarInteractiveView({
             ))}
           </div>
 
-          <div className="grid grid-cols-7 divide-x divide-y divide-rule bg-surface">
+          <div className="grid grid-cols-7 gap-px bg-rule">
             {monthCells.map((cell, idx) => {
               if (!cell) {
                 return (
                   <div
                     key={`empty-${idx}`}
-                    className="min-h-24 bg-paper/45 p-1.5 sm:min-h-28"
+                    className="min-h-12 bg-paper p-1 sm:min-h-24 sm:p-1.5"
                   />
                 );
               }
@@ -494,6 +431,12 @@ export function CalendarInteractiveView({
                   }}
                   role={hasEvents ? "button" : undefined}
                   tabIndex={hasEvents ? 0 : undefined}
+                  aria-label={
+                    hasEvents
+                      ? `${cell.dayNumber} — ${dayEvents.length} ${dayEvents.length === 1 ? "evento" : "eventos"}`
+                      : undefined
+                  }
+                  aria-pressed={hasEvents ? isSelected : undefined}
                   onKeyDown={(e) => {
                     if (hasEvents && (e.key === "Enter" || e.key === " ")) {
                       e.preventDefault();
@@ -502,15 +445,15 @@ export function CalendarInteractiveView({
                     }
                   }}
                   className={cn(
-                    "min-h-24 p-1.5 transition-colors sm:min-h-28 sm:p-2",
+                    "flex min-h-12 flex-col items-center justify-between p-1.5 transition-colors sm:min-h-24 sm:items-stretch sm:justify-start sm:p-2",
                     hasEvents
-                      ? "cursor-pointer bg-pitch-50/35 hover:bg-pitch-50"
+                      ? "cursor-pointer bg-pitch-50 hover:bg-pitch-100/70"
                       : "bg-surface",
                     isSelected &&
-                      "ring-2 ring-inset ring-leather-600 bg-gold-50/50"
+                      "bg-gold-50 ring-2 ring-inset ring-leather-600"
                   )}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex w-full items-center justify-center sm:justify-between">
                     <span
                       className={cn(
                         "font-display inline-flex h-6 w-6 items-center justify-center rounded-sm text-xs font-extrabold",
@@ -522,7 +465,7 @@ export function CalendarInteractiveView({
                       {cell.dayNumber}
                     </span>
                     {hasEvents && (
-                      <div className="flex items-center gap-1">
+                      <div className="hidden items-center gap-1 sm:flex">
                         {dayEvents.map((ev) => (
                           <span
                             key={ev.id}
@@ -537,8 +480,25 @@ export function CalendarInteractiveView({
                     )}
                   </div>
 
+                  {/* Compact colored status dots on mobile */}
                   {hasEvents && (
-                    <div className="mt-1.5 space-y-1">
+                    <div className="mt-1 flex flex-wrap items-center justify-center gap-1 sm:hidden">
+                      {dayEvents.map((ev) => (
+                        <span
+                          key={ev.id}
+                          className={cn(
+                            "h-2 w-2 rounded-full",
+                            EVENT_TYPE_META[ev.eventType].dot
+                          )}
+                          title={EVENT_TYPE_META[ev.eventType].label}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Full event title pills on desktop */}
+                  {hasEvents && (
+                    <div className="mt-1.5 hidden space-y-1 sm:block">
                       {dayEvents.map((ev) => {
                         const meta = EVENT_TYPE_META[ev.eventType];
                         return (
@@ -551,7 +511,7 @@ export function CalendarInteractiveView({
                               setSelectedEventId(ev.id);
                             }}
                             className={cn(
-                              "block w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-bold transition-transform hover:scale-[1.01]",
+                              "block w-full truncate rounded-sm border px-1.5 py-0.5 text-left text-[11px] font-bold transition-colors",
                               meta.badge
                             )}
                             title={ev.title}
@@ -612,38 +572,45 @@ export function CalendarInteractiveView({
               <ul className="divide-y divide-rule">
                 {monthEvents.map((ev) => {
                   const meta = EVENT_TYPE_META[ev.eventType];
+                  const isItemSelected = selectedEventId === ev.id;
                   return (
-                    <li
-                      key={ev.id}
-                      onClick={() => {
-                        setSelectedDate(ev.eventDate);
-                        setSelectedEventId(ev.id);
-                      }}
-                      className="flex cursor-pointer flex-col gap-2 px-4 py-3 transition-colors hover:bg-pitch-50/40 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="font-display min-w-[4.5rem] shrink-0 rounded-sm bg-paper px-2 py-1 text-center text-sm font-bold text-ink">
-                          {formatDateEs(ev.eventDate, { omitYear: true })}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-ink">
-                            {ev.title}
-                          </p>
-                          {ev.description && (
-                            <p className="mt-0.5 text-xs text-ink-muted">
-                              {ev.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span
+                    <li key={ev.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(ev.eventDate);
+                          setSelectedEventId(ev.id);
+                        }}
+                        aria-pressed={isItemSelected}
                         className={cn(
-                          "w-fit shrink-0 rounded-sm border px-2.5 py-1 text-xs font-bold",
-                          meta.badge
+                          "flex min-h-11 w-full flex-col gap-2 px-4 py-3 text-left transition-colors hover:bg-pitch-50/40 sm:flex-row sm:items-center sm:justify-between",
+                          isItemSelected && "bg-gold-50/50"
                         )}
                       >
-                        {meta.label}
-                      </span>
+                        <div className="flex items-start gap-3">
+                          <span className="font-display min-w-[4.5rem] shrink-0 rounded-sm bg-paper px-2 py-1 text-center text-sm font-bold text-ink">
+                            {formatDateEs(ev.eventDate, { omitYear: true })}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-ink">
+                              {ev.title}
+                            </p>
+                            {ev.description && (
+                              <p className="mt-0.5 text-xs text-ink-muted">
+                                {ev.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <span
+                          className={cn(
+                            "w-fit shrink-0 rounded-sm border px-2.5 py-1 text-xs font-bold",
+                            meta.badge
+                          )}
+                        >
+                          {meta.label}
+                        </span>
+                      </button>
                     </li>
                   );
                 })}
@@ -652,6 +619,101 @@ export function CalendarInteractiveView({
           ))}
         </div>
       ) : null}
+
+      {/* Selected Day / Event Detail Panel (below calendar grid / agenda) */}
+      {selectedDayEvents.length > 0 && (
+        <section
+          ref={detailPanelRef}
+          aria-label="Detalle del evento seleccionado"
+          className="pitch-chalk-surface rounded-lg border border-pitch-900 p-4 text-paper"
+        >
+          <div className="flex items-start justify-between gap-2 border-b border-white/15 pb-2.5">
+            <div>
+              <h2 className="font-display text-xl font-extrabold tracking-wide text-white">
+                {selectedDayEvents.length === 1
+                  ? selectedDayEvents[0].title
+                  : `${selectedDayEvents.length} eventos en este día`}
+              </h2>
+              <p className="mt-0.5 text-xs font-semibold text-gold-400">
+                {formatDateEs(selectedDayEvents[0].eventDate)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(null);
+                setSelectedEventId(null);
+              }}
+              aria-label="Cerrar detalle"
+              className="inline-flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md border border-white/20 bg-pitch-900/60 text-white hover:bg-pitch-900"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {selectedDayEvents.map((ev) => {
+              const meta = EVENT_TYPE_META[ev.eventType];
+              const linkedMatch = ev.linkedMatch;
+              return (
+                <div
+                  key={ev.id}
+                  className="flex flex-col justify-between rounded-md bg-pitch-950/55 p-3.5"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={cn(
+                          "rounded-sm border px-2 py-0.5 text-xs font-bold",
+                          meta.badge
+                        )}
+                      >
+                        {meta.label}
+                      </span>
+                      <span className="text-xs font-semibold text-pitch-100">
+                        {formatDateEs(ev.eventDate)}
+                      </span>
+                    </div>
+                    <h3 className="font-display mt-2 text-lg font-bold tracking-wide text-white">
+                      {ev.title}
+                    </h3>
+                    <p className="mt-1 text-xs leading-relaxed text-pitch-100">
+                      {ev.description ||
+                        "Sin notas adicionales para esta jornada."}
+                    </p>
+
+                    {linkedMatch && (
+                      <div className="mt-2.5 flex items-center justify-between rounded-sm bg-pitch-900/70 px-2.5 py-1.5 text-xs">
+                        <span className="flex items-center gap-1.5 font-semibold text-gold-400">
+                          <Trophy className="h-3.5 w-3.5" />
+                          Modalidad {linkedMatch.modality}
+                          {linkedMatch.matchNumber !== null
+                            ? ` · Fecha #${linkedMatch.matchNumber}`
+                            : ""}
+                        </span>
+                        <span className="font-display text-sm font-extrabold text-white">
+                          {linkedMatch.teamAScore ?? "—"} –{" "}
+                          {linkedMatch.teamBScore ?? "—"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {ev.matchId && (
+                    <Link
+                      href={`/partidos?date=${encodeURIComponent(ev.eventDate)}`}
+                      className="mt-3 inline-flex min-h-10 items-center justify-between rounded-md bg-gold-400 px-3 text-xs font-extrabold text-ink transition-colors hover:bg-gold-500"
+                    >
+                      <span>Ver planilla del partido asociado</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
