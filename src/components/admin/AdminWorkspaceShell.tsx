@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ChevronDown,
   FileSpreadsheet,
   Megaphone,
   PlusCircle,
@@ -99,6 +100,7 @@ export function AdminWorkspaceShell({
   );
   const [seasonCreatedMsg, setSeasonCreatedMsg] = useState<string | null>(null);
   const [seasonErrorMsg, setSeasonErrorMsg] = useState<string | null>(null);
+  const [showSeasonManager, setShowSeasonManager] = useState(false);
 
   const parsedNewSeasonYear = Number(newSeasonYear);
   const isDuplicateSeasonYear =
@@ -212,110 +214,130 @@ export function AdminWorkspaceShell({
       </nav>
 
       {isAdmin && (
-        <section className="rounded-lg border border-rule bg-surface p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h2 className="font-display text-lg font-bold tracking-wide text-ink">
-                Temporadas Habilitadas (
-                {sortedSeasons.map((s) => s.year).join(" · ")})
-              </h2>
-              <p className="text-xs text-ink-muted">
-                Habilitá un nuevo año para que aparezca en todos los selectores,
-                tablas, Copa y Pozo.
-              </p>
-            </div>
+        <section className="overflow-hidden rounded-lg border border-rule bg-surface">
+          <button
+            type="button"
+            aria-expanded={showSeasonManager}
+            onClick={() => setShowSeasonManager((prev) => !prev)}
+            className="flex min-h-11 w-full items-center justify-between gap-2 px-4 py-2.5 text-left transition-colors hover:bg-surface-subtle"
+          >
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="font-display text-base font-bold tracking-wide text-ink">
+                Temporadas · Habilitar año
+              </span>
+              <span className="text-xs font-medium text-ink-muted">
+                ({sortedSeasons.map((s) => s.year).join(" · ")})
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-ink-muted transition-transform",
+                showSeasonManager && "rotate-180 text-pitch-800"
+              )}
+            />
+          </button>
 
-            <form
-              onSubmit={handleCreateSeason}
-              className="flex flex-wrap items-end gap-2"
-            >
-              <div>
-                <label
-                  htmlFor="admin-new-season-year"
-                  className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+          {showSeasonManager && (
+            <div className="border-t border-rule p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <p className="text-xs text-ink-muted">
+                  Habilitá un nuevo año para que aparezca en todos los selectores,
+                  tablas, Copa y Pozo.
+                </p>
+
+                <form
+                  onSubmit={handleCreateSeason}
+                  className="flex flex-wrap items-end gap-2"
                 >
-                  Año
-                </label>
-                <input
-                  id="admin-new-season-year"
-                  type="number"
-                  min={2020}
-                  max={2100}
-                  value={newSeasonYear}
-                  onChange={(e) => {
-                    setNewSeasonYear(e.target.value);
-                    setSeasonErrorMsg(null);
-                    setSeasonCreatedMsg(null);
-                    if (/^\d{4}$/.test(e.target.value)) {
-                      setNewSeasonCutoff(`${e.target.value}-07-01`);
-                    }
-                  }}
-                  className={cn(
-                    "font-display mt-1 min-h-10 w-24 rounded-md border bg-paper px-2.5 text-base font-bold text-ink",
-                    isDuplicateSeasonYear
-                      ? "border-crimson-600 text-crimson-700"
-                      : "border-rule"
-                  )}
-                  required
-                />
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-year"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Año
+                    </label>
+                    <input
+                      id="admin-new-season-year"
+                      type="number"
+                      min={2020}
+                      max={2100}
+                      value={newSeasonYear}
+                      onChange={(e) => {
+                        setNewSeasonYear(e.target.value);
+                        setSeasonErrorMsg(null);
+                        setSeasonCreatedMsg(null);
+                        if (/^\d{4}$/.test(e.target.value)) {
+                          setNewSeasonCutoff(`${e.target.value}-07-01`);
+                        }
+                      }}
+                      className={cn(
+                        "font-display mt-1 min-h-10 w-24 rounded-md border bg-paper px-2.5 text-base font-bold text-ink sm:text-sm",
+                        isDuplicateSeasonYear
+                          ? "border-crimson-600 text-crimson-700"
+                          : "border-rule"
+                      )}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-fee"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Cuota Pozo ($)
+                    </label>
+                    <input
+                      id="admin-new-season-fee"
+                      type="number"
+                      min={0}
+                      value={newSeasonFee}
+                      onChange={(e) => setNewSeasonFee(e.target.value)}
+                      className="font-display mt-1 min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-new-season-cutoff"
+                      className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+                    >
+                      Corte Copa
+                    </label>
+                    <input
+                      id="admin-new-season-cutoff"
+                      type="date"
+                      value={newSeasonCutoff}
+                      onChange={(e) => setNewSeasonCutoff(e.target.value)}
+                      className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isPending || isDuplicateSeasonYear}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    {isPending ? "Creando..." : "Habilitar Año"}
+                  </button>
+                </form>
               </div>
-              <div>
-                <label
-                  htmlFor="admin-new-season-fee"
-                  className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
-                >
-                  Cuota Pozo ($)
-                </label>
-                <input
-                  id="admin-new-season-fee"
-                  type="number"
-                  min={0}
-                  value={newSeasonFee}
-                  onChange={(e) => setNewSeasonFee(e.target.value)}
-                  className="font-display mt-1 min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-base font-bold text-ink"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="admin-new-season-cutoff"
-                  className="block text-[11px] font-bold uppercase tracking-wider text-ink-muted"
-                >
-                  Corte Copa
-                </label>
-                <input
-                  id="admin-new-season-cutoff"
-                  type="date"
-                  value={newSeasonCutoff}
-                  onChange={(e) => setNewSeasonCutoff(e.target.value)}
-                  className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isPending || isDuplicateSeasonYear}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <PlusCircle className="h-4 w-4" />
-                {isPending ? "Creando..." : "Habilitar Año"}
-              </button>
-            </form>
-          </div>
-          {isDuplicateSeasonYear && !seasonErrorMsg && (
-            <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
-              La temporada {Math.round(parsedNewSeasonYear)} ya existe en el
-              sistema ({sortedSeasons.map((s) => s.year).join(", ")}). Ingresá
-              un año que no esté cargado.
-            </p>
-          )}
-          {seasonErrorMsg && (
-            <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
-              {seasonErrorMsg}
-            </p>
-          )}
-          {seasonCreatedMsg && (
-            <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
-              {seasonCreatedMsg}
-            </p>
+              {isDuplicateSeasonYear && !seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  La temporada {Math.round(parsedNewSeasonYear)} ya existe en el
+                  sistema ({sortedSeasons.map((s) => s.year).join(", ")}). Ingresá
+                  un año que no esté cargado.
+                </p>
+              )}
+              {seasonErrorMsg && (
+                <p className="mt-2.5 rounded-md border border-crimson-600/35 bg-crimson-50 px-3 py-2 text-xs font-semibold text-crimson-700">
+                  {seasonErrorMsg}
+                </p>
+              )}
+              {seasonCreatedMsg && (
+                <p className="mt-2.5 rounded-md border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-800">
+                  {seasonCreatedMsg}
+                </p>
+              )}
+            </div>
           )}
         </section>
       )}

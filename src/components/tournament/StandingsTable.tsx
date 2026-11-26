@@ -48,6 +48,10 @@ export function StandingsTable({
         </div>
       )}
 
+      <p className="flex items-center justify-end text-xs font-medium text-ink-muted sm:hidden">
+        Deslizá la tabla para ver G-E-P, PG%{mode === "annual" ? ", G/A y Prom" : " y MVPs"} →
+      </p>
+
       <div className="overflow-x-auto rounded-lg border border-rule bg-surface">
         <table className="w-full min-w-[540px] border-collapse text-left text-sm">
           <thead>
@@ -79,7 +83,7 @@ export function StandingsTable({
               const isDirectCup = mode === "annual" && row.position <= 7;
               const isPrelimCup =
                 mode === "annual" && row.position >= 8 && row.position <= 9;
-              const rowBg = isLeader ? "bg-gold-50/75" : "bg-surface";
+              const rowBg = isLeader ? "bg-gold-50" : "bg-surface";
 
               return (
                 <tr
@@ -181,7 +185,7 @@ export function StandingsTable({
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-pitch-800 bg-pitch-50 px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-100"
           >
             {expanded ? (
               <>

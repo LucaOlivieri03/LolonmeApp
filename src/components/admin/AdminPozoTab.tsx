@@ -407,15 +407,15 @@ export function AdminPozoTab({
       </div>
 
       {errorBanner && (
-        <div className="flex items-center justify-between rounded-md border border-crimson-600/35 bg-crimson-50 px-3.5 py-2.5 text-xs font-semibold text-crimson-700">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-crimson-600/35 bg-crimson-50 px-3.5 py-2 text-xs font-semibold text-crimson-700">
           <span>{errorBanner}</span>
           <button
             type="button"
             onClick={() => setErrorBanner(null)}
             aria-label="Cerrar error"
-            className="rounded p-0.5 text-crimson-700 hover:bg-crimson-100"
+            className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-crimson-700 hover:bg-crimson-100"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -543,14 +543,14 @@ export function AdminPozoTab({
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-0.5 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs">
                   <span className="text-ink-muted">
                     ¿No está cargado en el padrón general?
                   </span>
                   <button
                     type="button"
                     onClick={() => setShowCreateNew(true)}
-                    className="inline-flex items-center gap-1 font-bold text-pitch-800 hover:underline"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 font-bold text-pitch-800 hover:bg-pitch-50 hover:underline"
                   >
                     <PlusCircle className="h-3.5 w-3.5" />
                     Crear nuevo jugador y sumar
@@ -559,7 +559,7 @@ export function AdminPozoTab({
               </form>
             ) : (
               <form onSubmit={handleCreateAndEnroll} className="space-y-2.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <label
                     htmlFor="pozo-create-player"
                     className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
@@ -572,7 +572,7 @@ export function AdminPozoTab({
                       setShowCreateNew(false);
                       setNewPlayerName("");
                     }}
-                    className="text-xs font-semibold text-ink-muted hover:text-ink"
+                    className="inline-flex min-h-10 shrink-0 items-center rounded-md px-2 text-xs font-semibold text-ink-muted hover:text-ink"
                   >
                     Volver al padrón
                   </button>
@@ -602,15 +602,15 @@ export function AdminPozoTab({
         </div>
 
         {enrollNotice && (
-          <div className="flex items-center justify-between border-t border-rule bg-pitch-50 px-4 py-2 text-xs font-semibold text-pitch-800">
+          <div className="flex items-center justify-between gap-2 border-t border-rule bg-pitch-50 px-4 py-2 text-xs font-semibold text-pitch-800">
             <span>{enrollNotice}</span>
             <button
               type="button"
               onClick={() => setEnrollNotice(null)}
               aria-label="Cerrar aviso"
-              className="rounded p-0.5 text-pitch-700 hover:bg-pitch-100"
+              className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-pitch-700 hover:bg-pitch-100"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}

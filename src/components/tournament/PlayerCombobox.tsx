@@ -199,7 +199,7 @@ export function PlayerCombobox({
                 </span>
               )}
               {typeof selectedOption.pj === "number" && (
-                <span className="hidden rounded-sm bg-surface-subtle px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted xs:inline-block">
+                <span className="hidden rounded-sm bg-surface-subtle px-1.5 py-0.5 text-[11px] font-semibold text-ink-muted sm:inline-block">
                   {selectedOption.pj} PJ
                 </span>
               )}
@@ -230,13 +230,13 @@ export function PlayerCombobox({
           <div
             aria-hidden="true"
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-40 bg-ink/45 sm:hidden"
+            className="fixed inset-0 z-50 bg-ink/45 sm:hidden"
           />
 
           <div
             className={cn(
-              "z-50 flex flex-col overflow-hidden border border-rule bg-surface shadow-xl",
-              "fixed inset-x-0 bottom-0 max-h-[78vh] rounded-t-xl pb-[env(safe-area-inset-bottom)]",
+              "z-[60] flex flex-col overflow-hidden border border-rule border-t-2 border-t-pitch-800 bg-surface sm:border-t sm:border-t-rule",
+              "fixed inset-x-0 bottom-0 max-h-[78vh] rounded-t-lg pb-[env(safe-area-inset-bottom)]",
               "sm:absolute sm:inset-x-0 sm:top-full sm:bottom-auto sm:mt-1.5 sm:max-h-80 sm:rounded-lg sm:pb-0"
             )}
           >
@@ -250,7 +250,7 @@ export function PlayerCombobox({
                   type="button"
                   onClick={() => setIsOpen(false)}
                   aria-label="Cerrar selector"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-rule bg-surface text-ink-muted"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-rule bg-surface text-ink-muted"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -268,16 +268,16 @@ export function PlayerCombobox({
                   }}
                   placeholder={searchPlaceholder}
                   aria-label={searchPlaceholder}
-                  className="min-h-10 w-full rounded-md border border-rule bg-paper pr-8 pl-9 text-base text-ink placeholder:text-ink-muted focus:border-pitch-800 focus:outline-none sm:text-sm"
+                  className="min-h-10 w-full rounded-md border border-rule bg-paper pr-11 pl-9 text-base text-ink placeholder:text-ink-muted focus:border-pitch-800 focus:outline-none sm:text-sm"
                 />
                 {query && (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
                     aria-label="Limpiar búsqueda"
-                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-ink-muted hover:text-ink"
+                    className="absolute top-1/2 right-0.5 inline-flex min-h-10 min-w-10 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:text-ink"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>

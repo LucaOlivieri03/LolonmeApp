@@ -146,10 +146,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
             <div className="rounded-lg border border-rule bg-surface p-4 md:col-span-2">
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-rule pb-3">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-pitch-700">
-                    Ficha Personal · Padrón LOLONMEBOL
-                  </span>
-                  <h2 className="font-display mt-0.5 flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
+                  <h2 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
                     {vm.player.displayName}
                     {(vm.historicalRow?.stars ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5">
@@ -164,10 +161,11 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                       </span>
                     )}
                   </h2>
-                  <p className="text-xs text-ink-muted">
-                    ID: <code className="font-mono">{vm.player.id}</code>
-                    {vm.player.email ? ` · ${vm.player.email}` : ""}
-                  </p>
+                  {vm.player.email && (
+                    <p className="mt-0.5 text-xs text-ink-muted">
+                      {vm.player.email}
+                    </p>
+                  )}
                 </div>
 
                 <span className="inline-flex items-center gap-1.5 rounded-sm border border-pitch-200 bg-pitch-50 px-2.5 py-1 text-xs font-bold text-pitch-800">
@@ -177,7 +175,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-md border border-rule bg-paper p-3.5">
+                <div className="rounded-md bg-paper p-3.5">
                   <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
                     {vm.activeSeasonName}
                   </span>
@@ -203,7 +201,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                   )}
                 </div>
 
-                <div className="rounded-md border border-rule bg-paper p-3.5">
+                <div className="rounded-md bg-paper p-3.5">
                   <span className="text-xs font-bold uppercase tracking-wider text-ink-muted">
                     Tabla Histórica Acumulada
                   </span>
@@ -294,7 +292,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
               </h3>
               <Link
                 href={`/partidos?season=all&player=${encodeURIComponent(vm.player.id)}`}
-                className="text-xs font-bold text-pitch-800 hover:underline"
+                className="inline-flex min-h-10 items-center text-xs font-bold text-pitch-800 hover:underline"
               >
                 Ver historial completo
               </Link>

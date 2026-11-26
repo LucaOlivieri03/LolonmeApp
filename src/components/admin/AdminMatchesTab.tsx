@@ -58,7 +58,8 @@ export function AdminMatchesTab({
   const [mCountsLeague, setMCountsLeague] = useState(true);
   const [teamAIds, setTeamAIds] = useState<string[]>([]);
   const [teamBIds, setTeamBIds] = useState<string[]>([]);
-  const [teamSearch, setTeamSearch] = useState("");
+  const [teamASearch, setTeamASearch] = useState("");
+  const [teamBSearch, setTeamBSearch] = useState("");
   const [mvpId, setMvpId] = useState<string>("");
 
   const [feedback, setFeedback] = useState<{
@@ -331,9 +332,9 @@ export function AdminMatchesTab({
                     ? "En Equipo B"
                     : undefined,
               }))}
-              value={teamSearch}
+              value={teamASearch}
               onChange={(id) => {
-                setTeamSearch(id);
+                setTeamASearch(id);
                 toggleTeamPlayer(id, "A");
               }}
               placeholder="Buscar jugador para Equipo A..."
@@ -350,9 +351,9 @@ export function AdminMatchesTab({
                     ? "En Equipo A"
                     : undefined,
               }))}
-              value={teamSearch}
+              value={teamBSearch}
               onChange={(id) => {
-                setTeamSearch(id);
+                setTeamBSearch(id);
                 toggleTeamPlayer(id, "B");
               }}
               placeholder="Buscar jugador para Equipo B..."
@@ -373,7 +374,7 @@ export function AdminMatchesTab({
                     aria-pressed={teamAIds.includes(p.id)}
                     onClick={() => toggleTeamPlayer(p.id, "A")}
                     className={cn(
-                      "min-h-9 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+                      "min-h-10 rounded-md border px-2.5 text-xs font-semibold transition-colors",
                       teamAIds.includes(p.id)
                         ? "border-pitch-800 bg-pitch-800 text-white"
                         : "border-rule bg-surface text-ink hover:border-pitch-700"
@@ -397,7 +398,7 @@ export function AdminMatchesTab({
                     aria-pressed={teamBIds.includes(p.id)}
                     onClick={() => toggleTeamPlayer(p.id, "B")}
                     className={cn(
-                      "min-h-9 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+                      "min-h-10 rounded-md border px-2.5 text-xs font-semibold transition-colors",
                       teamBIds.includes(p.id)
                         ? "border-navy-800 bg-navy-800 text-white"
                         : "border-rule bg-surface text-ink hover:border-navy-700"
@@ -411,32 +412,42 @@ export function AdminMatchesTab({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[230px] flex-1 sm:max-w-xs">
-            <PlayerCombobox
-              label="MVP del partido (opcional)"
-              options={[
-                { id: "", displayName: "Sin MVP asignado aún" },
-                ...[...teamAIds, ...teamBIds].map((id) => ({
-                  id,
-                  displayName:
-                    players.find((p) => p.id === id)?.displayName ?? id,
-                })),
-              ]}
-              value={mvpId}
-              onChange={setMvpId}
-              placeholder="Sin MVP asignado aún"
-              searchPlaceholder="Buscar jugador del partido..."
-            />
-          </div>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[230px] flex-1 sm:max-w-xs">
+              <PlayerCombobox
+                label="MVP del partido (opcional)"
+                options={[
+                  { id: "", displayName: "Sin MVP asignado aún" },
+                  ...[...teamAIds, ...teamBIds].map((id) => ({
+                    id,
+                    displayName:
+                      players.find((p) => p.id === id)?.displayName ?? id,
+                  })),
+                ]}
+                value={mvpId}
+                onChange={setMvpId}
+                placeholder="Sin MVP asignado aún"
+                searchPlaceholder="Buscar jugador del partido..."
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isPending || teamAIds.length === 0 || teamBIds.length === 0}
-            className="min-h-11 rounded-md bg-pitch-800 px-5 text-sm font-semibold text-white transition-colors hover:bg-pitch-900 disabled:opacity-40"
-          >
-            {isPending ? "Guardando..." : "Guardar Partido"}
-          </button>
+            <button
+              type="submit"
+              disabled={
+                isPending || teamAIds.length === 0 || teamBIds.length === 0
+              }
+              className="min-h-11 rounded-md bg-pitch-800 px-5 text-sm font-semibold text-white transition-colors hover:bg-pitch-900 disabled:opacity-40"
+            >
+              {isPending ? "Guardando..." : "Guardar Partido"}
+            </button>
+          </div>
+          {(teamAIds.length === 0 || teamBIds.length === 0) && (
+            <p className="text-xs text-ink-muted">
+              Seleccioná al menos un jugador en Equipo A y uno en Equipo B para
+              habilitar el guardado.
+            </p>
+          )}
         </div>
 
         {feedback && (
@@ -472,7 +483,7 @@ export function AdminMatchesTab({
               aria-label="Filtrar temporada en admin"
               value={seasonFilter}
               onChange={(e) => setSeasonFilter(e.target.value)}
-              className="min-h-11 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink"
+              className="min-h-11 rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:text-sm"
             >
               <option value="ALL">Todas las temporadas</option>
               {seasons.map((s) => (
@@ -487,7 +498,7 @@ export function AdminMatchesTab({
               placeholder="N° Fecha (ej. 12)"
               value={numberQuery}
               onChange={(e) => setNumberQuery(e.target.value)}
-              className="min-h-11 w-36 rounded-md border border-rule bg-paper px-2.5 text-xs text-ink"
+              className="min-h-11 w-36 rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:text-sm"
             />
           </div>
         </div>
@@ -517,7 +528,7 @@ export function AdminMatchesTab({
                       type="button"
                       disabled={isPending}
                       onClick={() => setEditingMatch(m)}
-                      className="inline-flex min-h-9 items-center gap-1 rounded-md border border-rule bg-paper px-2.5 text-xs font-bold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-pitch-50 disabled:opacity-50"
+                      className="inline-flex min-h-10 items-center gap-1 rounded-md border border-rule bg-paper px-3 text-xs font-bold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-pitch-50 disabled:opacity-50"
                       title="Editar partido completo"
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -530,7 +541,7 @@ export function AdminMatchesTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => handleDeleteMatch(m.id)}
-                        className="min-h-9 rounded-md bg-crimson-600 px-2.5 text-xs font-bold text-white hover:bg-crimson-700 disabled:opacity-50"
+                        className="min-h-10 rounded-md bg-crimson-600 px-3 text-xs font-bold text-white hover:bg-crimson-700 disabled:opacity-50"
                       >
                         Borrar
                       </button>
@@ -538,7 +549,7 @@ export function AdminMatchesTab({
                         type="button"
                         disabled={isPending}
                         onClick={() => setPendingDeleteKey(null)}
-                        className="min-h-9 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink-muted"
+                        className="min-h-10 rounded-md border border-rule bg-paper px-3 text-xs font-semibold text-ink-muted"
                       >
                         No
                       </button>
@@ -548,7 +559,7 @@ export function AdminMatchesTab({
                       type="button"
                       disabled={isPending}
                       onClick={() => setPendingDeleteKey(delKey)}
-                      className="inline-flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
+                      className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-crimson-50 hover:text-crimson-600"
                       title="Eliminar partido"
                       aria-label="Eliminar partido"
                     >

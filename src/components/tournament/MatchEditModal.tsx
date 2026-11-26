@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Shield, Trash2, X } from "lucide-react";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type {
@@ -157,16 +157,31 @@ export function MatchEditModal({
   const teamARoster = roster.filter((p) => p.team === "A");
   const teamBRoster = roster.filter((p) => p.team === "B");
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSaving) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSaving, onClose]);
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Editar Partido"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSaving) {
+          onClose();
+        }
+      }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-3 sm:p-4"
     >
       <form
         onSubmit={handleSubmit}
-        className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-rule bg-surface shadow-xl"
+        className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-rule bg-surface"
       >
         <div className="pitch-chalk-surface flex items-center justify-between border-b border-pitch-900 px-4 py-3 text-paper">
           <h2 className="font-display flex items-center gap-2 text-xl font-extrabold tracking-wide text-white">
@@ -177,7 +192,7 @@ export function MatchEditModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar editor"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-pitch-900/60 text-white hover:bg-pitch-900"
+            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-white/20 bg-pitch-900/60 text-white hover:bg-pitch-900"
           >
             <X className="h-4 w-4" />
           </button>
@@ -193,7 +208,7 @@ export function MatchEditModal({
               <select
                 value={seasonId}
                 onChange={(e) => setSeasonId(e.target.value)}
-                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-sm font-semibold text-ink"
+                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:text-sm"
               >
                 {seasons.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -209,7 +224,7 @@ export function MatchEditModal({
               <select
                 value={matchType}
                 onChange={(e) => setMatchType(e.target.value as MatchType)}
-                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-sm font-semibold text-ink"
+                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:text-sm"
               >
                 <option value="league">Liga</option>
                 <option value="cup">Copa</option>
@@ -225,7 +240,7 @@ export function MatchEditModal({
               <select
                 value={modality}
                 onChange={(e) => setModality(e.target.value as MatchModality)}
-                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-sm font-semibold text-ink"
+                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-base font-semibold text-ink sm:text-sm"
               >
                 <option value="F5">F5</option>
                 <option value="F6">F6</option>
@@ -241,7 +256,7 @@ export function MatchEditModal({
                 type="date"
                 value={matchDate}
                 onChange={(e) => setMatchDate(e.target.value)}
-                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
+                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:text-sm"
                 required
               />
             </div>
@@ -254,13 +269,13 @@ export function MatchEditModal({
                 placeholder="Ej. 12"
                 value={matchNumber}
                 onChange={(e) => setMatchNumber(e.target.value)}
-                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
+                className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-2.5 text-base text-ink sm:text-sm"
               />
             </div>
           </div>
 
           {/* Score, Outcome & Flags */}
-          <div className="flex flex-wrap items-end gap-3 rounded-md border border-rule bg-paper p-3">
+          <div className="flex flex-wrap items-end gap-3 rounded-md bg-paper p-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-pitch-800">
                 Goles Eq. A
@@ -270,7 +285,7 @@ export function MatchEditModal({
                 placeholder="—"
                 value={teamAScore}
                 onChange={(e) => setTeamAScore(e.target.value)}
-                className="font-display mt-1 min-h-10 w-20 rounded-md border border-rule bg-surface px-2 text-center text-lg font-bold text-ink"
+                className="font-display mt-1 min-h-10 w-20 rounded-md border border-rule bg-surface px-2 text-center text-base font-bold text-ink sm:text-sm"
               />
             </div>
             <div>
@@ -282,7 +297,7 @@ export function MatchEditModal({
                 placeholder="—"
                 value={teamBScore}
                 onChange={(e) => setTeamBScore(e.target.value)}
-                className="font-display mt-1 min-h-10 w-20 rounded-md border border-rule bg-surface px-2 text-center text-lg font-bold text-ink"
+                className="font-display mt-1 min-h-10 w-20 rounded-md border border-rule bg-surface px-2 text-center text-base font-bold text-ink sm:text-sm"
               />
             </div>
             <div>
@@ -294,7 +309,7 @@ export function MatchEditModal({
                 onChange={(e) =>
                   setResultOutcome(e.target.value as "A" | "B" | "draw" | "")
                 }
-                className="mt-1 min-h-10 rounded-md border border-rule bg-surface px-2.5 text-xs font-semibold text-ink"
+                className="mt-1 min-h-10 rounded-md border border-rule bg-surface px-2.5 text-base font-semibold text-ink sm:text-sm"
               >
                 <option value="">Automático por goles</option>
                 <option value="A">Ganó Equipo A</option>
@@ -309,7 +324,7 @@ export function MatchEditModal({
                 onChange={(e) => setCountsForLeague(e.target.checked)}
                 className="h-4 w-4 accent-pitch-800"
               />
-              Suma Tabla Anual (countsForLeague)
+              Suma en Tabla Anual
             </label>
             <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-xs font-semibold text-ink">
               <input
@@ -318,7 +333,7 @@ export function MatchEditModal({
                 onChange={(e) => setCountsForStats(e.target.checked)}
                 className="h-4 w-4 accent-pitch-800"
               />
-              Suma Estadísticas (countsForStats)
+              Suma en Estadísticas
             </label>
           </div>
 
@@ -331,7 +346,7 @@ export function MatchEditModal({
               placeholder="Ej. Cuartos de Final - Ida / F11 Aniversario"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-3 text-sm text-ink"
+              className="mt-1 min-h-10 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
             />
           </div>
 
@@ -345,7 +360,7 @@ export function MatchEditModal({
             ).map(({ team, title, rows, accent }) => (
               <div
                 key={team}
-                className="rounded-md border border-rule bg-paper p-3"
+                className="rounded-md bg-paper p-3"
               >
                 <h3
                   className={cn(
@@ -356,67 +371,80 @@ export function MatchEditModal({
                   <Shield className="h-4 w-4" />
                   {title} ({rows.length})
                 </h3>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {rows.map((mp) => {
                     const pName =
                       playerMap.get(mp.playerId)?.displayName ?? mp.playerId;
                     return (
                       <div
                         key={mp.playerId}
-                        className="flex flex-wrap items-center justify-between gap-1.5 rounded border border-rule bg-surface px-2.5 py-1.5 text-xs"
+                        className="space-y-2 rounded-md border border-rule bg-surface p-2.5 text-xs"
                       >
-                        <span className="min-w-[90px] font-bold text-ink">
-                          {pName}
-                        </span>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateRosterPlayer(mp.playerId, {
-                                team: mp.team === "A" ? "B" : "A",
-                              })
-                            }
-                            className="rounded border border-rule bg-paper px-1.5 py-0.5 text-[10px] font-bold text-ink-muted hover:text-ink"
-                            title="Cambiar de equipo"
-                          >
-                            Eq.{mp.team}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateRosterPlayer(mp.playerId, {
-                                isCupCaptain: !mp.isCupCaptain,
-                              })
-                            }
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-extrabold",
-                              mp.isCupCaptain
-                                ? "bg-gold-400 text-ink"
-                                : "border border-rule bg-paper text-ink-muted"
-                            )}
-                            title="Capitán de Copa (0 pts / 0 PJ en Liga)"
-                          >
-                            CAP
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateRosterPlayer(mp.playerId, {
-                                isMvp: !mp.isMvp,
-                              })
-                            }
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-extrabold",
-                              mp.isMvp
-                                ? "bg-leather-600 text-white"
-                                : "border border-rule bg-paper text-ink-muted"
-                            )}
-                            title="MVP de la fecha"
-                          >
-                            MVP
-                          </button>
-                          <label className="flex items-center gap-0.5 text-[10px] font-semibold text-ink-muted">
-                            G
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">
+                            {pName}
+                          </span>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateRosterPlayer(mp.playerId, {
+                                  team: mp.team === "A" ? "B" : "A",
+                                })
+                              }
+                              className="inline-flex min-h-10 items-center justify-center rounded-md border border-rule bg-paper px-2.5 text-xs font-bold text-ink-muted hover:text-ink"
+                              title="Cambiar de equipo"
+                            >
+                              Eq.{mp.team}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateRosterPlayer(mp.playerId, {
+                                  isCupCaptain: !mp.isCupCaptain,
+                                })
+                              }
+                              className={cn(
+                                "inline-flex min-h-10 items-center justify-center rounded-md px-2.5 text-xs font-extrabold",
+                                mp.isCupCaptain
+                                  ? "bg-gold-400 text-ink"
+                                  : "border border-rule bg-paper text-ink-muted"
+                              )}
+                              title="Capitán de Copa (0 pts / 0 PJ en Liga)"
+                            >
+                              CAP
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateRosterPlayer(mp.playerId, {
+                                  isMvp: !mp.isMvp,
+                                })
+                              }
+                              className={cn(
+                                "inline-flex min-h-10 items-center justify-center rounded-md px-2.5 text-xs font-extrabold",
+                                mp.isMvp
+                                  ? "bg-leather-600 text-white"
+                                  : "border border-rule bg-paper text-ink-muted"
+                              )}
+                              title="MVP de la fecha"
+                            >
+                              MVP
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeRosterPlayer(mp.playerId)}
+                              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md text-ink-muted hover:bg-crimson-50 hover:text-crimson-600"
+                              aria-label={`Quitar a ${pName}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+                            <span>Goles</span>
                             <input
                               type="number"
                               min={0}
@@ -426,11 +454,11 @@ export function MatchEditModal({
                                   goals: Math.max(0, Number(e.target.value) || 0),
                                 })
                               }
-                              className="h-7 w-11 rounded border border-rule bg-paper px-1 text-center text-xs font-bold text-ink"
+                              className="min-h-10 w-full rounded-md border border-rule bg-paper px-2 text-center text-base font-bold text-ink sm:text-sm"
                             />
                           </label>
-                          <label className="flex items-center gap-0.5 text-[10px] font-semibold text-ink-muted">
-                            A
+                          <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+                            <span>Asist.</span>
                             <input
                               type="number"
                               min={0}
@@ -440,11 +468,11 @@ export function MatchEditModal({
                                   assists: Math.max(0, Number(e.target.value) || 0),
                                 })
                               }
-                              className="h-7 w-11 rounded border border-rule bg-paper px-1 text-center text-xs font-bold text-ink"
+                              className="min-h-10 w-full rounded-md border border-rule bg-paper px-2 text-center text-base font-bold text-ink sm:text-sm"
                             />
                           </label>
-                          <label className="flex items-center gap-0.5 text-[10px] font-semibold text-ink-muted">
-                            Cal
+                          <label className="flex flex-col gap-1 text-xs font-semibold text-ink-muted">
+                            <span>Calif.</span>
                             <input
                               type="number"
                               step="0.1"
@@ -460,17 +488,9 @@ export function MatchEditModal({
                                       : Number(e.target.value),
                                 })
                               }
-                              className="h-7 w-13 rounded border border-rule bg-paper px-1 text-center text-xs font-bold text-ink"
+                              className="min-h-10 w-full rounded-md border border-rule bg-paper px-2 text-center text-base font-bold text-ink sm:text-sm"
                             />
                           </label>
-                          <button
-                            type="button"
-                            onClick={() => removeRosterPlayer(mp.playerId)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded text-ink-muted hover:bg-crimson-50 hover:text-crimson-600"
-                            aria-label={`Quitar a ${pName}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
                         </div>
                       </div>
                     );
@@ -481,7 +501,7 @@ export function MatchEditModal({
           </div>
 
           {/* Add Player to Roster via PlayerCombobox */}
-          <div className="grid gap-3 rounded-md border border-rule bg-paper p-3 sm:grid-cols-2">
+          <div className="grid gap-3 rounded-md bg-paper p-3 sm:grid-cols-2">
             <PlayerCombobox
               label="Sumar jugador a Equipo A"
               options={availableOptions}

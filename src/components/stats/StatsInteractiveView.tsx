@@ -8,10 +8,12 @@ import {
   ChevronDown,
   ChevronUp,
   FlaskConical,
+  HelpCircle,
   Star,
   Swords,
   User,
   Users,
+  X,
 } from "lucide-react";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type { MatchModality, Season } from "@/lib/types/domain";
@@ -140,51 +142,57 @@ const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   },
 };
 
-function MetricFormulaToggle({
+function MetricFormulaButton({
   metricKey,
   openMetrics,
   onToggle,
-  compact = false,
+  label = "Fórmula",
 }: {
   metricKey: MetricKey;
   openMetrics: Record<string, boolean>;
   onToggle: (key: MetricKey) => void;
-  compact?: boolean;
+  label?: string;
 }) {
   const def = METRIC_DEFINITIONS[metricKey];
   const isOpen = Boolean(openMetrics[metricKey]);
 
   return (
-    <div className="mt-1.5 text-left">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-        <p className="text-xs leading-relaxed text-ink-muted">
-          {def.description}
-        </p>
-        <button
-          type="button"
-          aria-expanded={isOpen}
-          onClick={() => onToggle(metricKey)}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1 rounded-sm border border-rule bg-paper px-2 py-0.5 text-[11px] font-semibold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-surface-subtle",
-            compact && "mt-0.5"
-          )}
-        >
-          {isOpen ? "Ocultar fórmula" : "Ver fórmula"}
-          {isOpen ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )}
-        </button>
-      </div>
-      {isOpen && (
-        <div className="mt-2 space-y-1 rounded-md border border-rule bg-paper p-2.5 text-xs text-ink">
-          <p className="font-mono text-[11px] font-semibold text-pitch-800">
-            {def.formula}
-          </p>
-          <p className="text-ink-muted">{def.example}</p>
-        </div>
+    <button
+      type="button"
+      aria-expanded={isOpen}
+      aria-label={`${isOpen ? "Ocultar" : "Ver"} fórmula de ${def.title}`}
+      onClick={() => onToggle(metricKey)}
+      className={cn(
+        "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+        isOpen
+          ? "border-pitch-800 bg-pitch-50 text-pitch-800"
+          : "border-rule bg-paper text-ink-muted hover:border-pitch-700 hover:text-ink"
       )}
+    >
+      <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function MetricFormulaPanel({
+  metricKey,
+  openMetrics,
+}: {
+  metricKey: MetricKey;
+  openMetrics: Record<string, boolean>;
+}) {
+  if (!openMetrics[metricKey]) return null;
+  const def = METRIC_DEFINITIONS[metricKey];
+
+  return (
+    <div className="mt-2 space-y-1 rounded-md bg-paper p-3 text-left text-xs text-ink">
+      <p className="font-semibold text-pitch-800">{def.title}</p>
+      <p className="leading-relaxed text-ink-muted">{def.description}</p>
+      <p className="pt-0.5 font-mono text-[11px] font-semibold text-pitch-800">
+        {def.formula}
+      </p>
+      <p className="text-ink-muted">{def.example}</p>
     </div>
   );
 }
@@ -216,6 +224,12 @@ export function StatsInteractiveView({
   const [showEffectiveness310, setShowEffectiveness310] = useState(false);
   const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
   const [labComboId, setLabComboId] = useState("");
+  const [showAllPlayers, setShowAllPlayers] = useState(false);
+
+  const selectedPlayers = useMemo(
+    () => activePlayers.filter((p) => lab.selectedPlayerIds.includes(p.id)),
+    [activePlayers, lab.selectedPlayerIds]
+  );
 
   const toggleMetricFormula = (key: MetricKey) => {
     setOpenMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -282,19 +296,19 @@ export function StatsInteractiveView({
       {
         name: "Química",
         value: Number(lab.subgroup.chemistryPct.toFixed(1)),
-        fill: "#0a4a28",
+        fill: "var(--theme-chart-positive)",
       },
       {
         name: "Wilson CT%",
         value: Number(lab.subgroup.wilsonCtPct.toFixed(1)),
-        fill: "#c86e0e",
+        fill: "var(--theme-chart-secondary)",
       },
     ];
     if (showEffectiveness310) {
       items.push({
         name: "Efect. 3/1/0",
         value: Number(lab.subgroup.effectiveness310Pct.toFixed(1)),
-        fill: "#163963",
+        fill: "var(--theme-chart-tertiary)",
       });
     }
     return items;
@@ -384,17 +398,17 @@ export function StatsInteractiveView({
       {/* Shared Filters */}
       <section
         aria-label="Filtros de estadísticas"
-        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rule bg-surface p-3.5"
+        className="flex flex-col gap-3 rounded-lg border border-rule bg-surface p-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
       >
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-bold uppercase tracking-wider text-ink-muted">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <span className="mr-1 shrink-0 text-xs font-bold uppercase tracking-wider text-ink-muted">
             Temporada
           </span>
           <button
             type="button"
             onClick={() => navigateWithParams({ seasonId: "ALL" })}
             className={cn(
-              "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
+              "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
               selectedSeasonId === "ALL"
                 ? "border-leather-600 bg-leather-600 text-white"
                 : "border-rule bg-paper text-ink-muted hover:text-ink"
@@ -408,7 +422,7 @@ export function StatsInteractiveView({
               type="button"
               onClick={() => navigateWithParams({ seasonId: s.id })}
               className={cn(
-                "font-display min-h-10 rounded-md border px-3 text-base font-bold transition-colors",
+                "font-display min-h-10 shrink-0 rounded-md border px-3 text-base font-bold transition-colors",
                 selectedSeasonId === s.id
                   ? "border-leather-600 bg-leather-600 text-white"
                   : "border-rule bg-paper text-ink-muted hover:text-ink"
@@ -419,8 +433,8 @@ export function StatsInteractiveView({
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-bold uppercase tracking-wider text-ink-muted">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+          <span className="mr-1 shrink-0 text-xs font-bold uppercase tracking-wider text-ink-muted">
             Modalidad
           </span>
           {(["ALL", "F5", "F6", "F7"] as const).map((mod) => (
@@ -429,7 +443,7 @@ export function StatsInteractiveView({
               type="button"
               onClick={() => navigateWithParams({ modality: mod })}
               className={cn(
-                "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
+                "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
                 selectedModality === mod
                   ? "border-pitch-800 bg-pitch-800 text-white"
                   : "border-rule bg-paper text-ink-muted hover:text-ink"
@@ -440,7 +454,7 @@ export function StatsInteractiveView({
           ))}
         </div>
 
-        <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 text-sm font-medium text-ink">
+        <label className="inline-flex min-h-10 w-fit cursor-pointer items-center gap-2.5 rounded-md border border-rule bg-paper px-3 text-sm font-medium text-ink transition-colors hover:border-rule-strong">
           <input
             type="checkbox"
             checked={showEffectiveness310}
@@ -464,8 +478,8 @@ export function StatsInteractiveView({
                   seleccionados)
                 </h2>
                 <p className="text-xs text-ink-muted">
-                  Buscá con el selector o tocá los jugadores de la lista para
-                  sumarlos o quitarlos del Lab.
+                  Buscá con el selector o expandí el padrón para sumar o quitar
+                  jugadores del Lab.
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-2">
@@ -488,7 +502,7 @@ export function StatsInteractiveView({
                       setLabComboId("");
                       navigateWithParams({ labIds: [] });
                     }}
-                    className="min-h-11 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 transition-colors hover:bg-crimson-100"
+                    className="min-h-10 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 transition-colors hover:bg-crimson-100"
                   >
                     Limpiar ({lab.selectedPlayerIds.length})
                   </button>
@@ -496,7 +510,51 @@ export function StatsInteractiveView({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
+            {/* Mobile: compact selected chips + on-demand full list toggle */}
+            {!showAllPlayers && selectedPlayers.length > 0 && (
+              <div className="mb-2.5 flex flex-wrap gap-1.5 md:hidden">
+                {selectedPlayers.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleLabPlayer(p.id)}
+                    aria-label={`Quitar a ${p.displayName}`}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-pitch-800 bg-pitch-800 px-3 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
+                  >
+                    <span>{p.displayName}</span>
+                    <X className="h-3.5 w-3.5 opacity-80" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="mb-2.5 md:hidden">
+              <button
+                type="button"
+                aria-expanded={showAllPlayers}
+                onClick={() => setShowAllPlayers((prev) => !prev)}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-rule bg-paper px-3 text-xs font-semibold text-pitch-800 transition-colors hover:border-pitch-700"
+              >
+                {showAllPlayers ? (
+                  <>
+                    Ocultar lista de jugadores
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </>
+                ) : (
+                  <>
+                    Ver todos los jugadores ({activePlayers.length})
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div
+              className={cn(
+                "flex-wrap gap-1.5",
+                showAllPlayers ? "flex" : "hidden md:flex"
+              )}
+            >
               {activePlayers.map((p) => {
                 const selected = lab.selectedPlayerIds.includes(p.id);
                 return (
@@ -519,13 +577,19 @@ export function StatsInteractiveView({
             </div>
 
             <div className="mt-3 border-t border-rule pt-2.5">
-              <div className="text-xs font-semibold text-ink">
-                {METRIC_DEFINITIONS.minThreshold.title}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-ink-muted">
+                  Padrón activo con umbral mínimo de 3 PJ
+                </span>
+                <MetricFormulaButton
+                  metricKey="minThreshold"
+                  openMetrics={openMetrics}
+                  onToggle={toggleMetricFormula}
+                />
               </div>
-              <MetricFormulaToggle
+              <MetricFormulaPanel
                 metricKey="minThreshold"
                 openMetrics={openMetrics}
-                onToggle={toggleMetricFormula}
               />
             </div>
           </section>
@@ -544,29 +608,29 @@ export function StatsInteractiveView({
                       Jugando Juntos · {lab.selectedPlayerNames.join(" + ")}
                     </h3>
 
-                    <dl className="mt-3 grid grid-cols-3 divide-x divide-rule rounded-md border border-rule bg-paper">
-                      <div className="px-3 py-2.5 text-center">
+                    <dl className="mt-3 grid grid-cols-3 divide-x divide-rule rounded-md bg-paper">
+                      <div className="px-2.5 py-2.5 text-center sm:px-3">
                         <dt className="text-xs font-semibold text-ink-muted">
                           Química
                         </dt>
-                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-pitch-800">
+                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-pitch-800 tabular-nums">
                           {lab.subgroup.chemistryPct.toFixed(1)}%
                         </dd>
                       </div>
-                      <div className="px-3 py-2.5 text-center">
+                      <div className="px-2.5 py-2.5 text-center sm:px-3">
                         <dt className="text-xs font-semibold text-ink-muted">
                           Wilson CT%
                         </dt>
-                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-leather-700">
+                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-leather-700 tabular-nums">
                           {lab.subgroup.wilsonCtPct.toFixed(1)}%
                         </dd>
                       </div>
-                      <div className="px-3 py-2.5 text-center">
+                      <div className="px-2.5 py-2.5 text-center sm:px-3">
                         <dt className="text-xs font-semibold text-ink-muted">
                           PJ ({lab.subgroup.wins}-{lab.subgroup.draws}-
                           {lab.subgroup.losses})
                         </dt>
-                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink">
+                        <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink tabular-nums">
                           {lab.subgroup.matchesPlayed}
                         </dd>
                       </div>
@@ -576,42 +640,39 @@ export function StatsInteractiveView({
                       <LabSubgroupChart data={labChartData} />
                     )}
 
-                    <div className="mt-4 space-y-2.5 border-t border-rule pt-3">
-                      <div>
-                        <div className="text-xs font-semibold text-pitch-800">
-                          {METRIC_DEFINITIONS.chemistry.title}
-                        </div>
-                        <MetricFormulaToggle
+                    <div className="mt-4 border-t border-rule pt-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <MetricFormulaButton
                           metricKey="chemistry"
                           openMetrics={openMetrics}
                           onToggle={toggleMetricFormula}
+                          label="Química"
                         />
-                      </div>
-                      <div className="border-t border-rule/60 pt-2">
-                        <div className="text-xs font-semibold text-leather-700">
-                          {METRIC_DEFINITIONS.wilson.title}
-                        </div>
-                        <MetricFormulaToggle
+                        <MetricFormulaButton
                           metricKey="wilson"
                           openMetrics={openMetrics}
                           onToggle={toggleMetricFormula}
+                          label="Wilson CT%"
                         />
-                      </div>
-                      <div className="border-t border-rule/60 pt-2">
-                        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-ink">
-                          <span>
-                            {METRIC_DEFINITIONS.effectiveness310.title}
-                          </span>
-                          <span className="font-display text-sm font-bold text-pitch-800">
-                            {lab.subgroup.effectiveness310Pct.toFixed(1)}%
-                          </span>
-                        </div>
-                        <MetricFormulaToggle
+                        <MetricFormulaButton
                           metricKey="effectiveness310"
                           openMetrics={openMetrics}
                           onToggle={toggleMetricFormula}
+                          label={`Efect. 3/1/0 (${lab.subgroup.effectiveness310Pct.toFixed(1)}%)`}
                         />
                       </div>
+                      <MetricFormulaPanel
+                        metricKey="chemistry"
+                        openMetrics={openMetrics}
+                      />
+                      <MetricFormulaPanel
+                        metricKey="wilson"
+                        openMetrics={openMetrics}
+                      />
+                      <MetricFormulaPanel
+                        metricKey="effectiveness310"
+                        openMetrics={openMetrics}
+                      />
                     </div>
                   </div>
 
@@ -629,26 +690,38 @@ export function StatsInteractiveView({
               {lab.pairwise && (
                 <section className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
                   <div>
-                    <h3 className="font-display flex items-center gap-2 border-b border-rule pb-2 text-lg font-bold tracking-wide text-ink">
-                      <Swords className="h-4 w-4 text-crimson-600" />
-                      Historial Mano a Mano (Rivales)
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
+                      <h3 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
+                        <Swords className="h-4 w-4 text-crimson-600" />
+                        Historial Mano a Mano (Rivales)
+                      </h3>
+                      <MetricFormulaButton
+                        metricKey="h2h"
+                        openMetrics={openMetrics}
+                        onToggle={toggleMetricFormula}
+                      />
+                    </div>
 
-                    <div className="pitch-chalk-surface mt-4 flex items-center justify-between rounded-md border border-pitch-900 px-5 py-4 text-paper">
+                    <MetricFormulaPanel
+                      metricKey="h2h"
+                      openMetrics={openMetrics}
+                    />
+
+                    <div className="pitch-chalk-surface mt-4 flex items-center justify-between rounded-md border border-pitch-900 px-4 py-4 text-paper sm:px-5">
                       <div className="min-w-0 flex-1 text-center">
                         <span className="block truncate text-xs font-semibold text-pitch-100">
                           {lab.pairwise.playerAName}
                         </span>
-                        <span className="font-display mt-1 block text-4xl font-extrabold text-gold-400">
+                        <span className="font-display mt-1 block text-4xl font-extrabold text-gold-400 tabular-nums">
                           {lab.pairwise.stats.winsA}
                         </span>
                       </div>
 
-                      <div className="px-3 text-center">
+                      <div className="px-2.5 text-center sm:px-3">
                         <span className="block text-xs font-semibold text-pitch-200">
                           Empates: {lab.pairwise.stats.drawsAgainst}
                         </span>
-                        <span className="font-display mt-1 inline-block rounded-sm bg-pitch-900/80 px-2.5 py-0.5 text-sm font-bold text-white">
+                        <span className="font-display mt-1 inline-block rounded-sm bg-pitch-900/80 px-2.5 py-0.5 text-sm font-bold text-white tabular-nums">
                           Dif:{" "}
                           {lab.pairwise.stats.h2hBalance > 0
                             ? `+${lab.pairwise.stats.h2hBalance}`
@@ -660,21 +733,10 @@ export function StatsInteractiveView({
                         <span className="block truncate text-xs font-semibold text-pitch-100">
                           {lab.pairwise.playerBName}
                         </span>
-                        <span className="font-display mt-1 block text-4xl font-extrabold text-gold-400">
+                        <span className="font-display mt-1 block text-4xl font-extrabold text-gold-400 tabular-nums">
                           {lab.pairwise.stats.winsB}
                         </span>
                       </div>
-                    </div>
-
-                    <div className="mt-4 border-t border-rule pt-3">
-                      <div className="text-xs font-semibold text-ink">
-                        {METRIC_DEFINITIONS.h2h.title}
-                      </div>
-                      <MetricFormulaToggle
-                        metricKey="h2h"
-                        openMetrics={openMetrics}
-                        onToggle={toggleMetricFormula}
-                      />
                     </div>
                   </div>
 
@@ -756,10 +818,10 @@ export function StatsInteractiveView({
                   </div>
                 </div>
 
-                <dl className="grid grid-cols-2 divide-x divide-y divide-rule rounded-md border border-rule bg-paper sm:grid-cols-4 sm:divide-y-0">
+                <dl className="grid grid-cols-2 divide-x divide-y divide-rule rounded-md bg-paper sm:grid-cols-4 sm:divide-y-0">
                   <div className="px-3 py-3 text-center">
                     <dt className="text-xs font-semibold text-ink-muted">PG%</dt>
-                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink">
+                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink tabular-nums">
                       {profileRow.winRate.toFixed(0)}%
                     </dd>
                   </div>
@@ -767,7 +829,7 @@ export function StatsInteractiveView({
                     <dt className="text-xs font-semibold text-ink-muted">
                       MVPs
                     </dt>
-                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-leather-700">
+                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-leather-700 tabular-nums">
                       {profileRow.mvps}
                     </dd>
                   </div>
@@ -775,7 +837,7 @@ export function StatsInteractiveView({
                     <dt className="text-xs font-semibold text-ink-muted">
                       G/A ({profileRow.goalContributions})
                     </dt>
-                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink">
+                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-ink tabular-nums">
                       {profileRow.goals}G / {profileRow.assists}A
                     </dd>
                   </div>
@@ -783,7 +845,7 @@ export function StatsInteractiveView({
                     <dt className="text-xs font-semibold text-ink-muted">
                       Calif. Prom
                     </dt>
-                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-pitch-800">
+                    <dd className="font-display mt-0.5 text-2xl font-extrabold text-pitch-800 tabular-nums">
                       {profileRow.avgRating !== null
                         ? profileRow.avgRating.toFixed(2)
                         : "—"}
@@ -791,40 +853,39 @@ export function StatsInteractiveView({
                   </div>
                 </dl>
 
-                <div className="grid gap-3 rounded-md border border-rule bg-paper p-3 sm:grid-cols-3">
-                  <div>
-                    <div className="text-xs font-semibold text-ink">
-                      {METRIC_DEFINITIONS.pgPct.title}
-                    </div>
-                    <MetricFormulaToggle
+                <div className="border-t border-rule pt-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <MetricFormulaButton
                       metricKey="pgPct"
                       openMetrics={openMetrics}
                       onToggle={toggleMetricFormula}
-                      compact
+                      label="PG%"
                     />
-                  </div>
-                  <div className="border-t border-rule pt-2 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
-                    <div className="text-xs font-semibold text-pitch-800">
-                      {METRIC_DEFINITIONS.avgRating.title}
-                    </div>
-                    <MetricFormulaToggle
+                    <MetricFormulaButton
                       metricKey="avgRating"
                       openMetrics={openMetrics}
                       onToggle={toggleMetricFormula}
-                      compact
+                      label="Calif. Prom"
                     />
-                  </div>
-                  <div className="border-t border-rule pt-2 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-3">
-                    <div className="text-xs font-semibold text-ink">
-                      {METRIC_DEFINITIONS.minThreshold.title}
-                    </div>
-                    <MetricFormulaToggle
+                    <MetricFormulaButton
                       metricKey="minThreshold"
                       openMetrics={openMetrics}
                       onToggle={toggleMetricFormula}
-                      compact
+                      label="Umbral 3 PJ"
                     />
                   </div>
+                  <MetricFormulaPanel
+                    metricKey="pgPct"
+                    openMetrics={openMetrics}
+                  />
+                  <MetricFormulaPanel
+                    metricKey="avgRating"
+                    openMetrics={openMetrics}
+                  />
+                  <MetricFormulaPanel
+                    metricKey="minThreshold"
+                    openMetrics={openMetrics}
+                  />
                 </div>
               </div>
             )}
@@ -833,24 +894,33 @@ export function StatsInteractiveView({
           <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-lg border border-rule bg-surface p-4">
               <div className="mb-3 border-b border-rule pb-2.5">
-                <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-                  Mejores Socios (Wilson CT%)
-                </h3>
-                <MetricFormulaToggle
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
+                    Mejores Socios (Wilson CT%)
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <MetricFormulaButton
+                      metricKey="wilson"
+                      openMetrics={openMetrics}
+                      onToggle={toggleMetricFormula}
+                      label="Wilson"
+                    />
+                    <MetricFormulaButton
+                      metricKey="chemistry"
+                      openMetrics={openMetrics}
+                      onToggle={toggleMetricFormula}
+                      label="Química"
+                    />
+                  </div>
+                </div>
+                <MetricFormulaPanel
                   metricKey="wilson"
                   openMetrics={openMetrics}
-                  onToggle={toggleMetricFormula}
                 />
-                <div className="mt-2 border-t border-rule/60 pt-2">
-                  <div className="text-xs font-semibold text-pitch-800">
-                    {METRIC_DEFINITIONS.chemistry.title}
-                  </div>
-                  <MetricFormulaToggle
-                    metricKey="chemistry"
-                    openMetrics={openMetrics}
-                    onToggle={toggleMetricFormula}
-                  />
-                </div>
+                <MetricFormulaPanel
+                  metricKey="chemistry"
+                  openMetrics={openMetrics}
+                />
               </div>
               {teammatesChartData.length === 0 ? (
                 <p className="py-6 text-center text-sm text-ink-muted">
@@ -873,7 +943,7 @@ export function StatsInteractiveView({
                               ({stats.matchesTogether} PJ)
                             </span>
                           </span>
-                          <span className="font-display text-sm font-bold text-pitch-800">
+                          <span className="font-display text-sm font-bold text-pitch-800 tabular-nums">
                             CT {stats.wilsonCtPct.toFixed(1)}% · Q{" "}
                             {stats.chemistryPct.toFixed(0)}%
                           </span>
@@ -887,13 +957,19 @@ export function StatsInteractiveView({
 
             <section className="rounded-lg border border-rule bg-surface p-4">
               <div className="mb-3 border-b border-rule pb-2.5">
-                <h3 className="font-display text-lg font-bold tracking-wide text-ink">
-                  Historial vs Rivales (V − D)
-                </h3>
-                <MetricFormulaToggle
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-bold tracking-wide text-ink">
+                    Historial vs Rivales (V − D)
+                  </h3>
+                  <MetricFormulaButton
+                    metricKey="h2h"
+                    openMetrics={openMetrics}
+                    onToggle={toggleMetricFormula}
+                  />
+                </div>
+                <MetricFormulaPanel
                   metricKey="h2h"
                   openMetrics={openMetrics}
-                  onToggle={toggleMetricFormula}
                 />
               </div>
               {rivalsChartData.length === 0 ? (

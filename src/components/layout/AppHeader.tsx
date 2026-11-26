@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Shield, UserCircle2 } from "lucide-react";
+import { Shield, UserCircle2 } from "lucide-react";
 import type { PlayerRole } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 const DESKTOP_NAV = [
   { href: "/", label: "Inicio" },
@@ -29,7 +30,6 @@ export function AppHeader({
 }: AppHeaderProps) {
   const pathname = usePathname();
   const isAdminActive = pathname.startsWith("/admin");
-  const isReglasActive = pathname.startsWith("/reglas");
   const isPerfilActive = pathname.startsWith("/perfil");
   const canAccessAdmin = role === "admin" || role === "authorized";
 
@@ -40,17 +40,17 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-40 border-b-2 border-gold-500 bg-pitch-800 text-paper">
       <div className="mx-auto flex h-15 max-w-5xl items-center justify-between gap-2 px-3 sm:px-5">
-        <div className="flex items-center gap-6">
+        <div className="flex min-w-0 items-center gap-4 md:gap-6">
           <Link
             href="/"
-            className="group flex min-h-11 items-center gap-2.5 rounded-md focus-visible:outline-gold-400"
+            className="group flex min-h-11 min-w-0 items-center gap-2 rounded-md focus-visible:outline-gold-400"
           >
             <img
               src="/assets/Logo.svg"
               alt="Escudo oficial LOLONMEBOL"
-              className="h-9 w-9 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105"
+              className="h-8 w-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"
             />
-            <span className="font-display text-2xl font-extrabold tracking-wide text-paper">
+            <span className="font-display truncate text-xl font-extrabold tracking-wide text-paper sm:text-2xl">
               LOLONMEBOL
             </span>
           </Link>
@@ -84,28 +84,15 @@ export function AppHeader({
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <AnthemPlayer />
-          <Link
-            href="/reglas"
-            aria-label="Reglamento Oficial"
-            aria-current={isReglasActive ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors md:hidden",
-              isReglasActive
-                ? "border-gold-400 bg-gold-500/20 text-gold-400"
-                : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
-            )}
-          >
-            <BookOpen className="h-4 w-4 shrink-0" />
-            <span className="hidden xs:inline">Reglas</span>
-          </Link>
+          <ThemeSwitcher />
           <Link
             href="/perfil"
             aria-label={isAuthenticated ? `Mi Perfil (${profileLabel})` : "Mi Perfil"}
             aria-current={isPerfilActive ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold transition-colors",
+              "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors sm:px-2.5",
               isPerfilActive
                 ? "border-gold-400 bg-gold-500/20 text-gold-400"
                 : isAuthenticated
@@ -124,7 +111,7 @@ export function AppHeader({
               aria-label="Panel de Administración"
               aria-current={isAdminActive ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition-colors",
+                "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors sm:px-3",
                 isAdminActive
                   ? "border-leather-500 bg-leather-600 text-white"
                   : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"

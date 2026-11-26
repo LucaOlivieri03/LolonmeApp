@@ -89,7 +89,7 @@ function OtpCodeVerifyForm({ email, requestMessage }: OtpCodeVerifyFormProps) {
             maxLength={8}
             required
             placeholder="123456"
-            className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 focus:outline-none"
+            className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
           />
           <button
             type="submit"
@@ -185,14 +185,14 @@ export function LoginCard({
           aria-selected={mode === "otp"}
           onClick={() => setMode("otp")}
           className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+            "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-xs font-bold transition-colors",
             mode === "otp"
               ? "bg-pitch-800 text-white"
               : "text-ink-muted hover:text-ink"
           )}
         >
-          <Mail className="h-3.5 w-3.5" />
-          Enlace / Código por Email
+          <Mail className="h-3.5 w-3.5 shrink-0" />
+          Enlace por Email
         </button>
         <button
           type="button"
@@ -200,14 +200,14 @@ export function LoginCard({
           aria-selected={mode === "password"}
           onClick={() => setMode("password")}
           className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
+            "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-xs font-bold transition-colors",
             mode === "password"
               ? "bg-pitch-800 text-white"
               : "text-ink-muted hover:text-ink"
           )}
         >
-          <Lock className="h-3.5 w-3.5" />
-          Correo y Contraseña
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          Contraseña
         </button>
       </div>
 
@@ -230,7 +230,7 @@ export function LoginCard({
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="jugador@ejemplo.com"
-                className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-sm text-ink focus:border-pitch-700 focus:outline-none"
+                className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
               />
             </div>
 
@@ -283,7 +283,7 @@ export function LoginCard({
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="jugador@ejemplo.com"
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-sm text-ink focus:border-pitch-700 focus:outline-none"
+              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
             />
           </div>
 
@@ -301,7 +301,7 @@ export function LoginCard({
               required
               autoComplete="current-password"
               placeholder="••••••••"
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-sm text-ink focus:border-pitch-700 focus:outline-none"
+              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
             />
           </div>
 
