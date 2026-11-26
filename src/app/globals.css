@@ -228,20 +228,53 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  caret-color: #c86e0e;
+  caret-color: var(--color-leather-600);
   text-underline-offset: 3px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background-color: #0a4a28;
+  background-color: var(--color-pitch-800);
   color: #f6f5f0;
 }
 
 :focus-visible {
-  outline: 2px solid #c86e0e;
+  outline: 2px solid var(--color-leather-600);
   outline-offset: 2px;
+}
+
+@keyframes anthem-eq-bar {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.anthem-eq-bar {
+  transform-origin: bottom;
+  animation: anthem-eq-bar 780ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Intentional reduced-motion alternative: keep opacity/color state cues, stop loops & spatial travel */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce,
+  .anthem-eq-bar {
+    animation: none !important;
+  }
+
+  .anthem-eq-bar {
+    transform: scaleY(0.75);
+  }
 }
 
 table {

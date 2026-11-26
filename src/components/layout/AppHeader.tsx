@@ -9,12 +9,12 @@ import { AnthemPlayer } from "./AnthemPlayer";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 const DESKTOP_NAV = [
-  { href: "/", label: "Inicio" },
-  { href: "/partidos", label: "Partidos" },
-  { href: "/stats", label: "Stats" },
-  { href: "/calendario", label: "Calendario" },
-  { href: "/reglas", label: "Reglas" },
-  { href: "/blog", label: "Blog" },
+  { href: "/", label: "Inicio", soon: false },
+  { href: "/partidos", label: "Partidos", soon: false },
+  { href: "/stats", label: "Stats", soon: false },
+  { href: "/calendario", label: "Calendario", soon: false },
+  { href: "/reglas", label: "Reglas", soon: false },
+  { href: "/blog", label: "Blog", soon: true },
 ];
 
 export interface AppHeaderProps {
@@ -48,6 +48,8 @@ export function AppHeader({
             <img
               src="/assets/Logo.svg"
               alt="Escudo oficial LOLONMEBOL"
+              width={36}
+              height={36}
               className="h-8 w-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"
             />
             <span className="font-display whitespace-nowrap text-xl font-extrabold tracking-wide text-white lg:text-2xl">
@@ -59,7 +61,7 @@ export function AppHeader({
             aria-label="Navegación de escritorio"
             className="hidden items-center gap-0.5 md:flex lg:gap-1"
           >
-            {DESKTOP_NAV.map(({ href, label }) => {
+            {DESKTOP_NAV.map(({ href, label, soon }) => {
               const isActive =
                 href === "/" ? pathname === "/" : pathname.startsWith(href);
               return (
@@ -68,13 +70,18 @@ export function AppHeader({
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "relative inline-flex h-15 items-center whitespace-nowrap px-2 text-sm font-semibold transition-colors lg:px-2.5 xl:px-3",
+                    "relative inline-flex h-15 items-center gap-1 whitespace-nowrap px-2 text-sm font-semibold transition-colors lg:px-2.5 xl:px-3",
                     isActive
                       ? "text-white"
                       : "text-pitch-100/80 hover:text-white"
                   )}
                 >
-                  {label}
+                  <span>{label}</span>
+                  {soon && (
+                    <span className="rounded-sm border border-gold-400/40 bg-pitch-900/80 px-1 py-px text-[9px] font-bold tracking-wider text-gold-400 uppercase">
+                      Pronto
+                    </span>
+                  )}
                   {isActive && (
                     <span className="absolute inset-x-2 bottom-0 h-1 bg-leather-500" />
                   )}
@@ -97,7 +104,7 @@ export function AppHeader({
               isPerfilActive
                 ? "border-gold-400 bg-gold-500/20 text-gold-400"
                 : isAuthenticated
-                  ? "border-gold-400/50 bg-pitch-900/80 text-gold-300 hover:border-gold-400 hover:bg-pitch-900"
+                  ? "border-gold-400/50 bg-pitch-900/80 text-gold-400 hover:border-gold-400 hover:bg-pitch-900"
                   : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
             )}
           >
