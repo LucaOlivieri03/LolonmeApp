@@ -16,10 +16,13 @@ import {
   X,
 } from "lucide-react";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
+import { MatchTacticalBoard } from "@/components/matches/MatchTacticalBoard";
+import { MatchVotingPanel } from "@/components/matches/MatchVotingPanel";
 import type { MatchType, Season } from "@/lib/types/domain";
 import type {
   MatchLedgerItem,
   MatchPlayerOption,
+  MatchVotingSummary,
 } from "@/lib/types/view-models";
 import { cn, formatDateEs } from "@/lib/utils";
 import {
@@ -66,7 +69,10 @@ export interface PartidosInteractiveViewProps {
   availableMatchNumbers: number[];
   playerOptions: MatchPlayerOption[];
   matches: MatchLedgerItem[];
+  votingByMatchId?: Record<string, MatchVotingSummary>;
+  viewerPlayerId?: string | null;
   isAdmin?: boolean;
+  isOperator?: boolean;
 }
 
 function scoreLabel(m: MatchLedgerItem): string | null {
@@ -83,7 +89,10 @@ export function PartidosInteractiveView({
   availableMatchNumbers,
   playerOptions,
   matches,
+  votingByMatchId = {},
+  viewerPlayerId = null,
   isAdmin = false,
+  isOperator = false,
 }: PartidosInteractiveViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -425,6 +434,11 @@ export function PartidosInteractiveView({
                       <span className="whitespace-nowrap text-xs font-medium text-ink-muted">
                         {formatDateEs(m.matchDate)}
                       </span>
+                      {m.votingStatus === "open" && (
+                        <span className="shrink-0 rounded-sm border border-pitch-700/40 bg-pitch-50 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-pitch-800">
+                          Votación abierta
+                        </span>
+                      )}
                     </div>
 
                     {m.notes && (
@@ -472,6 +486,12 @@ export function PartidosInteractiveView({
                         </Link>
                       </div>
                     )}
+                    <MatchTacticalBoard
+                      teamA={m.teamA}
+                      teamB={m.teamB}
+                      teamAScore={m.teamAScore}
+                      teamBScore={m.teamBScore}
+                    />
                     <div className="grid gap-4 sm:grid-cols-2 sm:divide-x sm:divide-rule">
                       {(
                         [
@@ -545,6 +565,14 @@ export function PartidosInteractiveView({
                         </div>
                       ))}
                     </div>
+                    {votingByMatchId[m.id] && (
+                      <MatchVotingPanel
+                        match={m}
+                        summary={votingByMatchId[m.id]}
+                        viewerPlayerId={viewerPlayerId}
+                        isOperator={isOperator || isAdmin}
+                      />
+                    )}
                   </div>
                 )}
               </article>
