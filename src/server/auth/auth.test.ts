@@ -1,9 +1,12 @@
+import { readFileSync } from "fs";
+import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import {
   AuthError,
   GUEST_SESSION,
   isAuthError,
   performRequestEmailOtp,
+  performSignInWithGoogle,
   performSignInWithPassword,
   performVerifyEmailOtp,
   requireAdmin,
@@ -447,5 +450,82 @@ describe("Redirect sanitization & auth callback / actions security", () => {
     expect(
       await performSignInWithPassword(actionsClient, "jugador@lolonmebol.test", "secret123")
     ).toEqual({ ok: true });
+  });
+
+  it("performSignInWithGoogle initiates Google OAuth with safe /auth/callback?next=/perfil redirect and rejects unsafe or missing URLs", async () => {
+    expect(await performSignInWithGoogle(null, "https://lolonmebol.app")).toMatchObject({
+      ok: false,
+      errorCode: "not_configured",
+    });
+
+    const signInWithOAuth = vi.fn().mockResolvedValue({
+      data: { url: "https://accounts.google.com/o/oauth2/v2/auth?state=pkce" },
+      error: null,
+    });
+    const oauthClient: ServerAuthActionsClient = {
+      auth: {
+        signInWithOtp: vi.fn(),
+        verifyOtp: vi.fn(),
+        signInWithPassword: vi.fn(),
+        signOut: vi.fn(),
+        signInWithOAuth,
+      },
+    };
+
+    const okResult = await performSignInWithGoogle(
+      oauthClient,
+      "https://lolonmebol.app"
+    );
+    expect(okResult).toEqual({
+      ok: true,
+      url: "https://accounts.google.com/o/oauth2/v2/auth?state=pkce",
+    });
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "https://lolonmebol.app/auth/callback?next=/perfil",
+      },
+    });
+
+    // Malicious callbackOrigin falls back to http://localhost:3000
+    await performSignInWithGoogle(oauthClient, "javascript:alert(1)");
+    expect(signInWithOAuth).toHaveBeenLastCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3000/auth/callback?next=/perfil",
+      },
+    });
+
+    // Rejects non-HTTP(S) provider URLs
+    signInWithOAuth.mockResolvedValueOnce({
+      data: { url: "javascript:evil()" },
+      error: null,
+    });
+    expect(
+      await performSignInWithGoogle(oauthClient, "https://lolonmebol.app")
+    ).toMatchObject({
+      ok: false,
+      errorCode: "provider_error",
+    });
+
+    // Surfaces provider errors cleanly
+    signInWithOAuth.mockResolvedValueOnce({
+      data: { url: null },
+      error: { message: "OAuth disabled" },
+    });
+    expect(
+      await performSignInWithGoogle(oauthClient, "https://lolonmebol.app")
+    ).toMatchObject({
+      ok: false,
+      errorCode: "provider_error",
+    });
+
+    // LoginCard highlights "Continuar con Google" as primary CTA wired to signInWithGoogleAction
+    const loginCardSrc = readFileSync(
+      path.join(process.cwd(), "src/components/profile/LoginCard.tsx"),
+      "utf8"
+    );
+    expect(loginCardSrc).toContain("signInWithGoogleAction");
+    expect(loginCardSrc).toContain("Continuar con Google");
   });
 });

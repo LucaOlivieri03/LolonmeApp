@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import {
   AlertCircle,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   KeyRound,
-  Lock,
   LogIn,
   Mail,
   UserCheck,
@@ -15,7 +16,7 @@ import {
 import type { AuthFormActionState } from "@/lib/types/view-models";
 import {
   requestEmailOtpAction,
-  signInWithPasswordAction,
+  signInWithGoogleAction,
   verifyEmailOtpAction,
 } from "@/server/actions/auth";
 import { cn } from "@/lib/utils";
@@ -24,13 +25,58 @@ const INITIAL_STATE: AuthFormActionState = { status: "idle" };
 
 const CALLBACK_ERROR_MESSAGES: Record<string, string> = {
   invalid_or_expired_link:
-    "El enlace de acceso venció o ya fue utilizado. Solicitá uno nuevo abajo.",
+    "El enlace o código de acceso venció o ya fue utilizado. Intentá nuevamente.",
   provider_error:
-    "No se pudo completar la validación con el proveedor de correo. Intentá nuevamente.",
-  missing_code: "Falta el código de verificación en el enlace recibido.",
+    "No se pudo completar el inicio de sesión con Google o el proveedor externo. Intentá nuevamente.",
+  missing_code: "Falta el código de verificación en la respuesta de acceso.",
   not_configured:
     "Supabase Auth no está configurado en este entorno todavía.",
 };
+
+function GoogleMark({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4 shrink-0", className)}
+    >
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.4c-.2 1.3-1.6 3.8-5.4 3.8-3.3 0-5.9-2.7-5.9-6s2.6-6 5.9-6c1.8 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.4 14.6 2.5 12 2.5 6.8 2.5 2.5 6.8 2.5 12s4.3 9.5 9.5 9.5c5.5 0 9.1-3.8 9.1-9.2 0-.6-.1-1.1-.2-1.6H12Z"
+      />
+      <path
+        fill="#34A853"
+        d="M3.6 7.8l3.2 2.3C7.7 8.1 9.7 5.9 12 5.9c1.8 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.4 14.6 2.5 12 2.5 8.3 2.5 5.1 4.6 3.6 7.8Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M12 21.5c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.9 1.1-3.4 1.1-3.7 0-5.1-2.5-5.4-3.7l-3.2 2.4c1.5 3.1 4.8 4.9 8.6 4.9Z"
+      />
+      <path
+        fill="#4285F4"
+        d="M21.1 12.3c0-.6-.1-1.1-.2-1.6H12v3.9h5.4c-.3 1.1-1.1 2.2-2 2.8l2.9 2.4c1.7-1.6 2.8-4 2.8-7.5Z"
+      />
+    </svg>
+  );
+}
+
+function GoogleSubmitButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      className="inline-flex min-h-11 w-full items-center justify-center gap-2.5 rounded-md bg-pitch-800 px-4 text-sm font-bold text-white transition-colors hover:bg-pitch-900 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-white">
+        <GoogleMark />
+      </span>
+      <span>
+        {pending ? "Redirigiendo a Google..." : "Continuar con Google"}
+      </span>
+    </button>
+  );
+}
 
 interface OtpCodeVerifyFormProps {
   email: string;
@@ -49,7 +95,7 @@ function OtpCodeVerifyForm({ email, requestMessage }: OtpCodeVerifyFormProps) {
   return (
     <form
       action={otpVerifyAction}
-      className="space-y-3 rounded-md border border-pitch-200 bg-pitch-50/60 p-4"
+      className="space-y-3 rounded-md bg-pitch-50/70 p-4"
     >
       <input type="hidden" name="email" value={email} />
       <div
@@ -113,25 +159,22 @@ export function LoginCard({
   isAuthConfigured,
   callbackError,
 }: LoginCardProps) {
-  const [mode, setMode] = useState<"otp" | "password">("otp");
+  const [showEmailOption, setShowEmailOption] = useState(false);
   const [emailInput, setEmailInput] = useState("");
 
   const [otpReqState, otpReqAction, isRequestingOtp] = useActionState(
     requestEmailOtpAction,
     INITIAL_STATE
   );
-  const [pwdState, pwdAction, isSigningInPwd] = useActionState(
-    signInWithPasswordAction,
-    INITIAL_STATE
-  );
 
   const normalizedDraftEmail = emailInput.trim().toLowerCase();
   const requestedEmail = otpReqState.email ?? "";
   const isOtpActiveForCurrentEmail =
-    mode === "otp" &&
     otpReqState.status === "otp_sent" &&
     Boolean(requestedEmail) &&
     (normalizedDraftEmail === "" || normalizedDraftEmail === requestedEmail);
+
+  const isEmailExpanded = showEmailOption || otpReqState.status !== "idle";
 
   const callbackErrorMessage = callbackError
     ? (CALLBACK_ERROR_MESSAGES[callbackError] ??
@@ -146,8 +189,8 @@ export function LoginCard({
           Acceso Oficial de Jugadores
         </h2>
         <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-muted">
-          Ingresá con el correo asociado a tu ficha del padrón LOLONMEBOL para
-          ver tu resumen personal, estrellas y permisos de torneo.
+          Entrá con tu cuenta de Google para vincular tu ficha del padrón
+          LOLONMEBOL, consultar tus estrellas y habilitar permisos de torneo.
         </p>
       </div>
 
@@ -174,158 +217,91 @@ export function LoginCard({
         </div>
       )}
 
-      <div
-        role="tablist"
-        aria-label="Método de acceso"
-        className="mt-5 grid grid-cols-2 rounded-md border border-rule bg-paper p-0.5"
-      >
+      <form action={signInWithGoogleAction} className="mt-5">
+        <GoogleSubmitButton disabled={!isAuthConfigured} />
+      </form>
+      <p className="mt-2 text-center text-xs text-ink-muted">
+        Si tu email ya figura en el padrón, quedás vinculado automáticamente. Si
+        no, vas a poder elegir quién sos tras ingresar.
+      </p>
+
+      <div className="mt-5 border-t border-rule pt-4">
         <button
           type="button"
-          role="tab"
-          aria-selected={mode === "otp"}
-          onClick={() => setMode("otp")}
-          className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-xs font-bold transition-colors",
-            mode === "otp"
-              ? "bg-pitch-800 text-white"
-              : "text-ink-muted hover:text-ink"
-          )}
+          aria-expanded={isEmailExpanded}
+          onClick={() => setShowEmailOption((prev) => !prev)}
+          className="inline-flex min-h-10 w-full items-center justify-between rounded-md bg-paper px-3.5 text-xs font-bold text-ink transition-colors hover:text-pitch-800"
         >
-          <Mail className="h-3.5 w-3.5 shrink-0" />
-          Enlace por Email
+          <span className="inline-flex items-center gap-2">
+            <Mail className="h-3.5 w-3.5 text-pitch-700" />
+            Alternativa: ingresar con código o enlace por email
+          </span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-ink-muted transition-transform",
+              isEmailExpanded && "rotate-180"
+            )}
+          />
         </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "password"}
-          onClick={() => setMode("password")}
-          className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-2.5 text-xs font-bold transition-colors",
-            mode === "password"
-              ? "bg-pitch-800 text-white"
-              : "text-ink-muted hover:text-ink"
-          )}
-        >
-          <Lock className="h-3.5 w-3.5 shrink-0" />
-          Contraseña
-        </button>
+
+        {isEmailExpanded && (
+          <div className="mt-3 space-y-4">
+            <form action={otpReqAction} className="space-y-3">
+              <div>
+                <label
+                  htmlFor="login-email-otp"
+                  className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
+                >
+                  Correo electrónico
+                </label>
+                <input
+                  id="login-email-otp"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="jugador@ejemplo.com"
+                  className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
+                />
+              </div>
+
+              {otpReqState.status === "error" && otpReqState.message && (
+                <p
+                  role="alert"
+                  className="rounded-md bg-crimson-50 px-3 py-2 text-xs font-medium text-crimson-700"
+                >
+                  {otpReqState.message}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isRequestingOtp || !isAuthConfigured}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-rule bg-paper px-4 text-sm font-bold text-ink transition-colors hover:border-pitch-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <LogIn className="h-4 w-4 text-pitch-700" />
+                {isRequestingOtp
+                  ? "Enviando enlace..."
+                  : isOtpActiveForCurrentEmail
+                    ? "Reenviar enlace / código"
+                    : "Enviar código o enlace de acceso"}
+              </button>
+            </form>
+
+            {isOtpActiveForCurrentEmail && (
+              <OtpCodeVerifyForm
+                key={`${requestedEmail}:${otpReqState.sentAt ?? 0}`}
+                email={requestedEmail}
+                requestMessage={otpReqState.message}
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      {mode === "otp" ? (
-        <div className="mt-4 space-y-4">
-          <form action={otpReqAction} className="space-y-3">
-            <div>
-              <label
-                htmlFor="login-email-otp"
-                className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
-              >
-                Correo electrónico
-              </label>
-              <input
-                id="login-email-otp"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="jugador@ejemplo.com"
-                className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
-              />
-            </div>
-
-            {otpReqState.status === "error" && otpReqState.message && (
-              <p
-                role="alert"
-                className="rounded-md border border-crimson-600/30 bg-crimson-50 px-3 py-2 text-xs font-medium text-crimson-700"
-              >
-                {otpReqState.message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={isRequestingOtp || !isAuthConfigured}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-bold text-white transition-colors hover:bg-pitch-900 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <LogIn className="h-4 w-4" />
-              {isRequestingOtp
-                ? "Enviando enlace..."
-                : isOtpActiveForCurrentEmail
-                  ? "Reenviar enlace / código"
-                  : "Enviar enlace de acceso"}
-            </button>
-          </form>
-
-          {isOtpActiveForCurrentEmail && (
-            <OtpCodeVerifyForm
-              key={`${requestedEmail}:${otpReqState.sentAt ?? 0}`}
-              email={requestedEmail}
-              requestMessage={otpReqState.message}
-            />
-          )}
-        </div>
-      ) : (
-        <form action={pwdAction} className="mt-4 space-y-3">
-          <div>
-            <label
-              htmlFor="login-email-pwd"
-              className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
-            >
-              Correo electrónico
-            </label>
-            <input
-              id="login-email-pwd"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="jugador@ejemplo.com"
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="login-password"
-              className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
-            >
-              Contraseña
-            </label>
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
-            />
-          </div>
-
-          {pwdState.status === "error" && pwdState.message && (
-            <p
-              role="alert"
-              className="rounded-md border border-crimson-600/30 bg-crimson-50 px-3 py-2 text-xs font-medium text-crimson-700"
-            >
-              {pwdState.message}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSigningInPwd || !isAuthConfigured}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-pitch-800 px-4 text-sm font-bold text-white transition-colors hover:bg-pitch-900 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <LogIn className="h-4 w-4" />
-            {isSigningInPwd ? "Ingresando..." : "Iniciar Sesión"}
-          </button>
-        </form>
-      )}
-
-      <div className="mt-6 border-t border-rule pt-4 text-center">
+      <div className="mt-5 border-t border-rule pt-4 text-center">
         <p className="text-xs text-ink-muted">
           ¿Querés consultar estadísticas individuales de cualquier jugador sin
           iniciar sesión?

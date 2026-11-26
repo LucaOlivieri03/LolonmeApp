@@ -6,12 +6,33 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   performRequestEmailOtp,
+  performSignInWithGoogle,
   performSignInWithPassword,
   performVerifyEmailOtp,
   resolveSafeAppOrigin,
   type AuthActionState,
   type ServerAuthActionsClient,
 } from "@/server/auth";
+
+export async function signInWithGoogleAction(): Promise<void> {
+  const client = await createSupabaseServerClient();
+  const reqHeaders = await headers();
+  const origin = resolveSafeAppOrigin({
+    hostHeader: reqHeaders.get("x-forwarded-host") ?? reqHeaders.get("host"),
+    protoHeader: reqHeaders.get("x-forwarded-proto"),
+  });
+
+  const result = await performSignInWithGoogle(
+    client as unknown as ServerAuthActionsClient | null,
+    origin
+  );
+
+  if (!result.ok) {
+    redirect(`/perfil?authError=${encodeURIComponent(result.errorCode)}`);
+  }
+
+  redirect(result.url);
+}
 
 export async function requestEmailOtpAction(
   _prevState: AuthActionState,
