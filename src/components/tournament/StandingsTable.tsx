@@ -107,20 +107,12 @@ export function StandingsTable({
               const isDirectCup = showCupZones && row.position <= 7;
               const isPrelimCup =
                 showCupZones && row.position >= 8 && row.position <= 9;
-              const rowBg = isLeader
-                ? mode === "annual"
-                  ? "bg-comp-lolonmebol-bg/60"
-                  : "bg-gold-50"
-                : "bg-surface";
+              const rowBg = isLeader ? "bg-gold-50" : "bg-surface";
               const trHover = isLeader
-                ? mode === "annual"
-                  ? "hover:bg-comp-lolonmebol-bg"
-                  : "hover:bg-gold-100"
+                ? "hover:bg-gold-100"
                 : "hover:bg-pitch-50";
               const stickyHover = isLeader
-                ? mode === "annual"
-                  ? "group-hover:bg-comp-lolonmebol-bg"
-                  : "group-hover:bg-gold-100"
+                ? "group-hover:bg-gold-100"
                 : "group-hover:bg-pitch-50";
               const hasMoreBelow = idx < visibleRows.length - 1;
               const showTop7Cut =
@@ -148,9 +140,7 @@ export function StandingsTable({
                         className={cn(
                           "font-display inline-flex h-7 w-7 items-center justify-center rounded-sm text-sm font-extrabold",
                           isLeader
-                            ? mode === "annual"
-                              ? "bg-comp-lolonmebol text-white"
-                              : "bg-gold-500 text-ink"
+                            ? "bg-gold-500 text-ink"
                             : isDirectCup
                               ? "bg-comp-cup text-white"
                               : isPrelimCup
@@ -293,7 +283,7 @@ export function StandingsTable({
       {mode === "annual" && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 text-xs text-ink-muted">
           <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-comp-lolonmebol" />
+            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-gold-500" />
             1.° Puesto: Juega la LOLONMEBOL
           </span>
           {!hasCupStarted && (
