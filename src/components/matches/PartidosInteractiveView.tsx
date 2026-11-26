@@ -22,6 +22,10 @@ import type {
   MatchPlayerOption,
 } from "@/lib/types/view-models";
 import { cn, formatDateEs } from "@/lib/utils";
+import {
+  formatMatchScoreBadge,
+  shouldShowGoalsAssists,
+} from "@/lib/matches/display";
 
 type TypeFilter = "ALL" | MatchType;
 
@@ -64,14 +68,8 @@ export interface PartidosInteractiveViewProps {
   isAdmin?: boolean;
 }
 
-function scoreLabel(m: MatchLedgerItem): string {
-  if (m.teamAScore !== null && m.teamBScore !== null) {
-    return `${m.teamAScore} – ${m.teamBScore}`;
-  }
-  if (m.resultOutcome === "draw") return "Empate";
-  if (m.resultOutcome === "A") return "Ganó Eq. A";
-  if (m.resultOutcome === "B") return "Ganó Eq. B";
-  return "Sin marcador";
+function scoreLabel(m: MatchLedgerItem): string | null {
+  return formatMatchScoreBadge(m);
 }
 
 export function PartidosInteractiveView({
@@ -443,9 +441,15 @@ export function PartidosInteractiveView({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-                    <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
-                      {scoreLabel(m)}
-                    </span>
+                    {(() => {
+                      const badge = scoreLabel(m);
+                      if (!badge) return null;
+                      return (
+                        <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
+                          {badge}
+                        </span>
+                      );
+                    })()}
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-ink-muted" />
                     ) : (
@@ -517,7 +521,12 @@ export function PartidosInteractiveView({
                                     )}
                                   </span>
                                   <span className="flex items-center gap-2 text-xs text-ink-muted">
-                                    {(mp.goals > 0 || mp.assists > 0) && (
+                                    {shouldShowGoalsAssists({
+                                      matchDate: m.matchDate,
+                                      matchType: m.matchType,
+                                      goals: mp.goals,
+                                      assists: mp.assists,
+                                    }) && (
                                       <span className="font-semibold text-ink">
                                         {mp.goals}G / {mp.assists}A
                                       </span>

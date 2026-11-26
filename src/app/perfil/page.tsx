@@ -16,6 +16,10 @@ import type { ProfileRecentMatchItem } from "@/lib/types/view-models";
 import { signOutAction } from "@/server/actions/auth";
 import { getAuthenticatedProfileViewModel } from "@/server/queries";
 import { formatDateEs } from "@/lib/utils";
+import {
+  formatMatchScoreBadge,
+  shouldShowGoalsAssists,
+} from "@/lib/matches/display";
 
 const ROLE_LABELS: Record<PlayerRole, string> = {
   admin: "Presidente / Admin",
@@ -30,14 +34,8 @@ const TITLE_LABELS: Record<TitleType, string> = {
   lolonmebol: "Campeón LOLONMEBOL",
 };
 
-function scoreBadgeLabel(m: ProfileRecentMatchItem): string {
-  if (m.teamAScore !== null && m.teamBScore !== null) {
-    return `${m.teamAScore} – ${m.teamBScore}`;
-  }
-  if (m.resultOutcome === "draw") return "Empate";
-  if (m.resultOutcome === "A") return "Ganó Eq. A";
-  if (m.resultOutcome === "B") return "Ganó Eq. B";
-  return "—";
+function scoreBadgeLabel(m: ProfileRecentMatchItem): string | null {
+  return formatMatchScoreBadge(m);
 }
 
 interface PerfilPageProps {
@@ -382,7 +380,11 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                     </div>
 
                     <div className="flex items-center gap-3 text-xs">
-                      {(m.goals > 0 || m.assists > 0) && (
+                      {shouldShowGoalsAssists({
+                        matchDate: m.matchDate,
+                        goals: m.goals,
+                        assists: m.assists,
+                      }) && (
                         <span className="font-semibold text-ink">
                           {m.goals}G / {m.assists}A
                         </span>
@@ -392,9 +394,15 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                           {m.adminRating.toFixed(1)}
                         </span>
                       )}
-                      <span className="font-display rounded bg-pitch-800 px-2.5 py-1 text-sm font-extrabold text-white">
-                        {scoreBadgeLabel(m)}
-                      </span>
+                      {(() => {
+                        const badge = scoreBadgeLabel(m);
+                        if (!badge) return null;
+                        return (
+                          <span className="font-display rounded bg-pitch-800 px-2.5 py-1 text-sm font-extrabold text-white">
+                            {badge}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </li>
                 ))}
