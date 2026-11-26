@@ -57,6 +57,8 @@ export function ThemeSwitcher() {
   const [active, setActive] = useState<ThemeKey>("estadio");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     const param = new URLSearchParams(window.location.search).get("theme");
@@ -79,9 +81,41 @@ export function ThemeSwitcher() {
   useEffect(() => {
     if (!open) return;
 
+    const activeIdx = Math.max(
+      0,
+      THEMES.findIndex((t) => t.key === active)
+    );
+    itemRefs.current[activeIdx]?.focus();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (
+        event.key === "ArrowDown" ||
+        event.key === "ArrowUp" ||
+        event.key === "Home" ||
+        event.key === "End"
+      ) {
+        event.preventDefault();
+        const focusedIdx = itemRefs.current.findIndex(
+          (el) => el === document.activeElement
+        );
+        let nextIdx = focusedIdx >= 0 ? focusedIdx : activeIdx;
+        if (event.key === "ArrowDown") {
+          nextIdx = (nextIdx + 1) % THEMES.length;
+        } else if (event.key === "ArrowUp") {
+          nextIdx = (nextIdx - 1 + THEMES.length) % THEMES.length;
+        } else if (event.key === "Home") {
+          nextIdx = 0;
+        } else if (event.key === "End") {
+          nextIdx = THEMES.length - 1;
+        }
+        itemRefs.current[nextIdx]?.focus();
       }
     };
 
@@ -100,12 +134,13 @@ export function ThemeSwitcher() {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [open]);
+  }, [open, active]);
 
   const handleSelect = (theme: ThemeKey) => {
     setActive(theme);
     applyTheme(theme);
     setOpen(false);
+    triggerRef.current?.focus();
   };
 
   const currentTheme = THEMES.find((t) => t.key === active) ?? THEMES[0];
@@ -113,6 +148,7 @@ export function ThemeSwitcher() {
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="menu"
@@ -144,11 +180,14 @@ export function ThemeSwitcher() {
             Tema visual
           </p>
           <div className="space-y-1">
-            {THEMES.map((theme) => {
+            {THEMES.map((theme, idx) => {
               const isSelected = theme.key === active;
               return (
                 <button
                   key={theme.key}
+                  ref={(el) => {
+                    itemRefs.current[idx] = el;
+                  }}
                   type="button"
                   role="menuitemradio"
                   aria-checked={isSelected}

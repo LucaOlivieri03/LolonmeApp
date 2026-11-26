@@ -11,7 +11,6 @@ import {
   KeyRound,
   LogIn,
   Mail,
-  UserCheck,
 } from "lucide-react";
 import type { AuthFormActionState } from "@/lib/types/view-models";
 import {
@@ -135,7 +134,7 @@ function OtpCodeVerifyForm({ email, requestMessage }: OtpCodeVerifyFormProps) {
             maxLength={8}
             required
             placeholder="123456"
-            className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
+            className="min-h-11 flex-1 rounded-md border border-rule bg-surface px-3 font-mono text-base tracking-widest text-ink focus:border-pitch-700 sm:text-sm"
           />
           <button
             type="submit"
@@ -184,7 +183,12 @@ export function LoginCard({
   return (
     <section className="mx-auto max-w-xl rounded-lg border border-rule bg-surface p-6 sm:p-8">
       <div className="text-center">
-        <UserCheck className="mx-auto h-10 w-10 text-pitch-700" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/LogoLOLONMEBOL.svg"
+          alt="Logo oficial LOLONMEBOL"
+          className="mx-auto h-12 w-auto"
+        />
         <h2 className="font-display mt-3 text-2xl font-extrabold tracking-wide text-ink">
           Acceso Oficial de Jugadores
         </h2>
@@ -263,7 +267,7 @@ export function LoginCard({
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="jugador@ejemplo.com"
-                  className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-sm"
+                  className="mt-1 min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink focus:border-pitch-700 sm:text-sm"
                 />
               </div>
 

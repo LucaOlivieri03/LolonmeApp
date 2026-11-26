@@ -380,6 +380,7 @@ export function AdminPlayersTab({
           </h2>
           <input
             type="text"
+            aria-label="Nombre visible del jugador"
             placeholder="Nombre visible (ej. Pedro)"
             value={pName}
             onChange={(e) => setPName(e.target.value)}
@@ -388,12 +389,14 @@ export function AdminPlayersTab({
           />
           <input
             type="email"
+            aria-label="Email del jugador para vinculación con Google"
             placeholder="Email para vinculación automática con Google"
             value={pEmail}
             onChange={(e) => setPEmail(e.target.value)}
             className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
           />
           <select
+            aria-label="Rol del jugador"
             value={pRole}
             onChange={(e) =>
               setPRole(e.target.value as Exclude<PlayerRole, "guest">)
@@ -442,6 +445,7 @@ export function AdminPlayersTab({
             searchPlaceholder="Buscar jugador..."
           />
           <select
+            aria-label="Tipo de título oficial"
             value={titleType}
             onChange={(e) => setTitleType(e.target.value as TitleType)}
             className="min-h-11 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
@@ -495,9 +499,10 @@ export function AdminPlayersTab({
                 <button
                   key={pill.id}
                   type="button"
+                  aria-pressed={statusFilter === pill.id}
                   onClick={() => setStatusFilter(pill.id)}
                   className={cn(
-                    "min-h-9 rounded-md border px-2.5 text-xs font-bold transition-colors",
+                    "min-h-10 rounded-md border px-2.5 text-xs font-bold transition-colors",
                     statusFilter === pill.id
                       ? "border-pitch-800 bg-pitch-800 text-white"
                       : "border-rule bg-paper text-ink-muted hover:text-ink"
@@ -577,7 +582,7 @@ export function AdminPlayersTab({
                             [p.id]: e.target.value,
                           }))
                         }
-                        className="min-h-10 min-w-0 flex-1 rounded-md border border-rule bg-paper px-2.5 text-base text-ink focus:border-pitch-700 focus:outline-none sm:text-xs"
+                        className="min-h-10 min-w-0 flex-1 rounded-md border border-rule bg-paper px-2.5 text-base text-ink focus:border-pitch-700 sm:text-xs"
                       />
                       <button
                         type="button"

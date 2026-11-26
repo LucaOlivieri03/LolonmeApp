@@ -8,6 +8,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Anonymous visitors without any Supabase auth cookie do not need a remote token refresh.
+  const hasAuthCookie = request.cookies
+    .getAll()
+    .some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"));
+  if (!hasAuthCookie) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(env.url, env.anonKey, {

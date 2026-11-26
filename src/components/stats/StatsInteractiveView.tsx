@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+} from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -197,6 +203,40 @@ function MetricFormulaPanel({
   );
 }
 
+interface ChemistryVerdict {
+  label: string;
+  badgeClass: string;
+}
+
+function getChemistryVerdict(
+  pct: number,
+  matchesTogether: number
+): ChemistryVerdict | null {
+  if (matchesTogether < 2) return null;
+  if (pct >= 75) {
+    return {
+      label: "Dupla de Selección",
+      badgeClass: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    };
+  }
+  if (pct >= 55) {
+    return {
+      label: "Sociedad Confiable",
+      badgeClass: "border-navy-100 bg-navy-50 text-navy-800",
+    };
+  }
+  if (pct >= 35) {
+    return {
+      label: "Química Irregular",
+      badgeClass: "border-leather-500/40 bg-leather-50 text-leather-700",
+    };
+  }
+  return {
+    label: "Mejor de Rivales",
+    badgeClass: "border-crimson-600/30 bg-crimson-50 text-crimson-700",
+  };
+}
+
 export interface StatsInteractiveViewProps {
   initialTab: StatsTab;
   seasons: Season[];
@@ -225,6 +265,8 @@ export function StatsInteractiveView({
   const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
   const [labComboId, setLabComboId] = useState("");
   const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const labTabRef = useRef<HTMLButtonElement | null>(null);
+  const playerTabRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedPlayers = useMemo(
     () => activePlayers.filter((p) => lab.selectedPlayerIds.includes(p.id)),
@@ -337,6 +379,35 @@ export function StatsInteractiveView({
 
   const profileRow = profile.row;
 
+  const selectTab = (nextTab: StatsTab, focusButton = false) => {
+    setTab(nextTab);
+    navigateWithParams({ tab: nextTab });
+    if (focusButton) {
+      if (nextTab === "lab") {
+        labTabRef.current?.focus();
+      } else {
+        playerTabRef.current?.focus();
+      }
+    }
+  };
+
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      selectTab(tab === "lab" ? "player" : "lab", true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectTab("lab", true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectTab("player", true);
+    }
+  };
+
+  const labVerdict = lab.subgroup
+    ? getChemistryVerdict(lab.subgroup.chemistryPct, lab.subgroup.matchesPlayed)
+    : null;
+
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-3 border-b border-rule pb-4 sm:flex-row sm:items-end sm:justify-between">
@@ -354,16 +425,18 @@ export function StatsInteractiveView({
         <div
           role="tablist"
           aria-label="Modo de estadísticas"
+          onKeyDown={handleTabKeyDown}
           className="inline-flex rounded-md border border-rule bg-surface p-0.5"
         >
           <button
+            ref={labTabRef}
+            id="stats-tab-lab"
             type="button"
             role="tab"
             aria-selected={tab === "lab"}
-            onClick={() => {
-              setTab("lab");
-              navigateWithParams({ tab: "lab" });
-            }}
+            aria-controls="stats-panel-lab"
+            tabIndex={tab === "lab" ? 0 : -1}
+            onClick={() => selectTab("lab")}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3.5 text-sm font-semibold transition-colors",
               tab === "lab"
@@ -375,13 +448,14 @@ export function StatsInteractiveView({
             Lab Grupal
           </button>
           <button
+            ref={playerTabRef}
+            id="stats-tab-player"
             type="button"
             role="tab"
             aria-selected={tab === "player"}
-            onClick={() => {
-              setTab("player");
-              navigateWithParams({ tab: "player" });
-            }}
+            aria-controls="stats-panel-player"
+            tabIndex={tab === "player" ? 0 : -1}
+            onClick={() => selectTab("player")}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3.5 text-sm font-semibold transition-colors",
               tab === "player"
@@ -406,6 +480,7 @@ export function StatsInteractiveView({
           </span>
           <button
             type="button"
+            aria-pressed={selectedSeasonId === "ALL"}
             onClick={() => navigateWithParams({ seasonId: "ALL" })}
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -420,6 +495,7 @@ export function StatsInteractiveView({
             <button
               key={s.id}
               type="button"
+              aria-pressed={selectedSeasonId === s.id}
               onClick={() => navigateWithParams({ seasonId: s.id })}
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3 text-base font-bold transition-colors",
@@ -441,6 +517,7 @@ export function StatsInteractiveView({
             <button
               key={mod}
               type="button"
+              aria-pressed={selectedModality === mod}
               onClick={() => navigateWithParams({ modality: mod })}
               className={cn(
                 "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -467,6 +544,9 @@ export function StatsInteractiveView({
 
       {tab === "lab" ? (
         <div
+          id="stats-panel-lab"
+          role="tabpanel"
+          aria-labelledby="stats-tab-lab"
           className={cn("space-y-4 transition-opacity", isPending && "opacity-70")}
         >
           <section className="rounded-lg border border-rule bg-surface p-4">
@@ -604,9 +684,21 @@ export function StatsInteractiveView({
               {lab.subgroup && (
                 <section className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
                   <div>
-                    <h3 className="font-display border-b border-rule pb-2 text-lg font-bold tracking-wide text-pitch-800">
-                      Jugando Juntos · {lab.selectedPlayerNames.join(" + ")}
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
+                      <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
+                        Jugando Juntos · {lab.selectedPlayerNames.join(" + ")}
+                      </h3>
+                      {labVerdict && (
+                        <span
+                          className={cn(
+                            "rounded-sm border px-2 py-0.5 text-[11px] font-bold",
+                            labVerdict.badgeClass
+                          )}
+                        >
+                          {labVerdict.label}
+                        </span>
+                      )}
+                    </div>
 
                     <dl className="mt-3 grid grid-cols-3 divide-x divide-rule rounded-md bg-paper">
                       <div className="px-2.5 py-2.5 text-center sm:px-3">
@@ -751,6 +843,9 @@ export function StatsInteractiveView({
         </div>
       ) : (
         <div
+          id="stats-panel-player"
+          role="tabpanel"
+          aria-labelledby="stats-tab-player"
           className={cn("space-y-4 transition-opacity", isPending && "opacity-70")}
         >
           <section className="rounded-lg border border-rule bg-surface p-4">
@@ -932,23 +1027,41 @@ export function StatsInteractiveView({
                   <TeammatesChart data={teammatesChartData} />
                   <ul className="mt-2 divide-y divide-rule text-xs">
                     {profile.bestTeammates.map(
-                      ({ playerId, displayName, stats }) => (
-                        <li
-                          key={playerId}
-                          className="flex items-center justify-between py-2"
-                        >
-                          <span className="font-semibold text-ink">
-                            {displayName}{" "}
-                            <span className="font-normal text-ink-muted">
-                              ({stats.matchesTogether} PJ)
+                      ({ playerId, displayName, stats }) => {
+                        const verdict = getChemistryVerdict(
+                          stats.chemistryPct,
+                          stats.matchesTogether
+                        );
+                        return (
+                          <li
+                            key={playerId}
+                            className="flex flex-wrap items-center justify-between gap-2 py-2"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-ink">
+                                {displayName}{" "}
+                                <span className="font-normal text-ink-muted">
+                                  ({stats.matchesTogether} PJ)
+                                </span>
+                              </span>
+                              {verdict && (
+                                <span
+                                  className={cn(
+                                    "rounded-sm border px-1.5 py-0.5 text-[10px] font-bold",
+                                    verdict.badgeClass
+                                  )}
+                                >
+                                  {verdict.label}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-display text-sm font-bold text-pitch-800 tabular-nums">
+                              CT {stats.wilsonCtPct.toFixed(1)}% · Q{" "}
+                              {stats.chemistryPct.toFixed(0)}%
                             </span>
-                          </span>
-                          <span className="font-display text-sm font-bold text-pitch-800 tabular-nums">
-                            CT {stats.wilsonCtPct.toFixed(1)}% · Q{" "}
-                            {stats.chemistryPct.toFixed(0)}%
-                          </span>
-                        </li>
-                      )
+                          </li>
+                        );
+                      }
                     )}
                   </ul>
                 </>

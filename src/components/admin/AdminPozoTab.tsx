@@ -387,6 +387,7 @@ export function AdminPozoTab({
             <button
               key={s.id}
               type="button"
+              aria-pressed={seasonId === s.id}
               onClick={() => {
                 setSeasonId(s.id);
                 setFocusedPlayerId("ALL");
@@ -407,7 +408,10 @@ export function AdminPozoTab({
       </div>
 
       {errorBanner && (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-crimson-600/35 bg-crimson-50 px-3.5 py-2 text-xs font-semibold text-crimson-700">
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-2 rounded-md border border-crimson-600/35 bg-crimson-50 px-3.5 py-2 text-xs font-semibold text-crimson-700"
+        >
           <span>{errorBanner}</span>
           <button
             type="button"
@@ -602,7 +606,10 @@ export function AdminPozoTab({
         </div>
 
         {enrollNotice && (
-          <div className="flex items-center justify-between gap-2 border-t border-rule bg-pitch-50 px-4 py-2 text-xs font-semibold text-pitch-800">
+          <div
+            role="status"
+            className="flex items-center justify-between gap-2 border-t border-rule bg-pitch-50 px-4 py-2 text-xs font-semibold text-pitch-800"
+          >
             <span>{enrollNotice}</span>
             <button
               type="button"
@@ -621,15 +628,21 @@ export function AdminPozoTab({
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-rule bg-surface-subtle text-left text-xs font-bold uppercase tracking-wider text-ink-muted">
-              <th className="sticky left-0 z-20 border-r border-rule/80 bg-surface-subtle py-3 pl-3.5 pr-3">
+              <th
+                scope="col"
+                className="sticky left-0 z-20 border-r border-rule/80 bg-surface-subtle py-3 pl-3.5 pr-3"
+              >
                 Mes
               </th>
-              <th className="py-3 px-2.5">Cuota ($)</th>
+              <th scope="col" className="py-3 px-2.5">
+                Cuota ($)
+              </th>
               {visiblePozoPlayers.map((p) => {
                 const st = playerDebtSummary.get(p.id);
                 return (
                   <th
                     key={p.id}
+                    scope="col"
                     className="py-3 px-2 text-center whitespace-nowrap"
                     title={p.displayName}
                   >
@@ -718,6 +731,7 @@ export function AdminPozoTab({
         </h3>
         <div className="grid gap-2.5 sm:grid-cols-4">
           <select
+            aria-label="Tipo de movimiento"
             value={txType}
             onChange={(e) => setTxType(e.target.value as FundTxType)}
             className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base font-semibold text-ink sm:text-sm"
@@ -729,6 +743,7 @@ export function AdminPozoTab({
             type="number"
             min={1}
             step="any"
+            aria-label="Monto en pesos"
             placeholder="Monto ($)"
             value={txAmount}
             onChange={(e) => setTxAmount(e.target.value)}
@@ -737,6 +752,7 @@ export function AdminPozoTab({
           />
           <input
             type="text"
+            aria-label="Descripción del movimiento"
             placeholder="Descripción (ej. Trofeo Liga 26)"
             value={txDesc}
             onChange={(e) => setTxDesc(e.target.value)}

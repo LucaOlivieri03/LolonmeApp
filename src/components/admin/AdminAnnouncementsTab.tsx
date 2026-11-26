@@ -149,6 +149,7 @@ export function AdminAnnouncementsTab({
     <div className="space-y-4">
       {feedback && (
         <p
+          role={feedback.type === "error" ? "alert" : "status"}
           className={cn(
             "rounded-md border px-3.5 py-2.5 text-sm font-semibold",
             feedback.type === "success"
@@ -169,6 +170,7 @@ export function AdminAnnouncementsTab({
           <form onSubmit={handleAddAnnouncement} className="space-y-2.5">
             <input
               type="text"
+              aria-label="Título del anuncio"
               placeholder="Título del anuncio"
               value={annTitle}
               onChange={(e) => setAnnTitle(e.target.value)}
@@ -176,6 +178,7 @@ export function AdminAnnouncementsTab({
               required
             />
             <textarea
+              aria-label="Mensaje del anuncio"
               placeholder="Mensaje para los jugadores..."
               value={annBody}
               onChange={(e) => setAnnBody(e.target.value)}
@@ -266,6 +269,7 @@ export function AdminAnnouncementsTab({
             </select>
             <input
               type="text"
+              aria-label="Título del evento"
               placeholder="Ej. Fecha 40 - Liga / Descanso"
               value={evTitle}
               onChange={(e) => setEvTitle(e.target.value)}
@@ -275,12 +279,14 @@ export function AdminAnnouncementsTab({
             <div className="grid grid-cols-2 gap-2.5">
               <input
                 type="date"
+                aria-label="Fecha del evento"
                 value={evDate}
                 onChange={(e) => setEvDate(e.target.value)}
                 className="min-h-11 rounded-md border border-rule bg-paper px-3 text-base text-ink sm:text-sm"
                 required
               />
               <select
+                aria-label="Tipo de evento"
                 value={evType}
                 onChange={(e) =>
                   setEvType(e.target.value as CalendarEventType)
@@ -296,6 +302,7 @@ export function AdminAnnouncementsTab({
               </select>
             </div>
             <textarea
+              aria-label="Descripción del evento"
               placeholder="Descripción / Notas opcionales (ej. Cancha 2, 21:00 hs)"
               value={evDesc}
               onChange={(e) => setEvDesc(e.target.value)}

@@ -61,13 +61,22 @@ export default async function RootLayout({
       className={`${archivo.variable} ${barlowCondensed.variable}`}
     >
       <body className="min-h-screen bg-paper text-ink antialiased">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:border focus:border-gold-400 focus:bg-pitch-900 focus:px-3.5 focus:py-2 focus:text-xs focus:font-bold focus:text-white"
+        >
+          Ir al contenido principal
+        </a>
         <PwaRegistrar />
         <AppHeader
           role={session.role}
           displayName={session.displayName}
           isAuthenticated={Boolean(session.userId)}
         />
-        <main className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-5 md:pb-12">
+        <main
+          id="main-content"
+          className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-5 md:pb-12"
+        >
           {children}
         </main>
         <BottomNav />
