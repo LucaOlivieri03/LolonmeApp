@@ -99,16 +99,36 @@ describe("Standings Engine (Reglamento Oficial)", () => {
     expect(byId.p3.points).toBe(4);
     expect(byId.p3.pj).toBe(2);
 
-    // p1 won league (+3) and was cup captain (+0 pts, +0 PJ) => 3 pts, 1 PJ, 7 goals, 2 MVPs, 2 stars
+    // p1 won league (+3) and was winning cup captain (+0 pts, +0 PJ, but G-E-P & PG% count the cup match #40)
     expect(byId.p1.points).toBe(3);
     expect(byId.p1.pj).toBe(1);
+    expect(byId.p1.pg).toBe(2);
+    expect(byId.p1.pe).toBe(0);
+    expect(byId.p1.pp).toBe(0);
+    expect(byId.p1.winRate).toBeCloseTo(100, 2);
     expect(byId.p1.goals).toBe(7);
     expect(byId.p1.assists).toBe(2);
     expect(byId.p1.mvps).toBe(2);
     expect(byId.p1.stars).toBe(2);
     expect(byId.p1.avgRating).toBeCloseTo(9.0, 2);
 
-    // p3 is 1st with 4 pts, p1 is 2nd with 3 pts (ahead of p2 via MVPs since both have 3 pts, 1 PJ, 0 H2H, 100% PG%)
+    // p2 won league (+3) and was losing cup captain (+0 pts, +0 PJ, 1W-0D-1L => 50% PG% #40)
+    expect(byId.p2.points).toBe(3);
+    expect(byId.p2.pj).toBe(1);
+    expect(byId.p2.pg).toBe(1);
+    expect(byId.p2.pe).toBe(0);
+    expect(byId.p2.pp).toBe(1);
+    expect(byId.p2.winRate).toBeCloseTo(50, 2);
+
+    // Historical standings also include cup-captained matches in G-E-P and PG% (#40)
+    const historical = computeStandings({ players, matches, titles });
+    const histById = Object.fromEntries(historical.rows.map((r) => [r.playerId, r]));
+    expect(histById.p1.pg).toBe(2);
+    expect(histById.p1.winRate).toBeCloseTo(100, 2);
+    expect(histById.p2.pp).toBe(1);
+    expect(histById.p2.winRate).toBeCloseTo(50, 2);
+
+    // p3 is 1st with 4 pts, p1 is 2nd with 3 pts (ahead of p2 via PG% and MVPs)
     expect(result.rows.map((r) => r.playerId)).toEqual(["p3", "p1", "p2", "p4"]);
     expect(result.needsTitleTiebreaker).toBe(false);
   });
