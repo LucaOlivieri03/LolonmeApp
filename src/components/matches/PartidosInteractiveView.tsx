@@ -158,6 +158,7 @@ export function PartidosInteractiveView({
             <button
               key={s.id}
               type="button"
+              aria-pressed={selectedSeasonId === s.id}
               onClick={() => navigateWithFilters({ seasonId: s.id })}
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
@@ -171,6 +172,7 @@ export function PartidosInteractiveView({
           ))}
           <button
             type="button"
+            aria-pressed={selectedSeasonId === "ALL"}
             onClick={() => navigateWithFilters({ seasonId: "ALL" })}
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3.5 text-sm font-semibold transition-colors",
@@ -205,6 +207,7 @@ export function PartidosInteractiveView({
               <button
                 key={item.id}
                 type="button"
+                aria-pressed={selectedType === item.id}
                 onClick={() => navigateWithFilters({ type: item.id })}
                 className={cn(
                   "min-h-10 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -456,7 +459,7 @@ export function PartidosInteractiveView({
                     {isAdmin && (
                       <div className="mb-3 flex items-center justify-end border-b border-rule pb-2.5">
                         <Link
-                          href="/admin"
+                          href={`/admin?matchId=${encodeURIComponent(m.id)}`}
                           className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-pitch-800 bg-surface px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -480,7 +483,7 @@ export function PartidosInteractiveView({
                         ] as const
                       ).map(({ label, list, accent }, idx) => (
                         <div key={label} className={cn(idx === 1 && "sm:pl-4")}>
-                          <h3
+                          <h2
                             className={cn(
                               "font-display mb-2 flex items-center gap-1.5 border-b border-rule pb-1.5 text-base font-bold uppercase tracking-wider",
                               accent
@@ -488,7 +491,7 @@ export function PartidosInteractiveView({
                           >
                             <Shield className="h-4 w-4" />
                             {label} ({list.length})
-                          </h3>
+                          </h2>
                           {list.length === 0 ? (
                             <p className="py-2 text-xs text-ink-muted">
                               Sin jugadores asignados.

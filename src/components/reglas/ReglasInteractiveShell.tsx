@@ -77,6 +77,7 @@ export function ReglasInteractiveShell({
         <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <button
             type="button"
+            aria-pressed={selectedFilter === "all"}
             onClick={() => setSelectedFilter("all")}
             className={cn(
               "min-h-10 shrink-0 whitespace-nowrap rounded-md px-3 text-xs font-semibold transition-colors",
@@ -95,6 +96,7 @@ export function ReglasInteractiveShell({
               <button
                 key={item.id}
                 type="button"
+                aria-pressed={active}
                 onClick={() => {
                   setSelectedFilter(item.id);
                   setOpenSections((prev) => ({ ...prev, [item.id]: true }));
@@ -116,6 +118,7 @@ export function ReglasInteractiveShell({
         {selectedFilter === "all" && (
           <button
             type="button"
+            aria-pressed={allExpanded}
             onClick={() => setAllOpen(!allExpanded)}
             className="inline-flex min-h-10 shrink-0 items-center self-start rounded-md border border-rule bg-paper px-3 text-xs font-semibold text-pitch-800 transition-colors hover:border-pitch-700 hover:bg-surface-subtle sm:self-auto"
           >

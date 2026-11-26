@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BarChart3, BookOpen, Trophy } from "lucide-react";
+import { BarChart3, BookOpen, Star, Trophy } from "lucide-react";
 import {
   ReglasInteractiveShell,
   type ReglasSectionKey,
@@ -99,10 +99,10 @@ export default function ReglasPage() {
             <table className="w-full min-w-[540px] border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-rule bg-surface-subtle text-xs font-bold text-ink">
-                  <th className="px-3.5 py-2.5">Competencia / Evento</th>
-                  <th className="px-3.5 py-2.5">Descripción</th>
-                  <th className="px-3.5 py-2.5">Modalidad habitual</th>
-                  <th className="px-3.5 py-2.5">¿Suma en Tabla Anual?</th>
+                  <th scope="col" className="px-3.5 py-2.5">Competencia / Evento</th>
+                  <th scope="col" className="px-3.5 py-2.5">Descripción</th>
+                  <th scope="col" className="px-3.5 py-2.5">Modalidad habitual</th>
+                  <th scope="col" className="px-3.5 py-2.5">¿Suma en Tabla Anual?</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rule text-sm">
@@ -194,12 +194,12 @@ export default function ReglasPage() {
               <table className="w-full min-w-[560px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-rule bg-surface-subtle text-xs font-bold text-ink">
-                    <th className="px-3.5 py-2.5">Tipo de partido</th>
-                    <th className="px-3.5 py-2.5">Rol del jugador</th>
-                    <th className="px-3.5 py-2.5 text-center">Victoria</th>
-                    <th className="px-3.5 py-2.5 text-center">Empate</th>
-                    <th className="px-3.5 py-2.5 text-center">Derrota</th>
-                    <th className="px-3.5 py-2.5 text-center">
+                    <th scope="col" className="px-3.5 py-2.5">Tipo de partido</th>
+                    <th scope="col" className="px-3.5 py-2.5">Rol del jugador</th>
+                    <th scope="col" className="px-3.5 py-2.5 text-center">Victoria</th>
+                    <th scope="col" className="px-3.5 py-2.5 text-center">Empate</th>
+                    <th scope="col" className="px-3.5 py-2.5 text-center">Derrota</th>
+                    <th scope="col" className="px-3.5 py-2.5 text-center">
                       ¿Suma PJ en Liga?
                     </th>
                   </tr>
@@ -502,17 +502,34 @@ export default function ReglasPage() {
 
           <div className="space-y-2 rounded-md bg-gold-50 p-4">
             <h3 className="font-display text-lg font-bold tracking-wide text-gold-700">
-              Palmarés Oficial y Estrellas (⭐)
+              Palmarés Oficial y Estrellas (
+              <Star
+                className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
+                aria-hidden="true"
+              />
+              )
             </h3>
             <p className="text-sm leading-relaxed text-ink">
-              Cada jugador suma <strong>1 estrella oficial (⭐)</strong> en su
-              escudo e historial por cada título conquistado en cualquiera de
-              las tres competencias mayores:
+              Cada jugador suma{" "}
+              <strong>
+                1 estrella oficial (
+                <Star
+                  className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
+                  aria-hidden="true"
+                />
+                )
+              </strong>{" "}
+              en su escudo e historial por cada título conquistado en cualquiera
+              de las tres competencias mayores:
             </p>
             <div className="grid grid-cols-3 gap-2 pt-1 text-center">
               <div className="rounded-sm bg-surface p-2">
                 <span className="font-display block text-base font-extrabold text-gold-600">
-                  ⭐ Liga Anual
+                  <Star
+                    className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
+                    aria-hidden="true"
+                  />{" "}
+                  Liga Anual
                 </span>
                 <span className="text-[11px] text-ink-muted">
                   Campeón anual
@@ -520,7 +537,11 @@ export default function ReglasPage() {
               </div>
               <div className="rounded-sm bg-surface p-2">
                 <span className="font-display block text-base font-extrabold text-gold-600">
-                  ⭐ Copa Anual
+                  <Star
+                    className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
+                    aria-hidden="true"
+                  />{" "}
+                  Copa Anual
                 </span>
                 <span className="text-[11px] text-ink-muted">
                   Campeón llaves
@@ -528,7 +549,11 @@ export default function ReglasPage() {
               </div>
               <div className="rounded-sm bg-surface p-2">
                 <span className="font-display block text-base font-extrabold text-gold-600">
-                  ⭐ LOLONMEBOL
+                  <Star
+                    className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
+                    aria-hidden="true"
+                  />{" "}
+                  LOLONMEBOL
                 </span>
                 <span className="text-[11px] text-ink-muted">
                   Supercopa final
@@ -636,8 +661,8 @@ export default function ReglasPage() {
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="border-b border-rule bg-surface-subtle font-bold text-ink">
-                    <th className="px-3 py-2">Métrica registrada</th>
-                    <th className="px-3 py-2 text-center">
+                    <th scope="col" className="px-3 py-2">Métrica registrada</th>
+                    <th scope="col" className="px-3 py-2 text-center">
                       ¿Cuenta para el Capitán?
                     </th>
                   </tr>
