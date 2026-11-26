@@ -113,6 +113,10 @@
 }
 
 /* Keep light-on-dark-green text legible on pitch-800/900 headers & banners */
+:root[data-theme="estadio"] .text-paper {
+  color: #f6f5f0;
+}
+
 :root[data-theme="estadio"] .text-pitch-50 {
   color: #edf7f1;
 }

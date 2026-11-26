@@ -39,25 +39,25 @@ export function AppHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-gold-500 bg-pitch-800 text-paper">
-      <div className="mx-auto flex h-15 max-w-5xl items-center justify-between gap-2 px-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-4 md:gap-6">
+      <div className="mx-auto flex h-15 max-w-7xl items-center justify-between gap-2 px-3 sm:px-5 lg:px-6">
+        <div className="flex min-w-0 items-center gap-3 lg:gap-5 xl:gap-6">
           <Link
             href="/"
-            className="group flex min-h-11 min-w-0 items-center gap-2 rounded-md focus-visible:outline-gold-400"
+            className="group flex min-h-11 shrink-0 items-center gap-2 rounded-md focus-visible:outline-gold-400"
           >
             <img
               src="/assets/Logo.svg"
               alt="Escudo oficial LOLONMEBOL"
               className="h-8 w-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"
             />
-            <span className="font-display truncate text-xl font-extrabold tracking-wide text-paper sm:text-2xl">
+            <span className="font-display whitespace-nowrap text-xl font-extrabold tracking-wide text-white lg:text-2xl">
               LOLONMEBOL
             </span>
           </Link>
 
           <nav
             aria-label="Navegación de escritorio"
-            className="hidden items-center gap-1 md:flex"
+            className="hidden items-center gap-0.5 md:flex lg:gap-1"
           >
             {DESKTOP_NAV.map(({ href, label }) => {
               const isActive =
@@ -68,7 +68,7 @@ export function AppHeader({
                   href={href}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "relative inline-flex h-15 items-center px-3 text-sm font-semibold transition-colors",
+                    "relative inline-flex h-15 items-center whitespace-nowrap px-2 text-sm font-semibold transition-colors lg:px-2.5 xl:px-3",
                     isActive
                       ? "text-white"
                       : "text-pitch-100/80 hover:text-white"
@@ -84,15 +84,16 @@ export function AppHeader({
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
           <AnthemPlayer />
           <ThemeSwitcher />
           <Link
             href="/perfil"
+            title={isAuthenticated ? `Mi Perfil (${profileLabel})` : "Mi Perfil"}
             aria-label={isAuthenticated ? `Mi Perfil (${profileLabel})` : "Mi Perfil"}
             aria-current={isPerfilActive ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors sm:px-2.5",
+              "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors lg:px-2.5",
               isPerfilActive
                 ? "border-gold-400 bg-gold-500/20 text-gold-400"
                 : isAuthenticated
@@ -101,24 +102,25 @@ export function AppHeader({
             )}
           >
             <UserCircle2 className="h-4 w-4 shrink-0" />
-            <span className="hidden max-w-[8.5rem] truncate sm:inline">
+            <span className="hidden max-w-[6.5rem] truncate lg:inline xl:max-w-[8.5rem]">
               {profileLabel}
             </span>
           </Link>
           {canAccessAdmin && (
             <Link
               href="/admin"
+              title="Panel de Administración"
               aria-label="Panel de Administración"
               aria-current={isAdminActive ? "page" : undefined}
               className={cn(
-                "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors sm:px-3",
+                "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors lg:px-2.5 xl:px-3",
                 isAdminActive
                   ? "border-leather-500 bg-leather-600 text-white"
                   : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
               )}
             >
               <Shield className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">Admin</span>
+              <span className="hidden lg:inline">Admin</span>
             </Link>
           )}
         </div>

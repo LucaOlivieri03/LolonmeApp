@@ -75,9 +75,10 @@ export function AnthemPlayer() {
       <button
         type="button"
         onClick={togglePlay}
+        title={isPlaying ? "Pausar himno de LOLONMEBOL" : "Reproducir himno de LOLONMEBOL"}
         aria-label={isPlaying ? "Pausar himno de LOLONMEBOL" : "Reproducir himno de LOLONMEBOL"}
         className={cn(
-          "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 px-2.5 text-xs font-semibold transition-colors",
+          "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 px-2 text-xs font-semibold transition-colors lg:px-2.5",
           isPlaying
             ? "bg-leather-600 text-white"
             : "text-pitch-50 hover:bg-white/10"
@@ -88,7 +89,7 @@ export function AnthemPlayer() {
         ) : (
           <Play className="h-3.5 w-3.5 shrink-0 fill-current" />
         )}
-        <span className="hidden sm:inline">Himno</span>
+        <span className="hidden lg:inline">Himno</span>
       </button>
       <button
         type="button"
@@ -99,10 +100,10 @@ export function AnthemPlayer() {
             : "Modo completo. Clic para volver al estribillo (0:10 - 0:21)."
         }
         aria-label={mode === "chorus" ? "Cambiar himno a modo completo" : "Cambiar himno a modo estribillo"}
-        className="hidden min-h-10 items-center gap-1 border-l border-white/15 px-2.5 text-xs font-medium text-gold-400 transition-colors hover:bg-white/10 sm:inline-flex"
+        className="hidden min-h-10 min-w-10 items-center justify-center gap-1 border-l border-white/15 px-2 text-xs font-medium text-gold-400 transition-colors hover:bg-white/10 lg:inline-flex xl:px-2.5"
       >
         <Music2 className="h-3.5 w-3.5 shrink-0" />
-        <span>{mode === "chorus" ? "Estrib." : "Full"}</span>
+        <span className="hidden xl:inline">{mode === "chorus" ? "Estrib." : "Full"}</span>
       </button>
     </div>
   );
