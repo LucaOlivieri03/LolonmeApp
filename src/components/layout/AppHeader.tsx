@@ -43,16 +43,16 @@ export function AppHeader({
         <div className="flex min-w-0 items-center gap-3 lg:gap-5 xl:gap-6">
           <Link
             href="/"
-            className="group flex min-h-11 shrink-0 items-center gap-2 rounded-md focus-visible:outline-gold-400"
+            className="group flex min-h-11 shrink-0 items-center gap-1.5 rounded-md focus-visible:outline-gold-400 sm:gap-2"
           >
             <img
               src="/assets/Logo.svg"
               alt="Escudo oficial LOLONMEBOL"
               width={36}
               height={36}
-              className="h-8 w-8 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"
+              className="h-7 w-7 shrink-0 object-contain transition-transform duration-200 group-hover:scale-105 sm:h-9 sm:w-9"
             />
-            <span className="font-display whitespace-nowrap text-xl font-extrabold tracking-wide text-white lg:text-2xl">
+            <span className="font-display whitespace-nowrap text-lg font-extrabold tracking-wide text-white sm:text-xl lg:text-2xl">
               LOLONMEBOL
             </span>
           </Link>
