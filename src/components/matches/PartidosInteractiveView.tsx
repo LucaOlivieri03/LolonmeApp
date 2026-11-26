@@ -11,6 +11,7 @@ import {
   Hash,
   Pencil,
   Shield,
+  SlidersHorizontal,
   Trophy,
   X,
 } from "lucide-react";
@@ -88,7 +89,12 @@ export function PartidosInteractiveView({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [numberInput, setNumberInput] = useState(matchNumberQuery);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const activeFilterCount =
+    (dateFilter ? 1 : 0) +
+    (matchNumberQuery ? 1 : 0) +
+    (playerFilterId && playerFilterId !== "ALL" ? 1 : 0);
 
   const navigateWithFilters = (next: {
     seasonId?: string;
@@ -144,7 +150,7 @@ export function PartidosInteractiveView({
         </div>
 
         <div
-          className="flex flex-wrap gap-1.5"
+          className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0"
           role="group"
           aria-label="Filtrar por temporada"
         >
@@ -154,7 +160,7 @@ export function PartidosInteractiveView({
               type="button"
               onClick={() => navigateWithFilters({ seasonId: s.id })}
               className={cn(
-                "font-display min-h-10 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
+                "font-display min-h-10 shrink-0 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
                 selectedSeasonId === s.id
                   ? "border-leather-600 bg-leather-600 text-white"
                   : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
@@ -167,7 +173,7 @@ export function PartidosInteractiveView({
             type="button"
             onClick={() => navigateWithFilters({ seasonId: "ALL" })}
             className={cn(
-              "min-h-10 rounded-md border px-3.5 text-sm font-semibold transition-colors",
+              "min-h-10 shrink-0 rounded-md border px-3.5 text-sm font-semibold transition-colors",
               selectedSeasonId === "ALL"
                 ? "border-leather-600 bg-leather-600 text-white"
                 : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
@@ -180,69 +186,117 @@ export function PartidosInteractiveView({
 
       {/* Competition Type & Date / MatchNumber Filter Bar */}
       <div className="space-y-3 rounded-lg border border-rule bg-surface p-3.5">
-        <div
-          className="flex flex-wrap gap-1.5"
-          role="group"
-          aria-label="Filtrar por competencia"
-        >
-          {(
-            [
-              { id: "ALL", label: "Todos" },
-              { id: "league", label: "Liga" },
-              { id: "league_tiebreaker", label: "Desempate" },
-              { id: "cup", label: "Copa" },
-              { id: "special_f11", label: "Fechas Especiales" },
-              { id: "lolonmebol", label: "Final LOLONMEBOL" },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => navigateWithFilters({ type: item.id })}
-              className={cn(
-                "min-h-10 rounded-md border px-3 text-sm font-semibold transition-colors",
-                selectedType === item.id
-                  ? "border-pitch-800 bg-pitch-800 text-white"
-                  : "border-rule bg-paper text-ink-muted hover:border-rule-strong hover:text-ink"
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-end gap-3 border-t border-rule pt-3">
-          <div>
-            <label
-              htmlFor="partidos-date-filter"
-              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-ink-muted"
-            >
-              <Calendar className="h-3.5 w-3.5 text-pitch-700" />
-              Fecha calendario
-            </label>
-            <input
-              id="partidos-date-filter"
-              type="date"
-              value={dateFilter.length === 10 ? dateFilter : ""}
-              onChange={(e) => navigateWithFilters({ date: e.target.value })}
-              className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-3 text-sm text-ink"
-            />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0"
+            role="group"
+            aria-label="Filtrar por competencia"
+          >
+            {(
+              [
+                { id: "ALL", label: "Todos" },
+                { id: "league", label: "Liga" },
+                { id: "league_tiebreaker", label: "Desempate" },
+                { id: "cup", label: "Copa" },
+                { id: "special_f11", label: "Fechas Especiales" },
+                { id: "lolonmebol", label: "Final LOLONMEBOL" },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => navigateWithFilters({ type: item.id })}
+                className={cn(
+                  "min-h-10 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
+                  selectedType === item.id
+                    ? "border-pitch-800 bg-pitch-800 text-white"
+                    : "border-rule bg-paper text-ink-muted hover:border-rule-strong hover:text-ink"
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
 
-          <div>
-            <label
-              htmlFor="partidos-month-filter"
-              className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
+          <div className="flex items-center justify-between gap-2 sm:hidden">
+            <button
+              type="button"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((prev) => !prev)}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold transition-colors",
+                activeFilterCount > 0
+                  ? "border-pitch-800 bg-pitch-50 text-pitch-800"
+                  : "border-rule bg-paper text-ink hover:border-rule-strong"
+              )}
             >
-              O filtrar por mes
-            </label>
-            <input
-              id="partidos-month-filter"
-              type="month"
-              value={dateFilter.length === 7 ? dateFilter : ""}
-              onChange={(e) => navigateWithFilters({ date: e.target.value })}
-              className="mt-1 min-h-10 rounded-md border border-rule bg-paper px-3 text-sm text-ink"
-            />
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
+              {filtersOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
+
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigateWithFilters({
+                    date: "",
+                    number: "",
+                    player: "ALL",
+                  })
+                }
+                className="inline-flex min-h-10 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100"
+              >
+                <X className="h-3.5 w-3.5" />
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "gap-3 border-t border-rule pt-3 sm:flex sm:flex-wrap sm:items-end",
+            filtersOpen ? "grid grid-cols-1" : "hidden sm:flex"
+          )}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-end">
+            <div>
+              <label
+                htmlFor="partidos-date-filter"
+                className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-ink-muted"
+              >
+                <Calendar className="h-3.5 w-3.5 text-pitch-700" />
+                Fecha calendario
+              </label>
+              <input
+                id="partidos-date-filter"
+                type="date"
+                value={dateFilter.length === 10 ? dateFilter : ""}
+                onChange={(e) => navigateWithFilters({ date: e.target.value })}
+                className="mt-1 h-10 w-full rounded-md border border-rule bg-paper px-3 text-base leading-normal text-ink sm:w-auto sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="partidos-month-filter"
+                className="block text-xs font-bold uppercase tracking-wider text-ink-muted"
+              >
+                O filtrar por mes
+              </label>
+              <input
+                id="partidos-month-filter"
+                type="month"
+                value={dateFilter.length === 7 ? dateFilter : ""}
+                onChange={(e) => navigateWithFilters({ date: e.target.value })}
+                className="mt-1 h-10 w-full rounded-md border border-rule bg-paper px-3 text-base leading-normal text-ink sm:w-auto sm:text-sm"
+              />
+            </div>
           </div>
 
           <div>
@@ -253,38 +307,28 @@ export function PartidosInteractiveView({
               <Hash className="h-3.5 w-3.5 text-leather-600" />
               Fecha de torneo
             </label>
-            <div className="mt-1 flex items-center gap-1.5">
-              <select
-                id="partidos-number-select"
-                value={matchNumberQuery}
-                onChange={(e) => {
-                  setNumberInput(e.target.value);
-                  navigateWithFilters({ number: e.target.value });
-                }}
-                className="min-h-10 rounded-md border border-rule bg-paper px-3 text-sm font-semibold text-ink"
-              >
-                <option value="">Todas las fechas</option>
-                {availableMatchNumbers.map((num) => (
-                  <option key={num} value={String(num)}>
-                    Fecha #{num}
+            <select
+              id="partidos-number-select"
+              value={matchNumberQuery}
+              onChange={(e) => navigateWithFilters({ number: e.target.value })}
+              className="mt-1 h-10 w-full rounded-md border border-rule bg-paper px-3 text-base font-semibold leading-normal text-ink sm:w-auto sm:text-sm"
+            >
+              <option value="">Todas las fechas</option>
+              {matchNumberQuery &&
+                !availableMatchNumbers.includes(Number(matchNumberQuery)) && (
+                  <option value={matchNumberQuery}>
+                    Fecha #{matchNumberQuery}
                   </option>
-                ))}
-              </select>
-              <input
-                type="search"
-                aria-label="Buscar número de fecha"
-                placeholder="N° (ej. 12)"
-                value={numberInput}
-                onChange={(e) => {
-                  setNumberInput(e.target.value);
-                  navigateWithFilters({ number: e.target.value });
-                }}
-                className="min-h-10 w-28 rounded-md border border-rule bg-paper px-2.5 text-sm text-ink"
-              />
-            </div>
+                )}
+              {availableMatchNumbers.map((num) => (
+                <option key={num} value={String(num)}>
+                  Fecha #{num}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="min-w-[230px] flex-1 sm:max-w-xs">
+          <div className="w-full sm:min-w-[230px] sm:max-w-xs sm:flex-1">
             <PlayerCombobox
               label="Filtrar por jugador"
               options={playerOptions}
@@ -295,18 +339,17 @@ export function PartidosInteractiveView({
             />
           </div>
 
-          {(dateFilter || matchNumberQuery || playerFilterId !== "ALL") && (
+          {activeFilterCount > 0 && (
             <button
               type="button"
-              onClick={() => {
-                setNumberInput("");
+              onClick={() =>
                 navigateWithFilters({
                   date: "",
                   number: "",
                   player: "ALL",
-                });
-              }}
-              className="inline-flex min-h-11 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100"
+                })
+              }
+              className="hidden min-h-10 items-center gap-1 rounded-md border border-crimson-600/30 bg-crimson-50 px-3 text-xs font-bold text-crimson-700 hover:bg-crimson-100 sm:inline-flex"
             >
               <X className="h-3.5 w-3.5" />
               Limpiar filtros
@@ -326,17 +369,16 @@ export function PartidosInteractiveView({
           </p>
           <button
             type="button"
-            onClick={() => {
-              setNumberInput("");
+            onClick={() =>
               navigateWithFilters({
                 seasonId: "ALL",
                 type: "ALL",
                 date: "",
                 number: "",
                 player: "ALL",
-              });
-            }}
-            className="mt-4 inline-flex min-h-11 items-center rounded-md border border-pitch-800 bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
+              })
+            }
+            className="mt-4 inline-flex min-h-10 items-center rounded-md border border-pitch-800 bg-pitch-800 px-4 text-sm font-semibold text-white transition-colors hover:bg-pitch-900"
           >
             Ver todos los partidos
           </button>
@@ -358,27 +400,27 @@ export function PartidosInteractiveView({
                   type="button"
                   aria-expanded={isOpen}
                   onClick={() => setExpandedId(isOpen ? null : m.id)}
-                  className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-subtle/50"
+                  className="flex min-h-16 w-full items-center justify-between gap-2.5 px-3 py-3 text-left transition-colors hover:bg-surface-subtle/50 sm:gap-3 sm:px-4"
                 >
                   <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span
                         className={cn(
-                          "rounded-sm border px-2 py-0.5 text-xs font-bold",
+                          "shrink-0 rounded-sm border px-2 py-0.5 text-xs font-bold",
                           meta.badgeClass
                         )}
                       >
                         {meta.label}
                       </span>
-                      <span className="rounded-sm bg-surface-subtle px-2 py-0.5 text-xs font-bold text-ink-muted">
+                      <span className="shrink-0 rounded-sm bg-surface-subtle px-1.5 py-0.5 text-xs font-bold text-ink-muted sm:px-2">
                         {m.modality}
                       </span>
                       {m.matchNumber !== null && (
-                        <span className="font-display text-base font-bold text-ink">
+                        <span className="font-display shrink-0 whitespace-nowrap text-base font-bold text-ink">
                           Fecha #{m.matchNumber}
                         </span>
                       )}
-                      <span className="text-xs font-medium text-ink-muted">
+                      <span className="whitespace-nowrap text-xs font-medium text-ink-muted">
                         {formatDateEs(m.matchDate)}
                       </span>
                     </div>
@@ -397,8 +439,8 @@ export function PartidosInteractiveView({
                     )}
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2.5">
-                    <span className="font-display min-w-[4.25rem] rounded-md bg-pitch-800 px-3 py-1.5 text-center text-lg font-extrabold tracking-wide text-white">
+                  <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+                    <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
                       {scoreLabel(m)}
                     </span>
                     {isOpen ? (
@@ -410,12 +452,12 @@ export function PartidosInteractiveView({
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-rule bg-paper px-4 py-3.5">
+                  <div className="border-t border-rule bg-paper px-3 py-3.5 sm:px-4">
                     {isAdmin && (
                       <div className="mb-3 flex items-center justify-end border-b border-rule pb-2.5">
                         <Link
                           href="/admin"
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-pitch-800 bg-surface px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-50"
+                          className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-pitch-800 bg-surface px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           Gestionar en Admin

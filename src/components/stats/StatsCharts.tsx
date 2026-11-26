@@ -30,6 +30,11 @@ export interface RivalChartDatum {
   record: string;
 }
 
+function truncateChartLabel(label: string, maxChars = 11): string {
+  if (label.length <= maxChars) return label;
+  return `${label.slice(0, maxChars - 1)}…`;
+}
+
 export function LabSubgroupChart({ data }: { data: LabChartDatum[] }) {
   return (
     <div className="mt-4 h-36 w-full">
@@ -37,25 +42,26 @@ export function LabSubgroupChart({ data }: { data: LabChartDatum[] }) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+          margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
         >
           <XAxis
             type="number"
             domain={[0, 100]}
             unit="%"
-            tick={{ fontSize: 11, fill: "#4c5d52" }}
+            tick={{ fontSize: 11, fill: "var(--theme-ink-muted)" }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            width={82}
-            tick={{ fontSize: 12, fill: "#111c15", fontWeight: 600 }}
+            width={76}
+            tick={{ fontSize: 11, fill: "var(--theme-ink)", fontWeight: 600 }}
           />
           <Tooltip
             formatter={(val) => [`${val}%`, "Índice"]}
             contentStyle={{
-              backgroundColor: "#ffffff",
-              borderColor: "#d6d3c7",
+              backgroundColor: "var(--theme-surface)",
+              borderColor: "var(--theme-rule)",
+              color: "var(--theme-ink)",
               borderRadius: "6px",
               fontSize: "12px",
             }}
@@ -78,19 +84,20 @@ export function TeammatesChart({ data }: { data: TeammateChartDatum[] }) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+          margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
         >
           <XAxis
             type="number"
             domain={[0, 100]}
             unit="%"
-            tick={{ fontSize: 11, fill: "#4c5d52" }}
+            tick={{ fontSize: 11, fill: "var(--theme-ink-muted)" }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            width={96}
-            tick={{ fontSize: 12, fill: "#111c15", fontWeight: 600 }}
+            width={78}
+            tickFormatter={(value) => truncateChartLabel(String(value), 11)}
+            tick={{ fontSize: 11, fill: "var(--theme-ink)", fontWeight: 600 }}
           />
           <Tooltip
             formatter={(val, key) => [
@@ -98,15 +105,16 @@ export function TeammatesChart({ data }: { data: TeammateChartDatum[] }) {
               key === "wilson" ? "Wilson CT%" : "Química",
             ]}
             contentStyle={{
-              backgroundColor: "#ffffff",
-              borderColor: "#d6d3c7",
+              backgroundColor: "var(--theme-surface)",
+              borderColor: "var(--theme-rule)",
+              color: "var(--theme-ink)",
               borderRadius: "6px",
               fontSize: "12px",
             }}
           />
           <Bar
             dataKey="wilson"
-            fill="#0a4a28"
+            fill="var(--theme-chart-positive)"
             radius={[0, 4, 4, 0]}
             barSize={16}
           />
@@ -123,28 +131,30 @@ export function RivalsChart({ data }: { data: RivalChartDatum[] }) {
         <BarChart
           data={data}
           layout="vertical"
-          margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+          margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
         >
           <XAxis
             type="number"
             allowDecimals={false}
-            tick={{ fontSize: 11, fill: "#4c5d52" }}
+            tick={{ fontSize: 11, fill: "var(--theme-ink-muted)" }}
           />
           <YAxis
             type="category"
             dataKey="name"
-            width={96}
-            tick={{ fontSize: 12, fill: "#111c15", fontWeight: 600 }}
+            width={78}
+            tickFormatter={(value) => truncateChartLabel(String(value), 11)}
+            tick={{ fontSize: 11, fill: "var(--theme-ink)", fontWeight: 600 }}
           />
-          <ReferenceLine x={0} stroke="#b8b4a5" />
+          <ReferenceLine x={0} stroke="var(--theme-rule-strong)" />
           <Tooltip
             formatter={(val) => [
               Number(val) > 0 ? `+${val}` : `${val}`,
               "Balance V − D",
             ]}
             contentStyle={{
-              backgroundColor: "#ffffff",
-              borderColor: "#d6d3c7",
+              backgroundColor: "var(--theme-surface)",
+              borderColor: "var(--theme-rule)",
+              color: "var(--theme-ink)",
               borderRadius: "6px",
               fontSize: "12px",
             }}
@@ -155,10 +165,10 @@ export function RivalsChart({ data }: { data: RivalChartDatum[] }) {
                 key={entry.name}
                 fill={
                   entry.balance > 0
-                    ? "#0a4a28"
+                    ? "var(--theme-chart-positive)"
                     : entry.balance < 0
-                      ? "#c4202b"
-                      : "#b8b4a5"
+                      ? "var(--theme-chart-negative)"
+                      : "var(--theme-rule-strong)"
                 }
               />
             ))}
