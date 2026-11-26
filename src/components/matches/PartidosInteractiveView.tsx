@@ -35,23 +35,24 @@ const MATCH_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    badgeClass: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    badgeClass: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   league_tiebreaker: {
     label: "Desempate Liga",
-    badgeClass: "border-crimson-600/30 bg-crimson-50 text-crimson-700",
+    badgeClass: "border-comp-league bg-comp-league text-white",
   },
   cup: {
     label: "Copa",
-    badgeClass: "border-gold-500/40 bg-gold-50 text-gold-700",
+    badgeClass: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
     label: "LOLONMEBOL",
-    badgeClass: "border-pitch-900 bg-pitch-800 text-gold-400",
+    badgeClass:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
     label: "Fecha Especial F11",
-    badgeClass: "border-navy-100 bg-navy-50 text-navy-800",
+    badgeClass: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
 };
 

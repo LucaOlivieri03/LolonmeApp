@@ -87,7 +87,11 @@ export function HomeCompetitionTabs({
                 className={cn(
                   "min-h-10 rounded-sm px-3.5 text-sm font-semibold transition-colors",
                   isActive
-                    ? "bg-pitch-800 text-white"
+                    ? id === "annual"
+                      ? "bg-comp-league text-white"
+                      : id === "cup"
+                        ? "bg-comp-cup text-white"
+                        : "bg-pitch-800 text-white"
                     : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
                 )}
               >

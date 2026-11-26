@@ -51,6 +51,20 @@
   --color-crimson-600: #c4202b;
   --color-crimson-700: #9e1620;
 
+  /* Competition Colors (exact Google Sheets 'Fechas 26' hex values) */
+  --color-comp-league: #8e7cc3;
+  --color-comp-league-bg: var(--theme-comp-league-bg);
+  --color-comp-league-fg: var(--theme-comp-league-fg);
+  --color-comp-cup: #3d85c6;
+  --color-comp-cup-bg: var(--theme-comp-cup-bg);
+  --color-comp-cup-fg: var(--theme-comp-cup-fg);
+  --color-comp-lolonmebol: #e06666;
+  --color-comp-lolonmebol-bg: var(--theme-comp-lolonmebol-bg);
+  --color-comp-lolonmebol-fg: var(--theme-comp-lolonmebol-fg);
+  --color-comp-f11: #c27ba0;
+  --color-comp-f11-bg: var(--theme-comp-f11-bg);
+  --color-comp-f11-fg: var(--theme-comp-f11-fg);
+
   /* Typography */
   --font-sans: var(--font-archivo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: var(--font-barlow-condensed), var(--font-archivo), system-ui, sans-serif;
@@ -78,6 +92,14 @@
   --theme-chart-secondary: #c86e0e;
   --theme-chart-tertiary: #163963;
   --theme-chart-negative: #c4202b;
+  --theme-comp-league-bg: #f3f0fa;
+  --theme-comp-league-fg: #4b3880;
+  --theme-comp-cup-bg: #ebf3fa;
+  --theme-comp-cup-fg: #1b4f82;
+  --theme-comp-lolonmebol-bg: #fceeee;
+  --theme-comp-lolonmebol-fg: #8c2424;
+  --theme-comp-f11-bg: #f8eff4;
+  --theme-comp-f11-fg: #6e2d50;
 
   --background: var(--theme-paper);
   --foreground: var(--theme-ink);
@@ -109,6 +131,14 @@
   --theme-chart-secondary: #f0a34b;
   --theme-chart-tertiary: #6ca6e8;
   --theme-chart-negative: #f2747d;
+  --theme-comp-league-bg: #261f3b;
+  --theme-comp-league-fg: #cfc4f2;
+  --theme-comp-cup-bg: #12263b;
+  --theme-comp-cup-fg: #90c4f2;
+  --theme-comp-lolonmebol-bg: #3b1719;
+  --theme-comp-lolonmebol-fg: #f5a6a6;
+  --theme-comp-f11-bg: #331928;
+  --theme-comp-f11-fg: #e8b5d0;
   color-scheme: dark;
 }
 

@@ -26,23 +26,24 @@ const EVENT_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    dot: "bg-pitch-700",
-    badge: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    dot: "bg-comp-league",
+    badge: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   cup: {
     label: "Copa",
-    dot: "bg-gold-500",
-    badge: "border-gold-500/40 bg-gold-50 text-gold-700",
+    dot: "bg-comp-cup",
+    badge: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
     label: "LOLONMEBOL",
-    dot: "bg-pitch-900",
-    badge: "border-pitch-900 bg-pitch-800 text-gold-400",
+    dot: "bg-comp-lolonmebol",
+    badge:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
     label: "F11 Especial",
-    dot: "bg-navy-700",
-    badge: "border-navy-100 bg-navy-50 text-navy-800",
+    dot: "bg-comp-f11",
+    badge: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
   rest: {
     label: "Descanso",
