@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, CalendarDays, Home, MessageSquare, Trophy } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Home, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { href: "/stats", label: "Stats", icon: BarChart3 },
   { href: "/calendario", label: "Calendario", icon: CalendarDays },
   { href: "/reglas", label: "Reglas", icon: BookOpen },
-  { href: "/blog", label: "Blog", icon: MessageSquare },
 ];
 
 export function BottomNav() {
@@ -22,7 +21,7 @@ export function BottomNav() {
       aria-label="Navegación principal"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-rule bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <div className="mx-auto grid max-w-5xl grid-cols-6">
+      <div className="mx-auto grid max-w-5xl grid-cols-5">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
@@ -31,7 +30,7 @@ export function BottomNav() {
               href={href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                "relative flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors sm:text-[11px]",
+                "relative flex min-h-14 flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold transition-colors",
                 isActive
                   ? "text-pitch-800"
                   : "text-ink-muted hover:text-ink"

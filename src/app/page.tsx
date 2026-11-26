@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Megaphone, Pin } from "lucide-react";
+import { ArrowRight, CalendarDays } from "lucide-react";
+import { AnnouncementsCarousel } from "@/components/tournament/AnnouncementsCarousel";
 import { HomeCompetitionTabs } from "@/components/tournament/HomeCompetitionTabs";
-import { cn, formatDateEs } from "@/lib/utils";
+import { formatDateEs } from "@/lib/utils";
 import { getHomeViewModel } from "@/server/queries";
 
 interface HomePageProps {
@@ -36,10 +37,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const leader = annualStandings.rows[0];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Compact Federation Pitch-Line Matchday Strip */}
       <section className="pitch-chalk-surface overflow-hidden rounded-lg border border-pitch-900 text-paper">
-        <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="flex flex-col gap-2.5 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-3.5">
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-extrabold tracking-wide text-white sm:text-3xl">
               {activeSeason?.name ?? "Temporada"} · LOLONMEBOL
@@ -93,57 +94,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       </section>
 
-      {/* Announcements Ledger (Tactical Chalkboard) & Quick Navigation — Above Standings */}
+      {/* Announcements Carousel (Tactical Chalkboard) & Desktop Quick Links — Above Standings */}
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="tactical-chalkboard overflow-hidden rounded-lg border-2 border-neutral-800 text-paper md:col-span-2">
-          <div className="flex items-center justify-between border-b border-dashed border-white/20 bg-black/35 px-4 py-3">
-            <h2 className="font-display flex items-center gap-2 text-lg font-extrabold tracking-wider text-white uppercase">
-              <Megaphone className="h-4 w-4 text-gold-400" />
-              Tablero de Anuncios · Pizarrón de Tiza
-            </h2>
-            <span className="rounded-sm border border-dashed border-white/30 bg-white/10 px-2 py-0.5 text-xs font-bold text-gold-400">
-              {announcements.length} aviso
-              {announcements.length === 1 ? "" : "s"}
-            </span>
-          </div>
+        <AnnouncementsCarousel announcements={announcements} />
 
-          {announcements.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-neutral-300">
-              No hay comunicados oficiales escritos en el pizarrón por el momento.
-            </p>
-          ) : (
-            <ul className="space-y-2.5 p-3.5">
-              {announcements.slice(0, 4).map((ann) => (
-                <li
-                  key={ann.id}
-                  className={cn(
-                    "tactical-chalk-card rounded-md px-3.5 py-2.5 transition-colors",
-                    ann.isPinned && "border-gold-400/65 bg-white/[0.07]"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm font-bold tracking-wide text-white">
-                      {ann.isPinned && (
-                        <Pin className="h-3.5 w-3.5 shrink-0 text-gold-400" />
-                      )}
-                      <span>{ann.title}</span>
-                    </div>
-                    {ann.isPinned && (
-                      <span className="font-display rounded-sm border border-dashed border-gold-400/50 bg-gold-400/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-gold-400 uppercase">
-                        Fijado
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-neutral-200">
-                    {ann.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <aside className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
+        <aside className="hidden flex-col justify-between rounded-lg border border-rule bg-surface p-4 md:flex">
           <div>
             <h2 className="font-display text-lg font-bold tracking-wide text-ink">
               Accesos de Fecha

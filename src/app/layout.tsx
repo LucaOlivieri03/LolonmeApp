@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Archivo, Barlow_Condensed } from "next/font/google";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -37,16 +38,26 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+const VALID_THEMES = new Set(["estadio", "salvia", "diario"]);
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getViewerSession();
+  const [session, cookieStore] = await Promise.all([
+    getViewerSession(),
+    cookies(),
+  ]);
+  const rawTheme = cookieStore.get("lolonme-theme")?.value;
+  const activeTheme =
+    rawTheme && VALID_THEMES.has(rawTheme) ? rawTheme : "estadio";
 
   return (
     <html
       lang="es"
+      data-theme={activeTheme}
+      suppressHydrationWarning
       className={`${archivo.variable} ${barlowCondensed.variable}`}
     >
       <body className="min-h-screen bg-paper text-ink antialiased">
@@ -56,7 +67,7 @@ export default async function RootLayout({
           displayName={session.displayName}
           isAuthenticated={Boolean(session.userId)}
         />
-        <main className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-24 sm:px-5 md:pb-12">
+        <main className="mx-auto min-h-[calc(100vh-3.75rem)] max-w-5xl px-3 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-5 md:pb-12">
           {children}
         </main>
         <BottomNav />

@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Paper & Ink */
-  --color-paper: #f6f5f0;
-  --color-surface: #ffffff;
-  --color-surface-subtle: #efece3;
-  --color-ink: #111c15;
-  --color-ink-muted: #4c5d52;
-  --color-rule: #d6d3c7;
-  --color-rule-strong: #b8b4a5;
+  /* Paper & Ink (theme-driven) */
+  --color-paper: var(--theme-paper);
+  --color-surface: var(--theme-surface);
+  --color-surface-subtle: var(--theme-surface-subtle);
+  --color-ink: var(--theme-ink);
+  --color-ink-muted: var(--theme-ink-muted);
+  --color-rule: var(--theme-rule);
+  --color-rule-strong: var(--theme-rule-strong);
 
   /* Federation Pitch Green */
-  --color-pitch-50: #edf7f1;
-  --color-pitch-100: #d5ecdd;
+  --color-pitch-50: var(--theme-pitch-50);
+  --color-pitch-100: var(--theme-pitch-100);
   --color-pitch-200: #a9d8bb;
   --color-pitch-500: #188047;
   --color-pitch-600: #136b3b;
@@ -22,23 +22,23 @@
   --color-pitch-950: #042212;
 
   /* Leather Orange (from Logo.svg ball #E68E23) */
-  --color-leather-50: #fdf4e9;
-  --color-leather-100: #fae3c7;
+  --color-leather-50: var(--theme-leather-50);
+  --color-leather-100: var(--theme-leather-100);
   --color-leather-500: #e68e23;
   --color-leather-600: #c86e0e;
   --color-leather-700: #9f5206;
 
   /* Tournament Gold */
-  --color-gold-50: #fef9e6;
-  --color-gold-100: #fdeeb8;
+  --color-gold-50: var(--theme-gold-50);
+  --color-gold-100: var(--theme-gold-100);
   --color-gold-400: #f4be1e;
   --color-gold-500: #e5a00d;
   --color-gold-600: #b87b00;
   --color-gold-700: #8c5c00;
 
   /* Federation Navy */
-  --color-navy-50: #edf2f8;
-  --color-navy-100: #d5e0ee;
+  --color-navy-50: var(--theme-navy-50);
+  --color-navy-100: var(--theme-navy-100);
   --color-navy-600: #1e4b82;
   --color-navy-700: #163963;
   --color-navy-800: #0e2747;
@@ -46,8 +46,8 @@
 
   /* Semantic / Referee Crimson */
   --color-sky-400: #5fa0d6;
-  --color-crimson-50: #fdf1f2;
-  --color-crimson-100: #fad8db;
+  --color-crimson-50: var(--theme-crimson-50);
+  --color-crimson-100: var(--theme-crimson-100);
   --color-crimson-600: #c4202b;
   --color-crimson-700: #9e1620;
 
@@ -57,18 +57,167 @@
 }
 
 :root {
-  --background: #f6f5f0;
-  --foreground: #111c15;
-  --card: #ffffff;
-  --border: #d6d3c7;
+  --theme-paper: #f6f5f0;
+  --theme-surface: #ffffff;
+  --theme-surface-subtle: #efece3;
+  --theme-ink: #111c15;
+  --theme-ink-muted: #4c5d52;
+  --theme-rule: #d6d3c7;
+  --theme-rule-strong: #b8b4a5;
+  --theme-pitch-50: #edf7f1;
+  --theme-pitch-100: #d5ecdd;
+  --theme-leather-50: #fdf4e9;
+  --theme-leather-100: #fae3c7;
+  --theme-gold-50: #fef9e6;
+  --theme-gold-100: #fdeeb8;
+  --theme-navy-50: #edf2f8;
+  --theme-navy-100: #d5e0ee;
+  --theme-crimson-50: #fdf1f2;
+  --theme-crimson-100: #fad8db;
+  --theme-chart-positive: #0a4a28;
+  --theme-chart-secondary: #c86e0e;
+  --theme-chart-tertiary: #163963;
+  --theme-chart-negative: #c4202b;
+
+  --background: var(--theme-paper);
+  --foreground: var(--theme-ink);
+  --card: var(--theme-surface);
+  --border: var(--theme-rule);
   color-scheme: light;
+}
+
+/* Theme 1: Estadio Nocturno (Dark Mode verde-noche) */
+:root[data-theme="estadio"] {
+  --theme-paper: #0b1410;
+  --theme-surface: #122019;
+  --theme-surface-subtle: #182b22;
+  --theme-ink: #f1efe6;
+  --theme-ink-muted: #9eb5a8;
+  --theme-rule: #233b2f;
+  --theme-rule-strong: #355746;
+  --theme-pitch-50: #152f21;
+  --theme-pitch-100: #1e422e;
+  --theme-leather-50: #2b1d0d;
+  --theme-leather-100: #3f2a13;
+  --theme-gold-50: #29220f;
+  --theme-gold-100: #3d3214;
+  --theme-navy-50: #122136;
+  --theme-navy-100: #1b3150;
+  --theme-crimson-50: #2d1417;
+  --theme-crimson-100: #421c21;
+  --theme-chart-positive: #3ab875;
+  --theme-chart-secondary: #f0a34b;
+  --theme-chart-tertiary: #6ca6e8;
+  --theme-chart-negative: #f2747d;
+  color-scheme: dark;
+}
+
+/* Keep light-on-dark-green text legible on pitch-800/900 headers & banners */
+:root[data-theme="estadio"] .text-pitch-50 {
+  color: #edf7f1;
+}
+
+:root[data-theme="estadio"] .text-pitch-100 {
+  color: #d5ecdd;
+}
+
+:root[data-theme="estadio"] .text-pitch-100\/80 {
+  color: rgba(213, 236, 221, 0.82);
+}
+
+/* Dark-mode accessible accent text on dark cards & tinted badges */
+:root[data-theme="estadio"] .text-pitch-900,
+:root[data-theme="estadio"] .text-pitch-950 {
+  color: #d7f2e2;
+}
+
+:root[data-theme="estadio"] .text-pitch-800,
+:root[data-theme="estadio"] .text-pitch-700,
+:root[data-theme="estadio"] .text-pitch-600 {
+  color: #57c98a;
+}
+
+:root[data-theme="estadio"] .text-navy-700,
+:root[data-theme="estadio"] .text-navy-800,
+:root[data-theme="estadio"] .text-navy-900 {
+  color: #8ab4e8;
+}
+
+:root[data-theme="estadio"] .text-leather-700,
+:root[data-theme="estadio"] .text-leather-600 {
+  color: #f0a34b;
+}
+
+:root[data-theme="estadio"] .text-gold-700,
+:root[data-theme="estadio"] .text-gold-600 {
+  color: #f4be1e;
+}
+
+:root[data-theme="estadio"] .text-crimson-600,
+:root[data-theme="estadio"] .text-crimson-700 {
+  color: #f2747d;
+}
+
+/* Keep dark ink on bright Tournament Gold badges & CTAs */
+:root[data-theme="estadio"] .bg-gold-500.text-ink,
+:root[data-theme="estadio"] .bg-gold-400.text-ink {
+  color: #111c15;
+}
+
+/* Soften light pastel badge borders on dark surfaces */
+:root[data-theme="estadio"] .border-pitch-200 {
+  border-color: #2c5e42;
+}
+
+:root[data-theme="estadio"] .border-navy-100 {
+  border-color: #27446b;
+}
+
+:root[data-theme="estadio"] .border-leather-100 {
+  border-color: #5c3a14;
+}
+
+/* Theme 2: Cancha Salvia + Boletín Marfil */
+:root[data-theme="salvia"] {
+  --theme-paper: #dce6df;
+  --theme-surface: #f7f5ee;
+  --theme-surface-subtle: #e7ede9;
+  --theme-ink: #101d15;
+  --theme-ink-muted: #43574b;
+  --theme-rule: #bdd0c3;
+  --theme-rule-strong: #96b09f;
+}
+
+/* Theme 3: Diario Deportivo Vintage */
+:root[data-theme="diario"] {
+  --theme-paper: #e6e0d0;
+  --theme-surface: #f6f2e7;
+  --theme-surface-subtle: #dfd8c6;
+  --theme-ink: #1a1814;
+  --theme-ink-muted: #575246;
+  --theme-rule: #c8bfa9;
+  --theme-rule-strong: #a89d84;
 }
 
 html {
   background-color: var(--background);
   color: var(--foreground);
-  scrollbar-color: #b8b4a5 #efece3;
+  scrollbar-color: var(--theme-rule-strong) var(--theme-surface-subtle);
   scrollbar-width: thin;
+}
+
+/* Hide visible scrollbars on mobile while preserving native touch scrolling */
+@media (max-width: 767px) {
+  html,
+  body,
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 body {
