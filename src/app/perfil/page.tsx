@@ -16,6 +16,10 @@ import type { ProfileRecentMatchItem } from "@/lib/types/view-models";
 import { signOutAction } from "@/server/actions/auth";
 import { getAuthenticatedProfileViewModel } from "@/server/queries";
 import { formatDateEs } from "@/lib/utils";
+import {
+  formatMatchScoreBadge,
+  shouldShowGoalsAssists,
+} from "@/lib/matches/display";
 
 const ROLE_LABELS: Record<PlayerRole, string> = {
   admin: "Presidente / Admin",
@@ -25,19 +29,13 @@ const ROLE_LABELS: Record<PlayerRole, string> = {
 };
 
 const TITLE_LABELS: Record<TitleType, string> = {
-  league: "Campeón de Liga Anual",
-  cup: "Campeón de Copa LOLONMEBOL",
-  lolonmebol: "Campeón Final LOLONMEBOL",
+  league: "Campeón de Liga",
+  cup: "Campeón de Copa",
+  lolonmebol: "Campeón LOLONMEBOL",
 };
 
-function scoreBadgeLabel(m: ProfileRecentMatchItem): string {
-  if (m.teamAScore !== null && m.teamBScore !== null) {
-    return `${m.teamAScore} – ${m.teamBScore}`;
-  }
-  if (m.resultOutcome === "draw") return "Empate";
-  if (m.resultOutcome === "A") return "Ganó Eq. A";
-  if (m.resultOutcome === "B") return "Ganó Eq. B";
-  return "—";
+function scoreBadgeLabel(m: ProfileRecentMatchItem): string | null {
+  return formatMatchScoreBadge(m);
 }
 
 interface PerfilPageProps {
@@ -65,7 +63,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
             <UserCircle2 className="mt-0.5 h-8 w-8 shrink-0 text-gold-400" />
             <div>
               <h1 className="font-display text-2xl font-extrabold tracking-wide text-white sm:text-3xl">
-                Mi Perfil · Cuenta de Jugador
+                Mi perfil · Cuenta de jugador
               </h1>
               <p className="text-xs text-pitch-100">
                 Estado de sesión:{" "}
@@ -86,7 +84,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-white/25 bg-pitch-900/70 px-3.5 text-xs font-bold text-pitch-50 transition-colors hover:bg-pitch-950"
               >
                 <LogOut className="h-4 w-4" />
-                Cerrar Sesión
+                Cerrar sesión
               </button>
             </form>
           )}
@@ -112,24 +110,27 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
               vm.annualRow?.position ?? vm.historicalRow?.position ?? null;
             const starsCount = vm.historicalRow?.stars ?? 0;
             const winRateSource =
-              vm.annualRow && vm.annualRow.pj > 0
+              vm.annualRow && vm.annualRow.pg + vm.annualRow.pe + vm.annualRow.pp > 0
                 ? {
-                    label: `Efectividad ${vm.activeSeasonName}`,
+                    label: `PG% ${vm.activeSeasonName}`,
+                    winRate: vm.annualRow.winRate,
                     pg: vm.annualRow.pg,
-                    pj: vm.annualRow.pj,
+                    pj: vm.annualRow.pg + vm.annualRow.pe + vm.annualRow.pp,
                   }
-                : vm.historicalRow && vm.historicalRow.pj > 0
+                : vm.historicalRow &&
+                    vm.historicalRow.pg + vm.historicalRow.pe + vm.historicalRow.pp > 0
                   ? {
-                      label: "Efectividad Histórica",
+                      label: "PG% histórico",
+                      winRate: vm.historicalRow.winRate,
                       pg: vm.historicalRow.pg,
-                      pj: vm.historicalRow.pj,
+                      pj:
+                        vm.historicalRow.pg +
+                        vm.historicalRow.pe +
+                        vm.historicalRow.pp,
                     }
                   : null;
             const winRatePct = winRateSource
-              ? Math.min(
-                  100,
-                  Math.max(0, (winRateSource.pg / winRateSource.pj) * 100)
-                )
+              ? Math.min(100, Math.max(0, winRateSource.winRate))
               : null;
 
             return (
@@ -343,7 +344,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
           <section className="rounded-lg border border-rule bg-surface p-4">
             <div className="mb-3 flex items-center justify-between border-b border-rule pb-2">
               <h2 className="font-display text-lg font-bold tracking-wide text-ink">
-                Mis Últimos Partidos ({vm.recentMatches.length})
+                Mis últimos partidos ({vm.recentMatches.length})
               </h2>
               <Link
                 href={`/partidos?season=all&player=${encodeURIComponent(vm.player.id)}`}
@@ -368,7 +369,7 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                       <span className="font-bold text-ink">
                         {m.matchNumber !== null
                           ? `Fecha #${m.matchNumber}`
-                          : m.notes || "Fecha Especial"}
+                          : m.notes || "Fecha especial"}
                       </span>{" "}
                       <span className="text-xs text-ink-muted">
                         · {formatDateEs(m.matchDate)} · Equipo {m.team}
@@ -382,7 +383,11 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                     </div>
 
                     <div className="flex items-center gap-3 text-xs">
-                      {(m.goals > 0 || m.assists > 0) && (
+                      {shouldShowGoalsAssists({
+                        matchDate: m.matchDate,
+                        goals: m.goals,
+                        assists: m.assists,
+                      }) && (
                         <span className="font-semibold text-ink">
                           {m.goals}G / {m.assists}A
                         </span>
@@ -392,9 +397,15 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
                           {m.adminRating.toFixed(1)}
                         </span>
                       )}
-                      <span className="font-display rounded bg-pitch-800 px-2.5 py-1 text-sm font-extrabold text-white">
-                        {scoreBadgeLabel(m)}
-                      </span>
+                      {(() => {
+                        const badge = scoreBadgeLabel(m);
+                        if (!badge) return null;
+                        return (
+                          <span className="font-display rounded bg-pitch-800 px-2.5 py-1 text-sm font-extrabold text-white">
+                            {badge}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </li>
                 ))}

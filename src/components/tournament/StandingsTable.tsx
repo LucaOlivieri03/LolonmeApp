@@ -9,12 +9,14 @@ interface StandingsTableProps {
   result: StandingsResult;
   mode: "annual" | "historical";
   initialLimit?: number;
+  hasCupStarted?: boolean;
 }
 
 export function StandingsTable({
   result,
   mode,
   initialLimit = mode === "historical" ? 15 : undefined,
+  hasCupStarted = false,
 }: StandingsTableProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -101,9 +103,10 @@ export function StandingsTable({
           <tbody className="divide-y divide-rule/75">
             {visibleRows.map((row, idx) => {
               const isLeader = row.position === 1;
-              const isDirectCup = mode === "annual" && row.position <= 7;
+              const showCupZones = mode === "annual" && !hasCupStarted;
+              const isDirectCup = showCupZones && row.position <= 7;
               const isPrelimCup =
-                mode === "annual" && row.position >= 8 && row.position <= 9;
+                showCupZones && row.position >= 8 && row.position <= 9;
               const rowBg = isLeader ? "bg-gold-50" : "bg-surface";
               const trHover = isLeader
                 ? "hover:bg-gold-100"
@@ -113,9 +116,9 @@ export function StandingsTable({
                 : "group-hover:bg-pitch-50";
               const hasMoreBelow = idx < visibleRows.length - 1;
               const showTop7Cut =
-                mode === "annual" && row.position === 7 && hasMoreBelow;
+                showCupZones && row.position === 7 && hasMoreBelow;
               const showPrelimCut =
-                mode === "annual" && row.position === 9 && hasMoreBelow;
+                showCupZones && row.position === 9 && hasMoreBelow;
 
               return (
                 <Fragment key={row.playerId}>
@@ -139,9 +142,9 @@ export function StandingsTable({
                           isLeader
                             ? "bg-gold-500 text-ink"
                             : isDirectCup
-                              ? "bg-pitch-800 text-white"
+                              ? "bg-comp-cup text-white"
                               : isPrelimCup
-                                ? "border border-gold-600/40 bg-gold-100 text-gold-700"
+                                ? "border border-comp-cup/50 bg-comp-cup-bg text-comp-cup-fg"
                                 : "bg-surface-subtle text-ink-muted"
                         )}
                       >
@@ -281,16 +284,20 @@ export function StandingsTable({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-1 text-xs text-ink-muted">
           <span className="inline-flex items-center gap-2">
             <span className="inline-block h-3.5 w-3.5 rounded-sm bg-gold-500" />
-            1.° Puesto (Líder)
+            1.° Puesto: Juega la LOLONMEBOL
           </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm bg-pitch-800" />
-            Top 7: Clasificación directa a Copa
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-3.5 w-3.5 rounded-sm border border-gold-600/40 bg-gold-100" />
-            8.°–9.°: Fase Previa / Liberación de cupos
-          </span>
+          {!hasCupStarted && (
+            <>
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3.5 w-3.5 rounded-sm bg-comp-cup" />
+                Top 7: Clasificación directa a Copa
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-block h-3.5 w-3.5 rounded-sm border border-comp-cup/50 bg-comp-cup-bg" />
+                8.°–9.°: Fase Previa / Liberación de cupos
+              </span>
+            </>
+          )}
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import "server-only";
-import type { StandingsResult } from "@/lib/engine";
+import type { StandingsResult, StatsCompetitionFilter } from "@/lib/engine";
 import type {
   Announcement,
   CalendarEvent,
@@ -84,6 +84,8 @@ export interface MatchesViewModel {
 export interface StatsQueryFilters {
   seasonFilter?: number | "all";
   modality?: MatchModality | "ALL";
+  matchType?: StatsCompetitionFilter;
+  includeLowSample?: boolean;
   /**
    * `undefined` selects default top 2 active players.
    * An empty array `[]` represents an explicit user clear.
@@ -96,6 +98,8 @@ export interface StatsViewModel {
   seasons: Season[];
   selectedSeasonId: string;
   selectedModality: MatchModality | "ALL";
+  selectedMatchType: StatsCompetitionFilter;
+  includeLowSample: boolean;
   activePlayers: StatsActivePlayerOption[];
   lab: StatsLabSummary;
   profile: StatsProfileSummary;

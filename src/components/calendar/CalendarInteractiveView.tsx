@@ -26,23 +26,24 @@ const EVENT_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    dot: "bg-pitch-700",
-    badge: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    dot: "bg-comp-league",
+    badge: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   cup: {
     label: "Copa",
-    dot: "bg-gold-500",
-    badge: "border-gold-500/40 bg-gold-50 text-gold-700",
+    dot: "bg-comp-cup",
+    badge: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
-    dot: "bg-pitch-900",
-    badge: "border-pitch-900 bg-pitch-800 text-gold-400",
+    label: "LOLONMEBOL",
+    dot: "bg-comp-lolonmebol",
+    badge:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "F11 Especial",
-    dot: "bg-navy-700",
-    badge: "border-navy-100 bg-navy-50 text-navy-800",
+    label: "F11 especial",
+    dot: "bg-comp-f11",
+    badge: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
   rest: {
     label: "Descanso",
@@ -256,10 +257,10 @@ export function CalendarInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <CalendarDays className="h-6 w-6 text-pitch-700" />
-            Calendario Oficial
+            Calendario oficial
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Grilla mensual interactiva y agenda de Liga, Copa, Final LOLONMEBOL, F11 y descansos
+            Grilla mensual interactiva y agenda de Liga, Copa, LOLONMEBOL, F11 y descansos
           </p>
           {nextUpcoming && countdownLabel && (
             <div className="mt-2">

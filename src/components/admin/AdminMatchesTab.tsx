@@ -24,7 +24,7 @@ const MATCH_TYPE_LABELS: Record<MatchType, string> = {
   league: "Liga",
   league_tiebreaker: "Desempate Liga",
   cup: "Copa",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
   special_f11: "Fecha Especial F11",
 };
 
@@ -314,7 +314,7 @@ export function AdminMatchesTab({
             <option value="cup">Copa</option>
             <option value="special_f11">Fecha Especial F11</option>
             <option value="league_tiebreaker">Desempate Liga</option>
-            <option value="lolonmebol">Final LOLONMEBOL</option>
+            <option value="lolonmebol">LOLONMEBOL</option>
           </select>
           <select
             aria-label="Modalidad"

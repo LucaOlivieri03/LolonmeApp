@@ -22,6 +22,10 @@ import type {
   MatchPlayerOption,
 } from "@/lib/types/view-models";
 import { cn, formatDateEs } from "@/lib/utils";
+import {
+  formatMatchScoreBadge,
+  shouldShowGoalsAssists,
+} from "@/lib/matches/display";
 
 type TypeFilter = "ALL" | MatchType;
 
@@ -31,23 +35,24 @@ const MATCH_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    badgeClass: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    badgeClass: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   league_tiebreaker: {
     label: "Desempate Liga",
-    badgeClass: "border-crimson-600/30 bg-crimson-50 text-crimson-700",
+    badgeClass: "border-comp-league bg-comp-league text-white",
   },
   cup: {
     label: "Copa",
-    badgeClass: "border-gold-500/40 bg-gold-50 text-gold-700",
+    badgeClass: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
-    badgeClass: "border-pitch-900 bg-pitch-800 text-gold-400",
+    label: "LOLONMEBOL",
+    badgeClass:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "Fecha Especial F11",
-    badgeClass: "border-navy-100 bg-navy-50 text-navy-800",
+    label: "Fecha especial F11",
+    badgeClass: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
 };
 
@@ -64,14 +69,8 @@ export interface PartidosInteractiveViewProps {
   isAdmin?: boolean;
 }
 
-function scoreLabel(m: MatchLedgerItem): string {
-  if (m.teamAScore !== null && m.teamBScore !== null) {
-    return `${m.teamAScore} – ${m.teamBScore}`;
-  }
-  if (m.resultOutcome === "draw") return "Empate";
-  if (m.resultOutcome === "A") return "Ganó Eq. A";
-  if (m.resultOutcome === "B") return "Ganó Eq. B";
-  return "Sin marcador";
+function scoreLabel(m: MatchLedgerItem): string | null {
+  return formatMatchScoreBadge(m);
 }
 
 export function PartidosInteractiveView({
@@ -140,7 +139,7 @@ export function PartidosInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <Trophy className="h-6 w-6 text-pitch-700" />
-            Partidos y Fechas Especiales
+            Partidos y fechas especiales
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             {matches.length} partido{matches.length === 1 ? "" : "s"} en registro
@@ -200,8 +199,8 @@ export function PartidosInteractiveView({
                 { id: "league", label: "Liga" },
                 { id: "league_tiebreaker", label: "Desempate" },
                 { id: "cup", label: "Copa" },
-                { id: "special_f11", label: "Fechas Especiales" },
-                { id: "lolonmebol", label: "Final LOLONMEBOL" },
+                { id: "special_f11", label: "Fechas especiales" },
+                { id: "lolonmebol", label: "LOLONMEBOL" },
               ] as const
             ).map((item) => (
               <button
@@ -443,9 +442,15 @@ export function PartidosInteractiveView({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-                    <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
-                      {scoreLabel(m)}
-                    </span>
+                    {(() => {
+                      const badge = scoreLabel(m);
+                      if (!badge) return null;
+                      return (
+                        <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
+                          {badge}
+                        </span>
+                      );
+                    })()}
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-ink-muted" />
                     ) : (
@@ -517,7 +522,12 @@ export function PartidosInteractiveView({
                                     )}
                                   </span>
                                   <span className="flex items-center gap-2 text-xs text-ink-muted">
-                                    {(mp.goals > 0 || mp.assists > 0) && (
+                                    {shouldShowGoalsAssists({
+                                      matchDate: m.matchDate,
+                                      matchType: m.matchType,
+                                      goals: mp.goals,
+                                      assists: mp.assists,
+                                    }) && (
                                       <span className="font-semibold text-ink">
                                         {mp.goals}G / {mp.assists}A
                                       </span>

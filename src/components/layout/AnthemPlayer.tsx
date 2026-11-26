@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Music2, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const CHORUS_START_SEC = 10;
+const CHORUS_START_SEC = 10.8;
 const CHORUS_END_SEC = 21;
 const CHORUS_DURATION_SEC = CHORUS_END_SEC - CHORUS_START_SEC;
 
@@ -129,8 +129,8 @@ export function AnthemPlayer() {
         aria-pressed={mode === "full"}
         title={
           mode === "chorus"
-            ? "Modo estribillo (0:10 - 0:21). Clic para cambiar a completo."
-            : "Modo completo. Clic para volver al estribillo (0:10 - 0:21)."
+            ? "Modo estribillo (0:11 - 0:21). Clic para cambiar a completo."
+            : "Modo completo. Clic para volver al estribillo (0:11 - 0:21)."
         }
         aria-label={mode === "chorus" ? "Cambiar himno a modo completo" : "Cambiar himno a modo estribillo"}
         className={cn(

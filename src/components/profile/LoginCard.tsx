@@ -190,7 +190,7 @@ export function LoginCard({
           className="mx-auto h-12 w-auto"
         />
         <h2 className="font-display mt-3 text-2xl font-extrabold tracking-wide text-ink">
-          Acceso Oficial de Jugadores
+          Acceso oficial de jugadores
         </h2>
         <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-muted">
           Entrá con tu cuenta de Google para vincular tu ficha del padrón

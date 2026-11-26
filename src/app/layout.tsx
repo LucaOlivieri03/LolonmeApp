@@ -22,9 +22,9 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "LolonmeApp — Torneo Oficial LOLONMEBOL",
+  title: "LOLONMEAPP - Sitio oficial de la LOLONMEBOL",
   description:
-    "Hub digital mobile-first del torneo LOLONMEBOL: Liga Anual, Tabla Histórica, Copa, Estadísticas Grupales, Calendario y Administración.",
+    "Hub digital mobile-first del torneo LOLONMEBOL: Liga, Tabla Histórica, Copa, Estadísticas Grupales, Calendario y Administración.",
   manifest: "/manifest.json",
   icons: {
     icon: "/assets/Logo.svg",

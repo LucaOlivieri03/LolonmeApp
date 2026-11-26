@@ -15,7 +15,7 @@ const ROUND_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos",
   semifinal: "Semifinales",
   final: "Final de Copa",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 const ROUND_TAB_LABELS: Record<string, string> = {
@@ -23,7 +23,7 @@ const ROUND_TAB_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos",
   semifinal: "Semis",
   final: "Final",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 const ROUND_ORDER = [
@@ -50,12 +50,12 @@ function CupTieCard({
     <div
       className={cn(
         "w-full overflow-hidden rounded-md border bg-paper",
-        hasChampion
-          ? "border-gold-500 bg-gold-50"
-          : isSupercup
-            ? "border-gold-500 bg-gold-50/40"
+        isSupercup
+          ? "border-comp-lolonmebol bg-comp-lolonmebol-bg/50"
+          : hasChampion
+            ? "border-comp-cup bg-comp-cup-bg"
             : isFinal
-              ? "border-leather-600/50"
+              ? "border-comp-cup/70"
               : "border-rule"
       )}
     >
@@ -63,22 +63,34 @@ function CupTieCard({
         className={cn(
           "flex items-center justify-between gap-2 px-3 py-2 text-sm",
           tie.isAWin
-            ? isTitleMatch
-              ? "bg-gold-50 font-bold text-ink"
-              : "bg-pitch-50 font-bold text-pitch-900"
+            ? isSupercup
+              ? "bg-comp-lolonmebol-bg font-bold text-comp-lolonmebol-fg"
+              : "bg-comp-cup-bg font-bold text-comp-cup-fg"
             : "bg-surface text-ink"
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
           {tie.seedA && (
-            <span className="font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-pitch-800 text-xs font-bold text-white">
+            <span
+              className={cn(
+                "font-display inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-xs font-bold text-white",
+                isSupercup ? "bg-comp-lolonmebol" : "bg-comp-cup"
+              )}
+            >
               {tie.seedA}
             </span>
           )}
           <span className="truncate">{tie.playerAName}</span>
           {isTitleMatch && tie.isAWin && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-gold-500/60 bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-700">
-              <Trophy className="h-3 w-3 text-gold-600" aria-hidden="true" />
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                isSupercup
+                  ? "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg"
+                  : "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg"
+              )}
+            >
+              <Trophy className="h-3 w-3" aria-hidden="true" />
               Campeón
             </span>
           )}
@@ -88,15 +100,24 @@ function CupTieCard({
         </span>
       </div>
 
-      <div className={cn("h-px", hasChampion ? "bg-gold-500/40" : "bg-rule")} />
+      <div
+        className={cn(
+          "h-px",
+          isSupercup
+            ? "bg-comp-lolonmebol/40"
+            : hasChampion
+              ? "bg-comp-cup/40"
+              : "bg-rule"
+        )}
+      />
 
       <div
         className={cn(
           "flex items-center justify-between gap-2 px-3 py-2 text-sm",
           tie.isBWin
-            ? isTitleMatch
-              ? "bg-gold-50 font-bold text-ink"
-              : "bg-pitch-50 font-bold text-pitch-900"
+            ? isSupercup
+              ? "bg-comp-lolonmebol-bg font-bold text-comp-lolonmebol-fg"
+              : "bg-comp-cup-bg font-bold text-comp-cup-fg"
             : "bg-surface text-ink"
         )}
       >
@@ -108,8 +129,15 @@ function CupTieCard({
           )}
           <span className="truncate">{tie.playerBName}</span>
           {isTitleMatch && tie.isBWin && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-gold-500/60 bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-700">
-              <Trophy className="h-3 w-3 text-gold-600" aria-hidden="true" />
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                isSupercup
+                  ? "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg"
+                  : "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg"
+              )}
+            >
+              <Trophy className="h-3 w-3" aria-hidden="true" />
               Campeón
             </span>
           )}

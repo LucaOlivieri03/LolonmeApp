@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 type HomeTab = "annual" | "historical" | "cup";
 
 const HOME_TABS: readonly { id: HomeTab; label: string }[] = [
-  { id: "annual", label: "Tabla Anual" },
+  { id: "annual", label: "Tabla anual" },
   { id: "historical", label: "Histórica" },
   { id: "cup", label: "Copa" },
 ];
@@ -38,6 +38,12 @@ export function HomeCompetitionTabs({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const baseId = useId();
   const panelId = `${baseId}-panel`;
+
+  const hasCupStarted = cupTies.some(
+    (tie) =>
+      tie.round !== "lolonmebol" &&
+      (tie.hasScores || tie.isAWin || tie.isBWin)
+  );
 
   const handleTabKeyDown = (
     e: React.KeyboardEvent<HTMLButtonElement>,
@@ -87,7 +93,11 @@ export function HomeCompetitionTabs({
                 className={cn(
                   "min-h-10 rounded-sm px-3.5 text-sm font-semibold transition-colors",
                   isActive
-                    ? "bg-pitch-800 text-white"
+                    ? id === "annual"
+                      ? "bg-comp-league text-white"
+                      : id === "cup"
+                        ? "bg-comp-cup text-white"
+                        : "bg-pitch-800 text-white"
                     : "text-ink-muted hover:bg-surface-subtle hover:text-ink"
                 )}
               >
@@ -129,7 +139,11 @@ export function HomeCompetitionTabs({
         aria-labelledby={`${baseId}-tab-${activeTab}`}
       >
         {activeTab === "annual" && (
-          <StandingsTable result={annualStandings} mode="annual" />
+          <StandingsTable
+            result={annualStandings}
+            mode="annual"
+            hasCupStarted={hasCupStarted}
+          />
         )}
         {activeTab === "historical" && (
           <StandingsTable
