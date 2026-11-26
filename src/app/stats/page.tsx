@@ -2,6 +2,7 @@ import {
   StatsInteractiveView,
   type StatsTab,
 } from "@/components/stats/StatsInteractiveView";
+import type { StatsCompetitionFilter } from "@/lib/engine";
 import type { MatchModality } from "@/lib/types/domain";
 import { getViewerSession } from "@/server/auth";
 import { getStatsViewModel } from "@/server/queries";
@@ -11,12 +12,28 @@ interface StatsPageProps {
     tab?: string;
     season?: string;
     modality?: string;
+    type?: string;
+    all?: string;
     lab?: string;
     player?: string;
   }>;
 }
 
 const VALID_MODALITIES = new Set<MatchModality>(["F5", "F6", "F7"]);
+const VALID_COMPETITIONS = new Set<StatsCompetitionFilter>([
+  "league",
+  "cup",
+  "lolonmebol",
+]);
+
+function parseCompetitionParam(
+  raw: string | undefined
+): StatsCompetitionFilter {
+  if (raw && VALID_COMPETITIONS.has(raw as StatsCompetitionFilter)) {
+    return raw as StatsCompetitionFilter;
+  }
+  return "ALL";
+}
 
 function parseTabParam(raw: string | undefined): StatsTab {
   return raw === "player" ? "player" : "lab";
@@ -57,6 +74,8 @@ export default async function StatsPage({ searchParams }: StatsPageProps) {
   const viewModel = await getStatsViewModel({
     seasonFilter: parseSeasonParam(params.season),
     modality: parseModalityParam(params.modality),
+    matchType: parseCompetitionParam(params.type),
+    includeLowSample: params.all === "1" || params.all === "true",
     labPlayerIds: parseLabParam(params.lab),
     playerId: params.player?.trim() || session.playerId || undefined,
   });
@@ -67,6 +86,8 @@ export default async function StatsPage({ searchParams }: StatsPageProps) {
       seasons={viewModel.seasons}
       selectedSeasonId={viewModel.selectedSeasonId}
       selectedModality={viewModel.selectedModality}
+      selectedMatchType={viewModel.selectedMatchType}
+      includeLowSample={viewModel.includeLowSample}
       activePlayers={viewModel.activePlayers}
       lab={viewModel.lab}
       profile={viewModel.profile}

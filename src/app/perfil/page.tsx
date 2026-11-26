@@ -110,24 +110,20 @@ export default async function PerfilPage({ searchParams }: PerfilPageProps) {
               vm.annualRow?.position ?? vm.historicalRow?.position ?? null;
             const starsCount = vm.historicalRow?.stars ?? 0;
             const winRateSource =
-              vm.annualRow && vm.annualRow.pj > 0
+              vm.annualRow && vm.annualRow.pg + vm.annualRow.pe + vm.annualRow.pp > 0
                 ? {
-                    label: `Efectividad ${vm.activeSeasonName}`,
-                    pg: vm.annualRow.pg,
-                    pj: vm.annualRow.pj,
+                    label: `PG% ${vm.activeSeasonName}`,
+                    winRate: vm.annualRow.winRate,
                   }
-                : vm.historicalRow && vm.historicalRow.pj > 0
+                : vm.historicalRow &&
+                    vm.historicalRow.pg + vm.historicalRow.pe + vm.historicalRow.pp > 0
                   ? {
-                      label: "Efectividad Histórica",
-                      pg: vm.historicalRow.pg,
-                      pj: vm.historicalRow.pj,
+                      label: "PG% histórico",
+                      winRate: vm.historicalRow.winRate,
                     }
                   : null;
             const winRatePct = winRateSource
-              ? Math.min(
-                  100,
-                  Math.max(0, (winRateSource.pg / winRateSource.pj) * 100)
-                )
+              ? Math.min(100, Math.max(0, winRateSource.winRate))
               : null;
 
             return (

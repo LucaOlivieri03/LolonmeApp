@@ -25,6 +25,7 @@ import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type { MatchModality, Season } from "@/lib/types/domain";
 import type {
   StatsActivePlayerOption,
+  StatsCompetitionFilter,
   StatsLabSummary,
   StatsProfileSummary,
 } from "@/lib/types/view-models";
@@ -101,12 +102,13 @@ const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   },
   effectiveness310: {
     key: "effectiveness310",
-    title: "Efectividad 3/1/0",
+    title: "Efectividad (Liga 3/1/0 · Copa 4/2/0)",
     description:
-      "Porcentaje de puntos obtenidos sobre el total posible aplicando la escala estándar de 3 puntos por victoria, 1 por empate y 0 por derrota.",
-    formula: "Efectividad 3/1/0 (%) = ((V × 3 + E) / (PJ × 3)) × 100",
+      "Porcentaje de puntos obtenidos sobre el máximo posible: Liga y LOLONMEBOL puntúan 3/1/0, y Copa puntúa 4/2/0 (contando igual para los capitanes).",
+    formula:
+      "Efectividad (%) = (∑ puntos obtenidos / ∑ puntos máximos posibles) × 100",
     example:
-      "Ejemplo: en 4 PJ con 2 victorias, 1 empate y 1 derrota se suman 7 de 12 puntos posibles: (7 / 12) × 100 = 58,3%.",
+      "Ejemplo: 1 victoria en Liga (3/3) y 1 empate en Copa (2/4) suman 5 de 7 puntos posibles: (5 / 7) × 100 = 71,4%.",
   },
   h2h: {
     key: "h2h",
@@ -242,6 +244,8 @@ export interface StatsInteractiveViewProps {
   seasons: Season[];
   selectedSeasonId: string;
   selectedModality: MatchModality | "ALL";
+  selectedMatchType: StatsCompetitionFilter;
+  includeLowSample: boolean;
   activePlayers: StatsActivePlayerOption[];
   lab: StatsLabSummary;
   profile: StatsProfileSummary;
@@ -253,6 +257,8 @@ export function StatsInteractiveView({
   seasons,
   selectedSeasonId,
   selectedModality,
+  selectedMatchType,
+  includeLowSample,
   activePlayers,
   lab,
   profile,
@@ -281,12 +287,16 @@ export function StatsInteractiveView({
     tab?: StatsTab;
     seasonId?: string;
     modality?: MatchModality | "ALL";
+    matchType?: StatsCompetitionFilter;
+    includeLowSample?: boolean;
     labIds?: string[];
     playerId?: string;
   }) => {
     const resolvedTab = next.tab ?? tab;
     const resolvedSeasonId = next.seasonId ?? selectedSeasonId;
     const resolvedModality = next.modality ?? selectedModality;
+    const resolvedMatchType = next.matchType ?? selectedMatchType;
+    const resolvedIncludeLowSample = next.includeLowSample ?? includeLowSample;
     const resolvedLabIds = next.labIds ?? lab.selectedPlayerIds;
     const resolvedPlayerId = next.playerId ?? profile.selectedPlayerId;
 
@@ -302,6 +312,12 @@ export function StatsInteractiveView({
     }
     if (resolvedModality !== "ALL") {
       params.set("modality", resolvedModality);
+    }
+    if (resolvedMatchType !== "ALL") {
+      params.set("type", resolvedMatchType);
+    }
+    if (resolvedIncludeLowSample) {
+      params.set("all", "1");
     }
     if (next.labIds !== undefined) {
       params.set(
@@ -531,6 +547,35 @@ export function StatsInteractiveView({
           ))}
         </div>
 
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-bold uppercase tracking-wider text-ink-muted">
+            Torneo:
+          </span>
+          {(
+            [
+              { id: "ALL", label: "Todos", activeClass: "border-pitch-800 bg-pitch-800 text-white" },
+              { id: "league", label: "Liga", activeClass: "border-comp-league bg-comp-league text-white" },
+              { id: "cup", label: "Copa", activeClass: "border-comp-cup bg-comp-cup text-white" },
+              { id: "lolonmebol", label: "LOLONMEBOL", activeClass: "border-comp-lolonmebol bg-comp-lolonmebol text-white" },
+            ] as const
+          ).map(({ id, label, activeClass }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={selectedMatchType === id}
+              onClick={() => navigateWithParams({ matchType: id })}
+              className={cn(
+                "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
+                selectedMatchType === id
+                  ? activeClass
+                  : "border-rule bg-paper text-ink-muted hover:text-ink"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <label className="inline-flex min-h-10 w-fit cursor-pointer items-center gap-2.5 rounded-md border border-rule bg-paper px-3 text-sm font-medium text-ink transition-colors hover:border-rule-strong">
           <input
             type="checkbox"
@@ -538,7 +583,7 @@ export function StatsInteractiveView({
             onChange={(e) => setShowEffectiveness310(e.target.checked)}
             className="h-4 w-4 rounded-sm accent-pitch-800"
           />
-          Efectividad 3/1/0
+          Efectividad (Liga / Copa)
         </label>
       </section>
 
@@ -659,13 +704,30 @@ export function StatsInteractiveView({
             <div className="mt-3 border-t border-rule pt-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-muted">
-                  Padrón activo con umbral mínimo de 3 PJ
+                  {includeLowSample
+                    ? "Padrón completo (incluye parejas y jugadores con < 3 PJ)"
+                    : "Padrón activo con umbral mínimo de 3 PJ"}
                 </span>
-                <MetricFormulaButton
-                  metricKey="minThreshold"
-                  openMetrics={openMetrics}
-                  onToggle={toggleMetricFormula}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink transition-colors hover:border-rule-strong">
+                    <input
+                      type="checkbox"
+                      checked={includeLowSample}
+                      onChange={(e) =>
+                        navigateWithParams({
+                          includeLowSample: e.target.checked,
+                        })
+                      }
+                      className="h-3.5 w-3.5 rounded-sm accent-pitch-800"
+                    />
+                    Incluir &lt; 3 PJ
+                  </label>
+                  <MetricFormulaButton
+                    metricKey="minThreshold"
+                    openMetrics={openMetrics}
+                    onToggle={toggleMetricFormula}
+                  />
+                </div>
               </div>
               <MetricFormulaPanel
                 metricKey="minThreshold"
@@ -750,7 +812,7 @@ export function StatsInteractiveView({
                           metricKey="effectiveness310"
                           openMetrics={openMetrics}
                           onToggle={toggleMetricFormula}
-                          label={`Efect. 3/1/0 (${lab.subgroup.effectiveness310Pct.toFixed(1)}%)`}
+                          label={`Efectividad (${lab.subgroup.effectiveness310Pct.toFixed(1)}%)`}
                         />
                       </div>
                       <MetricFormulaPanel
@@ -770,7 +832,7 @@ export function StatsInteractiveView({
 
                   {showEffectiveness310 && (
                     <p className="mt-3 border-t border-rule pt-2.5 text-xs text-ink-muted">
-                      Efectividad unificada 3/1/0 en gráfico:{" "}
+                      Efectividad (Liga 3/1/0 · Copa 4/2/0) en gráfico:{" "}
                       <strong className="text-ink">
                         {lab.subgroup.effectiveness310Pct.toFixed(1)}%
                       </strong>

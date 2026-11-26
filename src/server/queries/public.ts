@@ -441,6 +441,9 @@ export function buildStatsViewModel(
   }
 
   const selectedModality = filters.modality ?? "ALL";
+  const selectedMatchType = filters.matchType ?? "ALL";
+  const includeLowSample = Boolean(filters.includeLowSample);
+  const minThreshold = includeLowSample ? 1 : 3;
 
   const historicalStandings = computeStandings({
     players: data.players,
@@ -449,7 +452,7 @@ export function buildStatsViewModel(
   });
 
   const activeRows = historicalStandings.rows.filter(
-    (row) => row.totalPjAllMatches >= 3
+    (row) => row.totalPjAllMatches >= minThreshold
   );
 
   const activePlayers: StatsActivePlayerOption[] = activeRows.map((p) => ({
@@ -469,6 +472,7 @@ export function buildStatsViewModel(
   const engineFilter = {
     seasonId: selectedSeasonId === "ALL" ? undefined : selectedSeasonId,
     modality: selectedModality,
+    matchType: selectedMatchType,
   };
 
   // Lab Grupal computation
@@ -540,12 +544,12 @@ export function buildStatsViewModel(
     }));
 
     bestTeammates = [...pairs]
-      .filter((x) => x.stats.matchesTogether >= 3)
+      .filter((x) => x.stats.matchesTogether >= minThreshold)
       .sort((a, b) => b.stats.wilsonCtPct - a.stats.wilsonCtPct)
       .slice(0, 6);
 
     topRivals = [...pairs]
-      .filter((x) => x.stats.matchesAgainst >= 3)
+      .filter((x) => x.stats.matchesAgainst >= minThreshold)
       .sort(
         (a, b) => Math.abs(b.stats.h2hBalance) - Math.abs(a.stats.h2hBalance)
       )
@@ -556,6 +560,8 @@ export function buildStatsViewModel(
     seasons,
     selectedSeasonId,
     selectedModality,
+    selectedMatchType,
+    includeLowSample,
     activePlayers,
     lab: {
       selectedPlayerIds: selectedLabPlayerIds,

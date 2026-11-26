@@ -88,6 +88,8 @@ export interface MatchPlayerOption {
   displayName: string;
 }
 
+export type StatsCompetitionFilter = "ALL" | "league" | "cup" | "lolonmebol";
+
 export interface StatsActivePlayerOption {
   id: string;
   displayName: string;

@@ -1,9 +1,13 @@
-import type { Match, MatchModality } from "@/lib/types/domain";
+import type { Match, MatchModality, MatchType } from "@/lib/types/domain";
+import type { StatsCompetitionFilter } from "@/lib/types/view-models";
 import { getMatchOutcome, getTeamResult } from "./outcome";
+
+export type { StatsCompetitionFilter };
 
 export interface StatsFilter {
   seasonId?: string;
   modality?: MatchModality | "ALL";
+  matchType?: StatsCompetitionFilter;
 }
 
 export interface PairwiseStats {
@@ -61,6 +65,27 @@ export function computeEffectiveness310(
   return ((wins * 3 + draws) / (n * 3)) * 100;
 }
 
+/**
+ * Points scale for Effectiveness (#41):
+ * - Cup matches: 4 win / 2 draw / 0 loss (counted for captains too)
+ * - League / LOLONMEBOL / other matches: 3 win / 1 draw / 0 loss
+ */
+function getEffectivenessMatchPoints(
+  matchType: MatchType,
+  result: "win" | "draw" | "loss"
+): { earned: number; max: number } {
+  if (matchType === "cup") {
+    return {
+      earned: result === "win" ? 4 : result === "draw" ? 2 : 0,
+      max: 4,
+    };
+  }
+  return {
+    earned: result === "win" ? 3 : result === "draw" ? 1 : 0,
+    max: 3,
+  };
+}
+
 export function filterStatsMatches(
   matches: Match[],
   filter?: StatsFilter
@@ -70,6 +95,15 @@ export function filterStatsMatches(
     if (filter?.seasonId && m.seasonId !== filter.seasonId) return false;
     if (filter?.modality && filter.modality !== "ALL" && m.modality !== filter.modality) {
       return false;
+    }
+    if (filter?.matchType && filter.matchType !== "ALL") {
+      if (filter.matchType === "league") {
+        if (m.matchType !== "league" && m.matchType !== "league_tiebreaker") {
+          return false;
+        }
+      } else if (m.matchType !== filter.matchType) {
+        return false;
+      }
     }
     return true;
   });
@@ -87,6 +121,8 @@ export function computePairwiseStats(
   let winsTogether = 0;
   let drawsTogether = 0;
   let lossesTogether = 0;
+  let earnedEffectivenessPts = 0;
+  let maxEffectivenessPts = 0;
 
   let matchesAgainst = 0;
   let winsA = 0;
@@ -107,6 +143,11 @@ export function computePairwiseStats(
       if (res === "win") winsTogether += 1;
       else if (res === "draw") drawsTogether += 1;
       else if (res === "loss") lossesTogether += 1;
+      if (res) {
+        const pts = getEffectivenessMatchPoints(match.matchType, res);
+        earnedEffectivenessPts += pts.earned;
+        maxEffectivenessPts += pts.max;
+      }
     } else {
       matchesAgainst += 1;
       const resA = getTeamResult(outcome, entryA.team);
@@ -126,11 +167,10 @@ export function computePairwiseStats(
     chemistryPct:
       matchesTogether > 0 ? (winsTogether / matchesTogether) * 100 : 0,
     wilsonCtPct: computeWilsonConsistency(winsTogether, matchesTogether),
-    effectiveness310Pct: computeEffectiveness310(
-      winsTogether,
-      drawsTogether,
-      matchesTogether
-    ),
+    effectiveness310Pct:
+      maxEffectivenessPts > 0
+        ? (earnedEffectivenessPts / maxEffectivenessPts) * 100
+        : 0,
     matchesAgainst,
     winsA,
     winsB,
@@ -163,6 +203,8 @@ export function computeSubgroupStats(
   let wins = 0;
   let draws = 0;
   let losses = 0;
+  let earnedEffectivenessPts = 0;
+  let maxEffectivenessPts = 0;
 
   for (const match of scoped) {
     const outcome = getMatchOutcome(match);
@@ -181,6 +223,11 @@ export function computeSubgroupStats(
     if (res === "win") wins += 1;
     else if (res === "draw") draws += 1;
     else if (res === "loss") losses += 1;
+    if (res) {
+      const pts = getEffectivenessMatchPoints(match.matchType, res);
+      earnedEffectivenessPts += pts.earned;
+      maxEffectivenessPts += pts.max;
+    }
   }
 
   return {
@@ -191,6 +238,9 @@ export function computeSubgroupStats(
     losses,
     chemistryPct: matchesPlayed > 0 ? (wins / matchesPlayed) * 100 : 0,
     wilsonCtPct: computeWilsonConsistency(wins, matchesPlayed),
-    effectiveness310Pct: computeEffectiveness310(wins, draws, matchesPlayed),
+    effectiveness310Pct:
+      maxEffectivenessPts > 0
+        ? (earnedEffectivenessPts / maxEffectivenessPts) * 100
+        : 0,
   };
 }

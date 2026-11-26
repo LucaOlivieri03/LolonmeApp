@@ -313,6 +313,60 @@ describe("Stats Engine (Química, Wilson CT% z=1.28, H2H, Subgroups)", () => {
     expect(subgroup.matchesPlayed).toBe(2);
     expect(subgroup.wins).toBe(1);
   });
+
+  it("weights Cup matches 4/2/0 (including captains) in Effectiveness and filters by competition (#41)", () => {
+    const matches: Match[] = [
+      {
+        id: "m-league",
+        seasonId: "s26",
+        matchNumber: 1,
+        matchDate: "2026-02-04",
+        matchType: "league",
+        modality: "F5",
+        teamAScore: 10,
+        teamBScore: 6,
+        countsForLeague: true,
+        countsForStats: true,
+        votingStatus: "closed",
+        players: [
+          { id: "1", matchId: "m-league", playerId: "p1", team: "A", isCupCaptain: false, goals: 0, assists: 0, adminRating: null, isMvp: false },
+          { id: "2", matchId: "m-league", playerId: "p2", team: "A", isCupCaptain: false, goals: 0, assists: 0, adminRating: null, isMvp: false },
+        ],
+      },
+      {
+        id: "m-cup",
+        seasonId: "s26",
+        matchNumber: 22,
+        matchDate: "2026-07-08",
+        matchType: "cup",
+        modality: "F5",
+        teamAScore: 7,
+        teamBScore: 7,
+        countsForLeague: true,
+        countsForStats: true,
+        votingStatus: "closed",
+        players: [
+          // p1 is Cup Captain -> still counted as 2/4 in Effectiveness (#41)
+          { id: "3", matchId: "m-cup", playerId: "p1", team: "A", isCupCaptain: true, goals: 0, assists: 0, adminRating: null, isMvp: false },
+          { id: "4", matchId: "m-cup", playerId: "p2", team: "A", isCupCaptain: false, goals: 0, assists: 0, adminRating: null, isMvp: false },
+        ],
+      },
+    ];
+
+    // Combined: League win (3/3) + Cup draw (2/4) = 5/7 = 71.43%
+    const combined = computePairwiseStats("p1", "p2", matches);
+    expect(combined.effectiveness310Pct).toBeCloseTo((5 / 7) * 100, 2);
+
+    // Filtered to Cup only: 1 draw (2/4) = 50%
+    const cupOnly = computePairwiseStats("p1", "p2", matches, { matchType: "cup" });
+    expect(cupOnly.matchesTogether).toBe(1);
+    expect(cupOnly.effectiveness310Pct).toBeCloseTo(50, 2);
+
+    // Filtered to League only: 1 win (3/3) = 100%
+    const leagueOnly = computeSubgroupStats(["p1", "p2"], matches, { matchType: "league" });
+    expect(leagueOnly.matchesPlayed).toBe(1);
+    expect(leagueOnly.effectiveness310Pct).toBeCloseTo(100, 2);
+  });
 });
 
 describe("Fund (Pozo) Engine", () => {
