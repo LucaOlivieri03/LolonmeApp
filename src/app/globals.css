@@ -51,6 +51,20 @@
   --color-crimson-600: #c4202b;
   --color-crimson-700: #9e1620;
 
+  /* Competition Colors (exact Google Sheets 'Fechas 26' hex values) */
+  --color-comp-league: #8e7cc3;
+  --color-comp-league-bg: var(--theme-comp-league-bg);
+  --color-comp-league-fg: var(--theme-comp-league-fg);
+  --color-comp-cup: #3d85c6;
+  --color-comp-cup-bg: var(--theme-comp-cup-bg);
+  --color-comp-cup-fg: var(--theme-comp-cup-fg);
+  --color-comp-lolonmebol: #e06666;
+  --color-comp-lolonmebol-bg: var(--theme-comp-lolonmebol-bg);
+  --color-comp-lolonmebol-fg: var(--theme-comp-lolonmebol-fg);
+  --color-comp-f11: #c27ba0;
+  --color-comp-f11-bg: var(--theme-comp-f11-bg);
+  --color-comp-f11-fg: var(--theme-comp-f11-fg);
+
   /* Typography */
   --font-sans: var(--font-archivo), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: var(--font-barlow-condensed), var(--font-archivo), system-ui, sans-serif;
@@ -78,6 +92,14 @@
   --theme-chart-secondary: #c86e0e;
   --theme-chart-tertiary: #163963;
   --theme-chart-negative: #c4202b;
+  --theme-comp-league-bg: #f3f0fa;
+  --theme-comp-league-fg: #4b3880;
+  --theme-comp-cup-bg: #ebf3fa;
+  --theme-comp-cup-fg: #1b4f82;
+  --theme-comp-lolonmebol-bg: #fceeee;
+  --theme-comp-lolonmebol-fg: #8c2424;
+  --theme-comp-f11-bg: #f8eff4;
+  --theme-comp-f11-fg: #6e2d50;
 
   --background: var(--theme-paper);
   --foreground: var(--theme-ink);
@@ -109,10 +131,22 @@
   --theme-chart-secondary: #f0a34b;
   --theme-chart-tertiary: #6ca6e8;
   --theme-chart-negative: #f2747d;
+  --theme-comp-league-bg: #261f3b;
+  --theme-comp-league-fg: #cfc4f2;
+  --theme-comp-cup-bg: #12263b;
+  --theme-comp-cup-fg: #90c4f2;
+  --theme-comp-lolonmebol-bg: #3b1719;
+  --theme-comp-lolonmebol-fg: #f5a6a6;
+  --theme-comp-f11-bg: #331928;
+  --theme-comp-f11-fg: #e8b5d0;
   color-scheme: dark;
 }
 
 /* Keep light-on-dark-green text legible on pitch-800/900 headers & banners */
+:root[data-theme="estadio"] .text-paper {
+  color: #f6f5f0;
+}
+
 :root[data-theme="estadio"] .text-pitch-50 {
   color: #edf7f1;
 }
@@ -224,20 +258,53 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  caret-color: #c86e0e;
+  caret-color: var(--color-leather-600);
   text-underline-offset: 3px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background-color: #0a4a28;
+  background-color: var(--color-pitch-800);
   color: #f6f5f0;
 }
 
 :focus-visible {
-  outline: 2px solid #c86e0e;
+  outline: 2px solid var(--color-leather-600);
   outline-offset: 2px;
+}
+
+@keyframes anthem-eq-bar {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.anthem-eq-bar {
+  transform-origin: bottom;
+  animation: anthem-eq-bar 780ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Intentional reduced-motion alternative: keep opacity/color state cues, stop loops & spatial travel */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce,
+  .anthem-eq-bar {
+    animation: none !important;
+  }
+
+  .anthem-eq-bar {
+    transform: scaleY(0.75);
+  }
 }
 
 table {

@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+} from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -19,6 +25,7 @@ import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import type { MatchModality, Season } from "@/lib/types/domain";
 import type {
   StatsActivePlayerOption,
+  StatsCompetitionFilter,
   StatsLabSummary,
   StatsProfileSummary,
 } from "@/lib/types/view-models";
@@ -95,12 +102,13 @@ const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
   },
   effectiveness310: {
     key: "effectiveness310",
-    title: "Efectividad 3/1/0",
+    title: "Efectividad (Liga 3/1/0 · Copa 4/2/0)",
     description:
-      "Porcentaje de puntos obtenidos sobre el total posible aplicando la escala estándar de 3 puntos por victoria, 1 por empate y 0 por derrota.",
-    formula: "Efectividad 3/1/0 (%) = ((V × 3 + E) / (PJ × 3)) × 100",
+      "Porcentaje de puntos obtenidos sobre el máximo posible: Liga y LOLONMEBOL puntúan 3/1/0, y Copa puntúa 4/2/0 (contando igual para los capitanes).",
+    formula:
+      "Efectividad (%) = (∑ puntos obtenidos / ∑ puntos máximos posibles) × 100",
     example:
-      "Ejemplo: en 4 PJ con 2 victorias, 1 empate y 1 derrota se suman 7 de 12 puntos posibles: (7 / 12) × 100 = 58,3%.",
+      "Ejemplo: 1 victoria en Liga (3/3) y 1 empate en Copa (2/4) suman 5 de 7 puntos posibles: (5 / 7) × 100 = 71,4%.",
   },
   h2h: {
     key: "h2h",
@@ -134,11 +142,11 @@ const METRIC_DEFINITIONS: Record<MetricKey, MetricDefinition> = {
     key: "minThreshold",
     title: "Umbral mínimo de 3 PJ",
     description:
-      "Filtro de estabilidad estadística aplicado al padrón activo y a los rankings de Mejores Socios e Historial vs Rivales para descartar cruces aislados.",
+      "Filtro de estabilidad estadística aplicado al padrón activo y a los rankings de Mejores socios e Historial vs rivales para descartar cruces aislados.",
     formula:
       "Condición de inclusión: PJ_totales ≥ 3 (padrón activo) · PJ_juntos ≥ 3 (socios) · PJ_enfrentados ≥ 3 (rivales)",
     example:
-      "Ejemplo: una dupla con 2 victorias en 2 PJ juntos aún no ingresa al ranking de Mejores Socios hasta disputar su 3.º partido compartido.",
+      "Ejemplo: una dupla con 2 victorias en 2 PJ juntos aún no ingresa al ranking de Mejores socios hasta disputar su 3.º partido compartido.",
   },
 };
 
@@ -197,11 +205,47 @@ function MetricFormulaPanel({
   );
 }
 
+interface ChemistryVerdict {
+  label: string;
+  badgeClass: string;
+}
+
+function getChemistryVerdict(
+  pct: number,
+  matchesTogether: number
+): ChemistryVerdict | null {
+  if (matchesTogether < 2) return null;
+  if (pct >= 75) {
+    return {
+      label: "Dupla de Selección",
+      badgeClass: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    };
+  }
+  if (pct >= 55) {
+    return {
+      label: "Sociedad Confiable",
+      badgeClass: "border-navy-100 bg-navy-50 text-navy-800",
+    };
+  }
+  if (pct >= 35) {
+    return {
+      label: "Química Irregular",
+      badgeClass: "border-leather-500/40 bg-leather-50 text-leather-700",
+    };
+  }
+  return {
+    label: "Mejor de Rivales",
+    badgeClass: "border-crimson-600/30 bg-crimson-50 text-crimson-700",
+  };
+}
+
 export interface StatsInteractiveViewProps {
   initialTab: StatsTab;
   seasons: Season[];
   selectedSeasonId: string;
   selectedModality: MatchModality | "ALL";
+  selectedMatchType: StatsCompetitionFilter;
+  includeLowSample: boolean;
   activePlayers: StatsActivePlayerOption[];
   lab: StatsLabSummary;
   profile: StatsProfileSummary;
@@ -213,6 +257,8 @@ export function StatsInteractiveView({
   seasons,
   selectedSeasonId,
   selectedModality,
+  selectedMatchType,
+  includeLowSample,
   activePlayers,
   lab,
   profile,
@@ -225,6 +271,8 @@ export function StatsInteractiveView({
   const [openMetrics, setOpenMetrics] = useState<Record<string, boolean>>({});
   const [labComboId, setLabComboId] = useState("");
   const [showAllPlayers, setShowAllPlayers] = useState(false);
+  const labTabRef = useRef<HTMLButtonElement | null>(null);
+  const playerTabRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedPlayers = useMemo(
     () => activePlayers.filter((p) => lab.selectedPlayerIds.includes(p.id)),
@@ -239,12 +287,16 @@ export function StatsInteractiveView({
     tab?: StatsTab;
     seasonId?: string;
     modality?: MatchModality | "ALL";
+    matchType?: StatsCompetitionFilter;
+    includeLowSample?: boolean;
     labIds?: string[];
     playerId?: string;
   }) => {
     const resolvedTab = next.tab ?? tab;
     const resolvedSeasonId = next.seasonId ?? selectedSeasonId;
     const resolvedModality = next.modality ?? selectedModality;
+    const resolvedMatchType = next.matchType ?? selectedMatchType;
+    const resolvedIncludeLowSample = next.includeLowSample ?? includeLowSample;
     const resolvedLabIds = next.labIds ?? lab.selectedPlayerIds;
     const resolvedPlayerId = next.playerId ?? profile.selectedPlayerId;
 
@@ -260,6 +312,12 @@ export function StatsInteractiveView({
     }
     if (resolvedModality !== "ALL") {
       params.set("modality", resolvedModality);
+    }
+    if (resolvedMatchType !== "ALL") {
+      params.set("type", resolvedMatchType);
+    }
+    if (resolvedIncludeLowSample) {
+      params.set("all", "1");
     }
     if (next.labIds !== undefined) {
       params.set(
@@ -337,13 +395,42 @@ export function StatsInteractiveView({
 
   const profileRow = profile.row;
 
+  const selectTab = (nextTab: StatsTab, focusButton = false) => {
+    setTab(nextTab);
+    navigateWithParams({ tab: nextTab });
+    if (focusButton) {
+      if (nextTab === "lab") {
+        labTabRef.current?.focus();
+      } else {
+        playerTabRef.current?.focus();
+      }
+    }
+  };
+
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      selectTab(tab === "lab" ? "player" : "lab", true);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectTab("lab", true);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectTab("player", true);
+    }
+  };
+
+  const labVerdict = lab.subgroup
+    ? getChemistryVerdict(lab.subgroup.chemistryPct, lab.subgroup.matchesPlayed)
+    : null;
+
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-3 border-b border-rule pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <BarChart3 className="h-6 w-6 text-pitch-700" />
-            Estadísticas y Lab Grupal
+            Estadísticas y lab grupal
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             Química (%), Consistencia Wilson (z = 1.28) e Historial mano a mano
@@ -354,16 +441,18 @@ export function StatsInteractiveView({
         <div
           role="tablist"
           aria-label="Modo de estadísticas"
+          onKeyDown={handleTabKeyDown}
           className="inline-flex rounded-md border border-rule bg-surface p-0.5"
         >
           <button
+            ref={labTabRef}
+            id="stats-tab-lab"
             type="button"
             role="tab"
             aria-selected={tab === "lab"}
-            onClick={() => {
-              setTab("lab");
-              navigateWithParams({ tab: "lab" });
-            }}
+            aria-controls="stats-panel-lab"
+            tabIndex={tab === "lab" ? 0 : -1}
+            onClick={() => selectTab("lab")}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3.5 text-sm font-semibold transition-colors",
               tab === "lab"
@@ -375,13 +464,14 @@ export function StatsInteractiveView({
             Lab Grupal
           </button>
           <button
+            ref={playerTabRef}
+            id="stats-tab-player"
             type="button"
             role="tab"
             aria-selected={tab === "player"}
-            onClick={() => {
-              setTab("player");
-              navigateWithParams({ tab: "player" });
-            }}
+            aria-controls="stats-panel-player"
+            tabIndex={tab === "player" ? 0 : -1}
+            onClick={() => selectTab("player")}
             className={cn(
               "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3.5 text-sm font-semibold transition-colors",
               tab === "player"
@@ -390,7 +480,7 @@ export function StatsInteractiveView({
             )}
           >
             <User className="h-4 w-4" />
-            Stats por Jugador
+            Stats por jugador
           </button>
         </div>
       </header>
@@ -406,6 +496,7 @@ export function StatsInteractiveView({
           </span>
           <button
             type="button"
+            aria-pressed={selectedSeasonId === "ALL"}
             onClick={() => navigateWithParams({ seasonId: "ALL" })}
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -420,6 +511,7 @@ export function StatsInteractiveView({
             <button
               key={s.id}
               type="button"
+              aria-pressed={selectedSeasonId === s.id}
               onClick={() => navigateWithParams({ seasonId: s.id })}
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3 text-base font-bold transition-colors",
@@ -441,6 +533,7 @@ export function StatsInteractiveView({
             <button
               key={mod}
               type="button"
+              aria-pressed={selectedModality === mod}
               onClick={() => navigateWithParams({ modality: mod })}
               className={cn(
                 "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -454,6 +547,35 @@ export function StatsInteractiveView({
           ))}
         </div>
 
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-bold uppercase tracking-wider text-ink-muted">
+            Torneo:
+          </span>
+          {(
+            [
+              { id: "ALL", label: "Todos", activeClass: "border-pitch-800 bg-pitch-800 text-white" },
+              { id: "league", label: "Liga", activeClass: "border-comp-league bg-comp-league text-white" },
+              { id: "cup", label: "Copa", activeClass: "border-comp-cup bg-comp-cup text-white" },
+              { id: "lolonmebol", label: "LOLONMEBOL", activeClass: "border-comp-lolonmebol bg-comp-lolonmebol text-white" },
+            ] as const
+          ).map(({ id, label, activeClass }) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={selectedMatchType === id}
+              onClick={() => navigateWithParams({ matchType: id })}
+              className={cn(
+                "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
+                selectedMatchType === id
+                  ? activeClass
+                  : "border-rule bg-paper text-ink-muted hover:text-ink"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <label className="inline-flex min-h-10 w-fit cursor-pointer items-center gap-2.5 rounded-md border border-rule bg-paper px-3 text-sm font-medium text-ink transition-colors hover:border-rule-strong">
           <input
             type="checkbox"
@@ -461,12 +583,15 @@ export function StatsInteractiveView({
             onChange={(e) => setShowEffectiveness310(e.target.checked)}
             className="h-4 w-4 rounded-sm accent-pitch-800"
           />
-          Efectividad 3/1/0
+          Efectividad (Liga / Copa)
         </label>
       </section>
 
       {tab === "lab" ? (
         <div
+          id="stats-panel-lab"
+          role="tabpanel"
+          aria-labelledby="stats-tab-lab"
           className={cn("space-y-4 transition-opacity", isPending && "opacity-70")}
         >
           <section className="rounded-lg border border-rule bg-surface p-4">
@@ -579,13 +704,30 @@ export function StatsInteractiveView({
             <div className="mt-3 border-t border-rule pt-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-muted">
-                  Padrón activo con umbral mínimo de 3 PJ
+                  {includeLowSample
+                    ? "Padrón completo (incluye parejas y jugadores con < 3 PJ)"
+                    : "Padrón activo con umbral mínimo de 3 PJ"}
                 </span>
-                <MetricFormulaButton
-                  metricKey="minThreshold"
-                  openMetrics={openMetrics}
-                  onToggle={toggleMetricFormula}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border border-rule bg-paper px-2.5 text-xs font-semibold text-ink transition-colors hover:border-rule-strong">
+                    <input
+                      type="checkbox"
+                      checked={includeLowSample}
+                      onChange={(e) =>
+                        navigateWithParams({
+                          includeLowSample: e.target.checked,
+                        })
+                      }
+                      className="h-3.5 w-3.5 rounded-sm accent-pitch-800"
+                    />
+                    Incluir &lt; 3 PJ
+                  </label>
+                  <MetricFormulaButton
+                    metricKey="minThreshold"
+                    openMetrics={openMetrics}
+                    onToggle={toggleMetricFormula}
+                  />
+                </div>
               </div>
               <MetricFormulaPanel
                 metricKey="minThreshold"
@@ -604,9 +746,21 @@ export function StatsInteractiveView({
               {lab.subgroup && (
                 <section className="flex flex-col justify-between rounded-lg border border-rule bg-surface p-4">
                   <div>
-                    <h3 className="font-display border-b border-rule pb-2 text-lg font-bold tracking-wide text-pitch-800">
-                      Jugando Juntos · {lab.selectedPlayerNames.join(" + ")}
-                    </h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
+                      <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
+                        Jugando juntos · {lab.selectedPlayerNames.join(" + ")}
+                      </h3>
+                      {labVerdict && (
+                        <span
+                          className={cn(
+                            "rounded-sm border px-2 py-0.5 text-[11px] font-bold",
+                            labVerdict.badgeClass
+                          )}
+                        >
+                          {labVerdict.label}
+                        </span>
+                      )}
+                    </div>
 
                     <dl className="mt-3 grid grid-cols-3 divide-x divide-rule rounded-md bg-paper">
                       <div className="px-2.5 py-2.5 text-center sm:px-3">
@@ -658,7 +812,7 @@ export function StatsInteractiveView({
                           metricKey="effectiveness310"
                           openMetrics={openMetrics}
                           onToggle={toggleMetricFormula}
-                          label={`Efect. 3/1/0 (${lab.subgroup.effectiveness310Pct.toFixed(1)}%)`}
+                          label={`Efectividad (${lab.subgroup.effectiveness310Pct.toFixed(1)}%)`}
                         />
                       </div>
                       <MetricFormulaPanel
@@ -678,7 +832,7 @@ export function StatsInteractiveView({
 
                   {showEffectiveness310 && (
                     <p className="mt-3 border-t border-rule pt-2.5 text-xs text-ink-muted">
-                      Efectividad unificada 3/1/0 en gráfico:{" "}
+                      Efectividad (Liga 3/1/0 · Copa 4/2/0) en gráfico:{" "}
                       <strong className="text-ink">
                         {lab.subgroup.effectiveness310Pct.toFixed(1)}%
                       </strong>
@@ -693,7 +847,7 @@ export function StatsInteractiveView({
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-2">
                       <h3 className="font-display flex items-center gap-2 text-lg font-bold tracking-wide text-ink">
                         <Swords className="h-4 w-4 text-crimson-600" />
-                        Historial Mano a Mano (Rivales)
+                        Historial mano a mano (rivales)
                       </h3>
                       <MetricFormulaButton
                         metricKey="h2h"
@@ -751,12 +905,15 @@ export function StatsInteractiveView({
         </div>
       ) : (
         <div
+          id="stats-panel-player"
+          role="tabpanel"
+          aria-labelledby="stats-tab-player"
           className={cn("space-y-4 transition-opacity", isPending && "opacity-70")}
         >
           <section className="rounded-lg border border-rule bg-surface p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <PlayerCombobox
-                label="Explorar Ficha Estadística de Jugador"
+                label="Explorar ficha estadística de jugador"
                 options={activePlayers}
                 value={profile.selectedPlayerId}
                 onChange={(id) => navigateWithParams({ playerId: id })}
@@ -896,7 +1053,7 @@ export function StatsInteractiveView({
               <div className="mb-3 border-b border-rule pb-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-pitch-800">
-                    Mejores Socios (Wilson CT%)
+                    Mejores socios (Wilson CT%)
                   </h3>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <MetricFormulaButton
@@ -932,23 +1089,41 @@ export function StatsInteractiveView({
                   <TeammatesChart data={teammatesChartData} />
                   <ul className="mt-2 divide-y divide-rule text-xs">
                     {profile.bestTeammates.map(
-                      ({ playerId, displayName, stats }) => (
-                        <li
-                          key={playerId}
-                          className="flex items-center justify-between py-2"
-                        >
-                          <span className="font-semibold text-ink">
-                            {displayName}{" "}
-                            <span className="font-normal text-ink-muted">
-                              ({stats.matchesTogether} PJ)
+                      ({ playerId, displayName, stats }) => {
+                        const verdict = getChemistryVerdict(
+                          stats.chemistryPct,
+                          stats.matchesTogether
+                        );
+                        return (
+                          <li
+                            key={playerId}
+                            className="flex flex-wrap items-center justify-between gap-2 py-2"
+                          >
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-semibold text-ink">
+                                {displayName}{" "}
+                                <span className="font-normal text-ink-muted">
+                                  ({stats.matchesTogether} PJ)
+                                </span>
+                              </span>
+                              {verdict && (
+                                <span
+                                  className={cn(
+                                    "rounded-sm border px-1.5 py-0.5 text-[10px] font-bold",
+                                    verdict.badgeClass
+                                  )}
+                                >
+                                  {verdict.label}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-display text-sm font-bold text-pitch-800 tabular-nums">
+                              CT {stats.wilsonCtPct.toFixed(1)}% · Q{" "}
+                              {stats.chemistryPct.toFixed(0)}%
                             </span>
-                          </span>
-                          <span className="font-display text-sm font-bold text-pitch-800 tabular-nums">
-                            CT {stats.wilsonCtPct.toFixed(1)}% · Q{" "}
-                            {stats.chemistryPct.toFixed(0)}%
-                          </span>
-                        </li>
-                      )
+                          </li>
+                        );
+                      }
                     )}
                   </ul>
                 </>
@@ -959,7 +1134,7 @@ export function StatsInteractiveView({
               <div className="mb-3 border-b border-rule pb-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="font-display text-lg font-bold tracking-wide text-ink">
-                    Historial vs Rivales (V − D)
+                    Historial vs rivales (V − D)
                   </h3>
                   <MetricFormulaButton
                     metricKey="h2h"

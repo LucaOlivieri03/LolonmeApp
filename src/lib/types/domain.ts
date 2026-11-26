@@ -69,6 +69,18 @@ export interface MatchPlayer {
   assists: number;
   adminRating: number | null;
   isMvp: boolean;
+  pitchX?: number | null;
+  pitchY?: number | null;
+}
+
+export interface MatchVote {
+  id: string;
+  matchId: string;
+  voterPlayerId: string;
+  targetPlayerId: string;
+  rating: number;
+  votedMvp: boolean;
+  createdAt?: string;
 }
 
 export interface Match {

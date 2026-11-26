@@ -1,7 +1,7 @@
 # Plan Técnico y Arquitectura — LolonmeApp
 
 > [!NOTE]
-> Documento técnico de referencia basado en el reglamento definitivo (`docs/reglas_torneo_lolonmebol.md`) y la documentación de negocio (`docs/documentacion_negocio_lolonmebol.md`). No contiene código ejecutable todavía; sirve como plano para iniciar la **Fase 1**.
+> Documento técnico de referencia basado en el reglamento definitivo (`docs/reglas_torneo_lolonmebol.md`) y la documentación de negocio (`docs/documentacion_negocio_lolonmebol.md`). Refleja la arquitectura implementada en producción (Fase 1 + migración server-first + Google OAuth + Pizarra táctica + Votación post-partido) y el diseño pendiente de Fase 2–3.
 
 ---
 
@@ -16,7 +16,7 @@ flowchart TD
     GA["GitHub Actions (Cron gratis)<br/>• Keep-alive Supabase<br/>• Sync diario Clubes Preferidos"] --> V
 ```
 
-- **Frontend / Full-stack**: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, Recharts, TanStack Table, `manifest.json` + service worker ligero para PWA.
+- **Frontend / Full-stack**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Recharts, `manifest.json` + service worker ligero para PWA.
 - **Identidad visual**: Logo oficial importado desde `assets/` (colocado en `public/assets/` para íconos PWA, favicon y header).
 - **Seguridad por roles**: **Row Level Security (RLS)** en PostgreSQL (Supabase) + validación en Server Actions / Route Handlers. Los invitados acceden sin login a las vistas públicas de solo lectura; el módulo de **Pozo** tiene RLS estricto `role = 'admin'`.
 
@@ -81,6 +81,7 @@ flowchart TD
 | `0001_initial_schema.sql` | Esquema base, enums, RLS por rol (`is_admin()`, `is_operator()`), `REVOKE SELECT (email)` y trigger inicial `handle_new_auth_user()` |
 | `0002_align_domain_and_historical_outcomes.sql` | `players.slug`, `players.political_orientation`, `matches.result_outcome` y claves externas naturales para sync idempotente con Excel |
 | `0003_player_link_requests.sql` | Tabla `player_link_requests` + índice único parcial `pending` + RLS, unicidad case-insensitive de `players.email`, hardening de `handle_new_auth_user()` y RPC `admin_list_player_auth_links()` |
+| `0004_tactical_positions.sql` | Columnas `pitch_x`/`pitch_y` en `match_players`, trigger `guard_captain_match_player_update()` y política RLS `captain_update_team_tactical_positions` para persistencia de pizarra táctica por Admin/Autorizado o Capitán de equipo |
 
 ---
 
@@ -109,35 +110,45 @@ flowchart TD
 
 ---
 
-## 5. Mapa de Navegación Mobile-First (Bottom Navigation)
+## 5. Mapa de Navegación Mobile-First
 
-Barra inferior fija con 5 accesos principales (en mobile):
+Barra inferior fija en mobile (`md:hidden`) y navegación inline en desktop (`md+`):
 
-1. **Inicio**: Anuncios + Próximo evento + Tabs rápidos (**Tabla Anual** / **Histórica** / **Copa** / **Clubes**).
-2. **Partidos**: Listado por temporada + filtro `Liga / Copa / Fechas Especiales` + detalle de fecha (equipos, G/A, votación transparente, fotos).
-3. **Stats**: Perfil personal + **Laboratorio Grupal** (Química, Consistencia Wilson, Historial H2H y filtro de subgrupos).
-4. **Blog**: Listado de tópicos comunitarios + creación de tópico y comentarios.
-5. **Calendario / Más**: Calendario mensual con etiquetas + acceso a **Panel Admin** (si tiene rol `admin` o `authorized`) + Perfil/Login.
+1. **Inicio (`/`)**: Franja de fecha + Pizarrón de anuncios + Tabs rápidos (**Tabla Anual** / **Histórica** / **Copa**).
+2. **Partidos (`/partidos`)**: Listado por temporada con filtros (`Liga`, `Copa`, `LOLONMEBOL`, `Fechas especiales`, fecha, N° de fecha, jugador) + ficha expandible con **Pizarra táctica interactiva**, planillas G/A y **Votación post-partido transparente**.
+3. **Stats (`/stats`)**: Perfil personal + **Laboratorio Grupal** (Química, Consistencia Wilson, Historial H2H, filtro de competencia y toggle `< 3 PJ`).
+4. **Calendario (`/calendario`)**: Calendario mensual con etiquetas por competencia y partidos vinculados.
+5. **Perfil (`/perfil`) + accesos secundarios (`/reglas`, `/blog`, `/admin`)**: Login Google OAuth / Magic Link, carnet del jugador, solicitud de vinculación manual, reglamento oficial, blog (Fase 2) y **Panel Admin** para `admin` / `authorized`.
 
 ---
 
-## 6. Estructura Inicial Propuesta del Repositorio
+## 6. Estructura del Repositorio
 
 ```text
 LolonmeApp/
-├── assets/                     # Logo oficial de LOLONMEBOL (local del usuario)
-├── docs/
-│   ├── documentacion_negocio_lolonmebol.md
-│   ├── reglas_torneo_lolonmebol.md
-│   └── plan_tecnico_lolonmebol.md
-├── public/                     # Manifest PWA, íconos y logo público (Fase 1)
+├── assets/                     # Logo oficial de LOLONMEBOL
+├── docs/                       # Negocio, reglamento, plan técnico y estado del proyecto
+├── odd/tasks/                  # Bitácoras y specs de entregas
+├── public/                     # Manifest PWA, service worker, audio himno y SVGs
 ├── src/
-│   ├── app/                    # Next.js App Router (páginas y API routes)
-│   ├── components/             # UI mobile-first (shadcn/ui)
+│   ├── app/                    # Next.js App Router (/, /partidos, /stats, /calendario, /reglas, /perfil, /blog, /admin, /api, /auth)
+│   ├── components/             # UI modular (admin, layout, matches, profile, stats, tournament)
 │   ├── lib/
-│   │   ├── supabase/           # Clientes server/browser y tipos DB
-│   │   ├── engine/             # Motores puros: tabla, copa, química, Wilson
-│   │   └── excel/              # Parser e importador constante de LOLONMEBOL.xlsx
-└── supabase/
-    └── migrations/             # SQL de tablas, índices y políticas RLS
+│   │   ├── engine/             # Motores puros: tabla, copa, química, Wilson, Pozo
+│   │   ├── excel/              # Parser e importador constante de LOLONMEBOL.xlsx
+│   │   ├── matches/            # Display rules y layout/clamping de pizarra táctica
+│   │   ├── supabase/           # Clientes server/browser/anon y config
+│   │   ├── types/              # Contratos de dominio, view-models y Server Actions
+│   │   └── voting/             # Validación y agregación de votación post-partido
+│   └── server/
+│       ├── actions/            # Next.js Server Actions (matches, voting, players, cup, fund, etc.)
+│       ├── admin/              # Lógica core de mutaciones y tests
+│       ├── auth/               # Sesión SSR, guards de rol y link requests
+│       ├── db/                 # Tipos DB y mappers
+│       ├── queries/            # Proyecciones SSR cacheadas por tags y voting queries
+│       └── repositories/       # SupabaseTournamentRepository + SeedPublicTournamentRepository
+├── supabase/
+│   └── migrations/             # SQL de tablas, índices y políticas RLS (0001–0003)
+├── PRODUCT.md                  # Contexto de producto
+└── DESIGN.md                   # Sistema de diseño oficial
 ```

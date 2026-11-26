@@ -16,12 +16,19 @@ import {
   X,
 } from "lucide-react";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
+import { MatchTacticalBoard } from "@/components/matches/MatchTacticalBoard";
+import { MatchVotingPanel } from "@/components/matches/MatchVotingPanel";
 import type { MatchType, Season } from "@/lib/types/domain";
 import type {
   MatchLedgerItem,
   MatchPlayerOption,
+  MatchVotingSummary,
 } from "@/lib/types/view-models";
 import { cn, formatDateEs } from "@/lib/utils";
+import {
+  formatMatchScoreBadge,
+  shouldShowGoalsAssists,
+} from "@/lib/matches/display";
 
 type TypeFilter = "ALL" | MatchType;
 
@@ -31,23 +38,24 @@ const MATCH_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    badgeClass: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    badgeClass: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   league_tiebreaker: {
     label: "Desempate Liga",
-    badgeClass: "border-crimson-600/30 bg-crimson-50 text-crimson-700",
+    badgeClass: "border-comp-league bg-comp-league text-white",
   },
   cup: {
     label: "Copa",
-    badgeClass: "border-gold-500/40 bg-gold-50 text-gold-700",
+    badgeClass: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
-    badgeClass: "border-pitch-900 bg-pitch-800 text-gold-400",
+    label: "LOLONMEBOL",
+    badgeClass:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "Fecha Especial F11",
-    badgeClass: "border-navy-100 bg-navy-50 text-navy-800",
+    label: "Fecha especial F11",
+    badgeClass: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
 };
 
@@ -61,17 +69,14 @@ export interface PartidosInteractiveViewProps {
   availableMatchNumbers: number[];
   playerOptions: MatchPlayerOption[];
   matches: MatchLedgerItem[];
+  votingByMatchId?: Record<string, MatchVotingSummary>;
+  viewerPlayerId?: string | null;
   isAdmin?: boolean;
+  isOperator?: boolean;
 }
 
-function scoreLabel(m: MatchLedgerItem): string {
-  if (m.teamAScore !== null && m.teamBScore !== null) {
-    return `${m.teamAScore} – ${m.teamBScore}`;
-  }
-  if (m.resultOutcome === "draw") return "Empate";
-  if (m.resultOutcome === "A") return "Ganó Eq. A";
-  if (m.resultOutcome === "B") return "Ganó Eq. B";
-  return "Sin marcador";
+function scoreLabel(m: MatchLedgerItem): string | null {
+  return formatMatchScoreBadge(m);
 }
 
 export function PartidosInteractiveView({
@@ -84,7 +89,10 @@ export function PartidosInteractiveView({
   availableMatchNumbers,
   playerOptions,
   matches,
+  votingByMatchId = {},
+  viewerPlayerId = null,
   isAdmin = false,
+  isOperator = false,
 }: PartidosInteractiveViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -140,7 +148,7 @@ export function PartidosInteractiveView({
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <Trophy className="h-6 w-6 text-pitch-700" />
-            Partidos y Fechas Especiales
+            Partidos y fechas especiales
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
             {matches.length} partido{matches.length === 1 ? "" : "s"} en registro
@@ -158,6 +166,7 @@ export function PartidosInteractiveView({
             <button
               key={s.id}
               type="button"
+              aria-pressed={selectedSeasonId === s.id}
               onClick={() => navigateWithFilters({ seasonId: s.id })}
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
@@ -171,6 +180,7 @@ export function PartidosInteractiveView({
           ))}
           <button
             type="button"
+            aria-pressed={selectedSeasonId === "ALL"}
             onClick={() => navigateWithFilters({ seasonId: "ALL" })}
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3.5 text-sm font-semibold transition-colors",
@@ -198,13 +208,14 @@ export function PartidosInteractiveView({
                 { id: "league", label: "Liga" },
                 { id: "league_tiebreaker", label: "Desempate" },
                 { id: "cup", label: "Copa" },
-                { id: "special_f11", label: "Fechas Especiales" },
-                { id: "lolonmebol", label: "Final LOLONMEBOL" },
+                { id: "special_f11", label: "Fechas especiales" },
+                { id: "lolonmebol", label: "LOLONMEBOL" },
               ] as const
             ).map((item) => (
               <button
                 key={item.id}
                 type="button"
+                aria-pressed={selectedType === item.id}
                 onClick={() => navigateWithFilters({ type: item.id })}
                 className={cn(
                   "min-h-10 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -423,6 +434,11 @@ export function PartidosInteractiveView({
                       <span className="whitespace-nowrap text-xs font-medium text-ink-muted">
                         {formatDateEs(m.matchDate)}
                       </span>
+                      {m.votingStatus === "open" && (
+                        <span className="shrink-0 rounded-sm border border-pitch-700/40 bg-pitch-50 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-pitch-800">
+                          Votación abierta
+                        </span>
+                      )}
                     </div>
 
                     {m.notes && (
@@ -440,9 +456,15 @@ export function PartidosInteractiveView({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-                    <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
-                      {scoreLabel(m)}
-                    </span>
+                    {(() => {
+                      const badge = scoreLabel(m);
+                      if (!badge) return null;
+                      return (
+                        <span className="font-display min-w-[3.75rem] rounded-md bg-pitch-800 px-2.5 py-1.5 text-center text-base font-extrabold tracking-wide text-white tabular-nums sm:min-w-[4.25rem] sm:px-3 sm:text-lg">
+                          {badge}
+                        </span>
+                      );
+                    })()}
                     {isOpen ? (
                       <ChevronUp className="h-4 w-4 text-ink-muted" />
                     ) : (
@@ -456,7 +478,7 @@ export function PartidosInteractiveView({
                     {isAdmin && (
                       <div className="mb-3 flex items-center justify-end border-b border-rule pb-2.5">
                         <Link
-                          href="/admin"
+                          href={`/admin?matchId=${encodeURIComponent(m.id)}`}
                           className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-pitch-800 bg-surface px-3 text-xs font-bold text-pitch-800 transition-colors hover:bg-pitch-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -464,6 +486,15 @@ export function PartidosInteractiveView({
                         </Link>
                       </div>
                     )}
+                    <MatchTacticalBoard
+                      matchId={m.id}
+                      teamA={m.teamA}
+                      teamB={m.teamB}
+                      teamAScore={m.teamAScore}
+                      teamBScore={m.teamBScore}
+                      viewerPlayerId={viewerPlayerId}
+                      isOperator={isOperator || isAdmin}
+                    />
                     <div className="grid gap-4 sm:grid-cols-2 sm:divide-x sm:divide-rule">
                       {(
                         [
@@ -480,7 +511,7 @@ export function PartidosInteractiveView({
                         ] as const
                       ).map(({ label, list, accent }, idx) => (
                         <div key={label} className={cn(idx === 1 && "sm:pl-4")}>
-                          <h3
+                          <h2
                             className={cn(
                               "font-display mb-2 flex items-center gap-1.5 border-b border-rule pb-1.5 text-base font-bold uppercase tracking-wider",
                               accent
@@ -488,7 +519,7 @@ export function PartidosInteractiveView({
                           >
                             <Shield className="h-4 w-4" />
                             {label} ({list.length})
-                          </h3>
+                          </h2>
                           {list.length === 0 ? (
                             <p className="py-2 text-xs text-ink-muted">
                               Sin jugadores asignados.
@@ -514,7 +545,12 @@ export function PartidosInteractiveView({
                                     )}
                                   </span>
                                   <span className="flex items-center gap-2 text-xs text-ink-muted">
-                                    {(mp.goals > 0 || mp.assists > 0) && (
+                                    {shouldShowGoalsAssists({
+                                      matchDate: m.matchDate,
+                                      matchType: m.matchType,
+                                      goals: mp.goals,
+                                      assists: mp.assists,
+                                    }) && (
                                       <span className="font-semibold text-ink">
                                         {mp.goals}G / {mp.assists}A
                                       </span>
@@ -532,6 +568,14 @@ export function PartidosInteractiveView({
                         </div>
                       ))}
                     </div>
+                    {votingByMatchId[m.id] && (
+                      <MatchVotingPanel
+                        match={m}
+                        summary={votingByMatchId[m.id]}
+                        viewerPlayerId={viewerPlayerId}
+                        isOperator={isOperator || isAdmin}
+                      />
+                    )}
                   </div>
                 )}
               </article>

@@ -104,7 +104,7 @@ export function AdminExcelTab() {
           </div>
         </div>
 
-        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-pitch-700/35 bg-pitch-50/40 p-7 text-center transition-colors hover:border-pitch-700 hover:bg-pitch-50/70">
+        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-pitch-700/35 bg-pitch-50/40 p-7 text-center transition-colors hover:border-pitch-700 hover:bg-pitch-50/70 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-leather-600">
           <Upload className="h-7 w-7 text-pitch-700" />
           <span className="mt-2 text-sm font-bold text-ink">
             {loading
@@ -120,18 +120,24 @@ export function AdminExcelTab() {
             accept=".xlsx"
             onChange={handleFileChange}
             disabled={loading || applying}
-            className="hidden"
+            className="sr-only"
           />
         </label>
 
         {error && (
-          <p className="mt-3 rounded-md border border-crimson-600/30 bg-crimson-50 px-3.5 py-2.5 text-sm font-semibold text-crimson-700">
+          <p
+            role="alert"
+            className="mt-3 rounded-md border border-crimson-600/30 bg-crimson-50 px-3.5 py-2.5 text-sm font-semibold text-crimson-700"
+          >
             {error}
           </p>
         )}
 
         {doneMessage && (
-          <p className="mt-3 flex items-center gap-2 rounded-md border border-pitch-200 bg-pitch-50 px-3.5 py-2.5 text-sm font-semibold text-pitch-800">
+          <p
+            role="status"
+            className="mt-3 flex items-center gap-2 rounded-md border border-pitch-200 bg-pitch-50 px-3.5 py-2.5 text-sm font-semibold text-pitch-800"
+          >
             <CheckCircle2 className="h-4 w-4 shrink-0" />
             {doneMessage}
           </p>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "lolonmeapp-v1";
+const CACHE_NAME = "lolonmeapp-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Clock,
   LayoutGrid,
   List,
   Trophy,
@@ -25,23 +26,24 @@ const EVENT_TYPE_META: Record<
 > = {
   league: {
     label: "Liga",
-    dot: "bg-pitch-700",
-    badge: "border-pitch-200 bg-pitch-50 text-pitch-800",
+    dot: "bg-comp-league",
+    badge: "border-comp-league/60 bg-comp-league-bg text-comp-league-fg",
   },
   cup: {
     label: "Copa",
-    dot: "bg-gold-500",
-    badge: "border-gold-500/40 bg-gold-50 text-gold-700",
+    dot: "bg-comp-cup",
+    badge: "border-comp-cup/60 bg-comp-cup-bg text-comp-cup-fg",
   },
   lolonmebol: {
-    label: "Final LOLONMEBOL",
-    dot: "bg-pitch-900",
-    badge: "border-pitch-900 bg-pitch-800 text-gold-400",
+    label: "LOLONMEBOL",
+    dot: "bg-comp-lolonmebol",
+    badge:
+      "border-comp-lolonmebol/60 bg-comp-lolonmebol-bg text-comp-lolonmebol-fg",
   },
   special_f11: {
-    label: "F11 Especial",
-    dot: "bg-navy-700",
-    badge: "border-navy-100 bg-navy-50 text-navy-800",
+    label: "F11 especial",
+    dot: "bg-comp-f11",
+    badge: "border-comp-f11/60 bg-comp-f11-bg text-comp-f11-fg",
   },
   rest: {
     label: "Descanso",
@@ -96,6 +98,12 @@ function buildMonthGrid(
   return cells;
 }
 
+function getTodayIsoAr(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date());
+}
+
 interface CalendarInteractiveViewProps {
   seasons: Season[];
   selectedSeasonId: string;
@@ -114,17 +122,37 @@ export function CalendarInteractiveView({
   const [typeFilter, setTypeFilter] = useState<CalendarEventType | "ALL">(
     "ALL"
   );
-  const [viewMode, setViewMode] = useState<"grid" | "agenda">("grid");
+  const [viewMode, setViewMode] = useState<"auto" | "grid" | "agenda">("auto");
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<string>(initialMonth);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const detailPanelRef = useRef<HTMLElement | null>(null);
 
+  const todayIso = useMemo(() => getTodayIsoAr(), []);
+
   useEffect(() => {
-    if (window.matchMedia("(max-width: 639px)").matches) {
-      setViewMode("agenda");
-    }
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsSmallScreen(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
   }, []);
+
+  const nextUpcoming = useMemo(() => {
+    const candidates = events
+      .filter((ev) => ev.eventDate >= todayIso)
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+    const active =
+      candidates.find(
+        (ev) => ev.eventType !== "rest" && ev.eventType !== "postponed"
+      ) ?? candidates[0];
+    if (!active) return null;
+    const todayMs = Date.parse(`${todayIso}T00:00:00Z`);
+    const eventMs = Date.parse(`${active.eventDate}T00:00:00Z`);
+    const diffDays = Math.round((eventMs - todayMs) / 86_400_000);
+    return { event: active, diffDays };
+  }, [events, todayIso]);
 
   const filtered = useMemo(() => {
     if (typeFilter === "ALL") return events;
@@ -174,8 +202,11 @@ export function CalendarInteractiveView({
   useEffect(() => {
     if (selectedDayEvents.length === 0) return;
     if (detailPanelRef.current) {
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
       detailPanelRef.current.scrollIntoView({
-        behavior: "smooth",
+        behavior: prefersReducedMotion ? "auto" : "smooth",
         block: "nearest",
       });
     }
@@ -194,7 +225,6 @@ export function CalendarInteractiveView({
   }, [selectedDayEvents.length]);
 
   const handleGoToday = () => {
-    const todayIso = new Date().toISOString().slice(0, 10);
     const todayMonth = todayIso.slice(0, 7);
     if (filtered.some((e) => e.eventDate.startsWith(todayMonth))) {
       setCurrentMonth(todayMonth);
@@ -208,17 +238,55 @@ export function CalendarInteractiveView({
     setSelectedEventId(null);
   };
 
+  const isGridPressed =
+    viewMode === "grid" || (viewMode === "auto" && !isSmallScreen);
+  const isAgendaPressed =
+    viewMode === "agenda" || (viewMode === "auto" && isSmallScreen);
+
+  const countdownLabel = nextUpcoming
+    ? nextUpcoming.diffDays === 0
+      ? "¡Hoy se juega!"
+      : nextUpcoming.diffDays === 1
+        ? "Mañana · Próxima fecha"
+        : `Próxima fecha en ${nextUpcoming.diffDays} días`
+    : null;
+
   return (
     <div className="space-y-5">
       <header className="flex flex-col gap-3 border-b border-rule pb-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display flex items-center gap-2 text-3xl font-extrabold tracking-wide text-ink">
             <CalendarDays className="h-6 w-6 text-pitch-700" />
-            Calendario Oficial
+            Calendario oficial
           </h1>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Grilla mensual interactiva y agenda de Liga, Copa, Final LOLONMEBOL, F11 y descansos
+            Grilla mensual interactiva y agenda de Liga, Copa, LOLONMEBOL, F11 y descansos
           </p>
+          {nextUpcoming && countdownLabel && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("ALL");
+                  setCurrentMonth(nextUpcoming.event.eventDate.slice(0, 7));
+                  setSelectedDate(nextUpcoming.event.eventDate);
+                  setSelectedEventId(nextUpcoming.event.id);
+                }}
+                className={cn(
+                  "inline-flex min-h-8 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold transition-colors",
+                  nextUpcoming.diffDays === 0
+                    ? "border-leather-600 bg-leather-600 text-white hover:bg-leather-700"
+                    : "border-leather-500/40 bg-leather-50 text-leather-700 hover:border-leather-600"
+                )}
+              >
+                <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{countdownLabel}</span>
+                <span className="opacity-75">
+                  · {formatDateEs(nextUpcoming.event.eventDate, { omitYear: true })}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -230,12 +298,14 @@ export function CalendarInteractiveView({
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              aria-pressed={viewMode === "grid"}
+              aria-pressed={isGridPressed}
               className={cn(
                 "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
                 viewMode === "grid"
                   ? "bg-pitch-800 text-white"
-                  : "text-ink-muted hover:text-ink"
+                  : viewMode === "auto"
+                    ? "text-ink-muted hover:text-ink sm:bg-pitch-800 sm:text-white sm:hover:text-white"
+                    : "text-ink-muted hover:text-ink"
               )}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -244,12 +314,14 @@ export function CalendarInteractiveView({
             <button
               type="button"
               onClick={() => setViewMode("agenda")}
-              aria-pressed={viewMode === "agenda"}
+              aria-pressed={isAgendaPressed}
               className={cn(
                 "inline-flex min-h-10 items-center gap-1.5 rounded-sm px-3 text-xs font-bold transition-colors",
                 viewMode === "agenda"
                   ? "bg-pitch-800 text-white"
-                  : "text-ink-muted hover:text-ink"
+                  : viewMode === "auto"
+                    ? "bg-pitch-800 text-white sm:bg-transparent sm:text-ink-muted sm:hover:text-ink"
+                    : "text-ink-muted hover:text-ink"
               )}
             >
               <List className="h-3.5 w-3.5" />
@@ -308,6 +380,7 @@ export function CalendarInteractiveView({
       >
         <button
           type="button"
+          aria-pressed={typeFilter === "ALL"}
           onClick={() => setTypeFilter("ALL")}
           className={cn(
             "min-h-10 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -324,6 +397,7 @@ export function CalendarInteractiveView({
             <button
               key={key}
               type="button"
+              aria-pressed={typeFilter === key}
               onClick={() => setTypeFilter(key)}
               className={cn(
                 "inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -345,8 +419,13 @@ export function CalendarInteractiveView({
       </div>
 
       {/* VIEW MODE 1: INTERACTIVE MONTHLY GRID */}
-      {viewMode === "grid" ? (
-        <section className="overflow-hidden rounded-lg border border-rule bg-surface">
+      {viewMode !== "agenda" ? (
+        <section
+          className={cn(
+            "overflow-hidden rounded-lg border border-rule bg-surface",
+            viewMode === "auto" && "hidden sm:block"
+          )}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule bg-surface-subtle px-3 py-3 sm:px-4">
             <div className="flex items-center gap-2">
               <button
@@ -419,51 +498,54 @@ export function CalendarInteractiveView({
               const dayEvents = eventsByDate.get(cell.dateStr) ?? [];
               const hasEvents = dayEvents.length > 0;
               const isSelected = selectedDate === cell.dateStr;
+              const isToday = cell.dateStr === todayIso;
 
               return (
                 <div
                   key={cell.dateStr}
-                  onClick={() => {
-                    if (hasEvents) {
-                      setSelectedEventId(null);
-                      setSelectedDate(cell.dateStr);
-                    }
-                  }}
-                  role={hasEvents ? "button" : undefined}
-                  tabIndex={hasEvents ? 0 : undefined}
-                  aria-label={
-                    hasEvents
-                      ? `${cell.dayNumber} — ${dayEvents.length} ${dayEvents.length === 1 ? "evento" : "eventos"}`
-                      : undefined
-                  }
-                  aria-pressed={hasEvents ? isSelected : undefined}
-                  onKeyDown={(e) => {
-                    if (hasEvents && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault();
-                      setSelectedEventId(null);
-                      setSelectedDate(cell.dateStr);
-                    }
-                  }}
                   className={cn(
-                    "flex min-h-12 flex-col items-center justify-between p-1.5 transition-colors sm:min-h-24 sm:items-stretch sm:justify-start sm:p-2",
+                    "relative flex min-h-12 flex-col items-center justify-between p-1.5 transition-colors sm:min-h-24 sm:items-stretch sm:justify-start sm:p-2",
                     hasEvents
-                      ? "cursor-pointer bg-pitch-50 hover:bg-pitch-100/70"
+                      ? "bg-pitch-50 hover:bg-pitch-100/70"
                       : "bg-surface",
+                    isToday && !isSelected && "ring-2 ring-inset ring-leather-500",
                     isSelected &&
                       "bg-gold-50 ring-2 ring-inset ring-leather-600"
                   )}
                 >
-                  <div className="flex w-full items-center justify-center sm:justify-between">
-                    <span
-                      className={cn(
-                        "font-display inline-flex h-6 w-6 items-center justify-center rounded-sm text-xs font-extrabold",
-                        hasEvents
-                          ? "bg-pitch-800 text-white"
-                          : "text-ink-muted"
+                  {hasEvents && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedEventId(null);
+                        setSelectedDate(cell.dateStr);
+                      }}
+                      aria-label={`${cell.dayNumber}${isToday ? " (Hoy)" : ""} — ${dayEvents.length} ${dayEvents.length === 1 ? "evento" : "eventos"}`}
+                      aria-pressed={isSelected}
+                      className="absolute inset-0 z-0 cursor-pointer focus-visible:z-20"
+                    />
+                  )}
+
+                  <div className="pointer-events-none relative z-10 flex w-full items-center justify-center gap-1 sm:justify-between">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={cn(
+                          "font-display inline-flex h-6 w-6 items-center justify-center rounded-sm text-xs font-extrabold",
+                          hasEvents
+                            ? "bg-pitch-800 text-white"
+                            : isToday
+                              ? "bg-leather-600 text-white"
+                              : "text-ink-muted"
+                        )}
+                      >
+                        {cell.dayNumber}
+                      </span>
+                      {isToday && (
+                        <span className="hidden rounded-sm bg-leather-600 px-1 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-white sm:inline-block">
+                          Hoy
+                        </span>
                       )}
-                    >
-                      {cell.dayNumber}
-                    </span>
+                    </div>
                     {hasEvents && (
                       <div className="hidden items-center gap-1 sm:flex">
                         {dayEvents.map((ev) => (
@@ -480,9 +562,15 @@ export function CalendarInteractiveView({
                     )}
                   </div>
 
+                  {isToday && (
+                    <span className="pointer-events-none relative z-10 mt-0.5 rounded-sm bg-leather-600 px-1 text-[9px] font-extrabold uppercase tracking-wider text-white sm:hidden">
+                      Hoy
+                    </span>
+                  )}
+
                   {/* Compact colored status dots on mobile */}
                   {hasEvents && (
-                    <div className="mt-1 flex flex-wrap items-center justify-center gap-1 sm:hidden">
+                    <div className="pointer-events-none relative z-10 mt-1 flex flex-wrap items-center justify-center gap-1 sm:hidden">
                       {dayEvents.map((ev) => (
                         <span
                           key={ev.id}
@@ -496,27 +584,27 @@ export function CalendarInteractiveView({
                     </div>
                   )}
 
-                  {/* Full event title pills on desktop */}
+                  {/* Full event title pills on desktop (sibling buttons, not nested) */}
                   {hasEvents && (
-                    <div className="mt-1.5 hidden space-y-1 sm:block">
+                    <div className="relative z-10 mt-1.5 hidden space-y-1 sm:block">
                       {dayEvents.map((ev) => {
                         const meta = EVENT_TYPE_META[ev.eventType];
                         return (
                           <button
                             key={ev.id}
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            aria-pressed={selectedEventId === ev.id}
+                            onClick={() => {
                               setSelectedDate(cell.dateStr);
                               setSelectedEventId(ev.id);
                             }}
                             className={cn(
-                              "block w-full truncate rounded-sm border px-1.5 py-0.5 text-left text-[11px] font-bold transition-colors",
+                              "flex min-h-6 w-full items-center rounded-sm border px-1.5 py-0.5 text-left text-[11px] font-bold transition-colors",
                               meta.badge
                             )}
                             title={ev.title}
                           >
-                            {ev.title}
+                            <span className="truncate">{ev.title}</span>
                           </button>
                         );
                       })}
@@ -559,8 +647,10 @@ export function CalendarInteractiveView({
             )}
           </div>
         </div>
-      ) : viewMode === "agenda" ? (
-        <div className="space-y-4">
+      ) : viewMode !== "grid" ? (
+        <div
+          className={cn("space-y-4", viewMode === "auto" && "sm:hidden")}
+        >
           {groupedByMonth.map(({ monthKey, events: monthEvents }) => (
             <section
               key={monthKey}

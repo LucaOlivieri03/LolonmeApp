@@ -101,7 +101,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <aside className="hidden flex-col justify-between rounded-lg border border-rule bg-surface p-4 md:flex">
           <div>
             <h2 className="font-display text-lg font-bold tracking-wide text-ink">
-              Accesos de Fecha
+              Accesos de fecha
             </h2>
             <p className="mt-1 text-sm text-ink-muted">
               Consultá el historial partido a partido, la química entre compañeros y la agenda de la temporada.
@@ -112,7 +112,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               href="/partidos"
               className="flex min-h-11 items-center justify-between rounded-md border border-rule bg-paper px-3.5 text-sm font-semibold text-ink transition-colors hover:border-pitch-700 hover:bg-pitch-50"
             >
-              <span>Historial de Partidos</span>
+              <span>Historial de partidos</span>
               <ArrowRight className="h-4 w-4 text-pitch-700" />
             </Link>
             <Link

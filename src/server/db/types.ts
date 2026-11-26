@@ -83,6 +83,18 @@ export interface DbMatchPlayerRow {
   assists: number;
   admin_rating: DbNumeric | null;
   is_mvp: boolean;
+  pitch_x?: DbNumeric | null;
+  pitch_y?: DbNumeric | null;
+}
+
+export interface DbMatchVoteRow {
+  id: string;
+  match_id: string;
+  voter_player_id: string;
+  target_player_id: string;
+  rating: DbNumeric;
+  voted_mvp: boolean;
+  created_at?: string;
 }
 
 export interface DbCalendarEventRow {

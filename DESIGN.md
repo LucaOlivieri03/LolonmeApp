@@ -108,11 +108,12 @@ The palette pairs warm technical ivory paper with deep federation pitch green, w
 - **Federation Navy** (`#0e2747`): Team B contrast, secondary admin actions, and F11 special-date badges.
 - **Referee Crimson** (`#c4202b`): Strictly reserved for title-tiebreaker alerts, negative H2H (`V − D`) bars, expenses in Pozo, and destructive delete confirmations.
 
-### Neutrals
-- **Ivory Paper** (`#f6f5f0`): Primary page canvas (`--background`) and recessed form fields.
-- **Dossier Surface** (`#ffffff`): Tables, ledgers, and primary work containers.
+### Themes & Neutrals
+- **Active Theme Switcher (`estadio` default | `salvia` | `diario`):** Persisted SSR via `lolonme-theme` cookie with zero-FOUC. **Estadio Nocturno** (`#0b1410` canvas / `#122019` surface / `#f1efe6` ink) is the default night-pitch theme; **Salvia** (`#dce6df` / `#f7f5ee`) and **Diario** (`#e6e0d0` / `#f6f2e7`) offer daylight paper alternatives. Modal/sheet scrims always use dark `bg-black/*` (never `bg-ink/*`) so dark themes stay dark.
+- **Ivory Paper** (`#f6f5f0`): Base `:root` light canvas and recessed form fields.
+- **Dossier Surface** (`#ffffff`): Light tables, ledgers, and primary work containers.
 - **Ledger Subtle** (`#efece3`): Table header bands and subtle zebra/secondary pills.
-- **Pitch Ink** (`#111c15`) & **Pitch Ink Muted** (`#4c5d52`): High-contrast primary and secondary copy (`>= 4.5:1` on both `#ffffff` and `#f6f5f0`).
+- **Pitch Ink** (`#111c15`) & **Pitch Ink Muted** (`#4c5d52`): High-contrast primary and secondary copy (`>= 4.5:1`).
 - **Hairline Rule** (`#d6d3c7`): Structural `1px` borders and table dividers.
 
 ## Typography
@@ -125,7 +126,7 @@ The palette pairs warm technical ivory paper with deep federation pitch green, w
 
 - **Container:** Centered `max-w-5xl` (`1024px`) with `px-3 sm:px-5` gutters.
 - **Responsive Navigation:** Mobile (`< 768px`) uses the fixed 5-item `BottomNav` (`min-h-14`) in the thumb zone; Desktop (`md+`) moves navigation inline into `AppHeader` and hides `BottomNav`.
-- **Above-the-Fold Priority:** On `/`, the compact `.pitch-chalk-surface` matchday strip sits directly above the `Tabla Anual | Histórica | Copa` tabs so rankings are visible immediately without scrolling past KPI tiles.
+- **Above-the-Fold Priority:** On `/`, the compact `.pitch-chalk-surface` matchday strip and tactical blackboard `AnnouncementsCarousel` sit above the `Tabla Anual | Histórica | Copa` tabs so official notices and rankings remain immediately accessible on mobile.
 - **Sticky Data Columns:** Wide tables (`StandingsTable`, `AdminPozoTab`) pin the leading identifier column (`#` + `Jugador`, `Mes`) on horizontal scroll.
 
 ## Elevation & Depth

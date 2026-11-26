@@ -17,7 +17,7 @@ const ROUND_LABELS: Record<string, string> = {
   quarterfinal: "Cuartos de Final",
   semifinal: "Semifinales",
   final: "Final de Copa",
-  lolonmebol: "Final LOLONMEBOL",
+  lolonmebol: "LOLONMEBOL",
 };
 
 interface AdminCupTabProps {
@@ -117,6 +117,7 @@ export function AdminCupTab({
     <div className="space-y-4">
       {feedback && (
         <p
+          role={feedback.type === "error" ? "alert" : "status"}
           className={cn(
             "rounded-md border px-3.5 py-2.5 text-sm font-semibold",
             feedback.type === "success"
@@ -146,6 +147,7 @@ export function AdminCupTab({
               <button
                 key={s.id}
                 type="button"
+                aria-pressed={seasonId === s.id}
                 onClick={() => {
                   setSeasonId(s.id);
                   setConfirmRegenerate(false);

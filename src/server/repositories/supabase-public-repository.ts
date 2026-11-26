@@ -44,6 +44,8 @@ const TITLE_COLUMNS = "id, player_id, season_id, title_type, awarded_at";
 const MATCH_COLUMNS =
   "id, slug, season_id, match_number, match_date, match_type, modality, team_a_score, team_b_score, result_outcome, counts_for_league, counts_for_stats, voting_status, external_source_key, notes";
 const MATCH_PLAYER_COLUMNS =
+  "id, match_id, player_id, team, is_cup_captain, goals, assists, admin_rating, is_mvp, pitch_x, pitch_y";
+const MATCH_PLAYER_LEGACY_COLUMNS =
   "id, match_id, player_id, team, is_cup_captain, goals, assists, admin_rating, is_mvp";
 const CALENDAR_COLUMNS =
   "id, external_key, season_id, title, description, event_date, event_type, match_id";
@@ -85,6 +87,13 @@ async function fetchAllRows<T>(
       .range(from, to);
 
     if (error) {
+      if (
+        table === "match_players" &&
+        columns === MATCH_PLAYER_COLUMNS &&
+        /pitch_x|pitch_y/i.test(error.message)
+      ) {
+        return fetchAllRows<T>(client, table, MATCH_PLAYER_LEGACY_COLUMNS);
+      }
       throw new Error(`Supabase query failed on "${table}": ${error.message}`);
     }
 

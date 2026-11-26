@@ -139,8 +139,14 @@ export function computeStandings({
       if (!teamResult) continue;
 
       if (match.matchType === "cup") {
-        // Cup captains get 0 pts and 0 PJ in League table
-        if (mp.isCupCaptain) continue;
+        // Cup captains get 0 pts and 0 PJ in League table,
+        // but their individual G-E-P and PG% include captained cup matches (#40).
+        if (mp.isCupCaptain) {
+          if (teamResult === "win") entry.pg += 1;
+          else if (teamResult === "draw") entry.pe += 1;
+          else entry.pp += 1;
+          continue;
+        }
         entry.pj += 1;
         if (teamResult === "win") {
           entry.points += 4;
@@ -171,28 +177,31 @@ export function computeStandings({
 
   const rows: StandingsRow[] = Array.from(acc.values())
     .filter((e) => e.pj > 0 || e.totalPjAllMatches > 0 || (starsByPlayer.get(e.player.id) ?? 0) > 0)
-    .map((e) => ({
-      position: 0,
-      playerId: e.player.id,
-      displayName: e.player.displayName,
-      nickname: e.player.nickname,
-      points: e.points,
-      pj: e.pj,
-      pg: e.pg,
-      pe: e.pe,
-      pp: e.pp,
-      winRate: e.pj > 0 ? (e.pg / e.pj) * 100 : 0,
-      totalPjAllMatches: e.totalPjAllMatches,
-      mvps: e.mvps,
-      goals: e.goals,
-      assists: e.assists,
-      goalContributions: e.goals + e.assists,
-      avgRating:
-        e.ratedMatches > 0 ? e.totalRating / e.ratedMatches : null,
-      totalRating: e.totalRating,
-      ratedMatches: e.ratedMatches,
-      stars: starsByPlayer.get(e.player.id) ?? 0,
-    }));
+    .map((e) => {
+      const playedWithOutcome = e.pg + e.pe + e.pp;
+      return {
+        position: 0,
+        playerId: e.player.id,
+        displayName: e.player.displayName,
+        nickname: e.player.nickname,
+        points: e.points,
+        pj: e.pj,
+        pg: e.pg,
+        pe: e.pe,
+        pp: e.pp,
+        winRate: playedWithOutcome > 0 ? (e.pg / playedWithOutcome) * 100 : 0,
+        totalPjAllMatches: e.totalPjAllMatches,
+        mvps: e.mvps,
+        goals: e.goals,
+        assists: e.assists,
+        goalContributions: e.goals + e.assists,
+        avgRating:
+          e.ratedMatches > 0 ? e.totalRating / e.ratedMatches : null,
+        totalRating: e.totalRating,
+        ratedMatches: e.ratedMatches,
+        stars: starsByPlayer.get(e.player.id) ?? 0,
+      };
+    });
 
   // Strict tiebreaker chain:
   // 1. Pts DESC -> 2. PJ ASC -> 3. Direct H2H DESC -> 4. PG% DESC -> 5. MVPs DESC -> 6. Name ASC
