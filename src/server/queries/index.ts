@@ -5,3 +5,4 @@ export * from "./types";
 export * from "./public";
 export * from "./profile";
 export * from "./admin";
+export * from "./voting";

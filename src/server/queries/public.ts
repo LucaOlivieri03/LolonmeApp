@@ -367,6 +367,8 @@ export function buildMatchesViewModel(
         isMvp: mp.isMvp,
         isCupCaptain: mp.isCupCaptain,
         adminRating: mp.adminRating,
+        pitchX: mp.pitchX ?? null,
+        pitchY: mp.pitchY ?? null,
       };
       if (mp.team === "A") {
         teamA.push(item);
@@ -388,6 +390,7 @@ export function buildMatchesViewModel(
       teamAScore: match.teamAScore,
       teamBScore: match.teamBScore,
       resultOutcome: match.resultOutcome ?? null,
+      votingStatus: match.votingStatus,
       ...(match.notes !== undefined && match.notes !== null
         ? { notes: match.notes }
         : {}),

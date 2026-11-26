@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Pencil, Plus, PlusCircle, Trash2 } from "lucide-react";
+import { Lock, LockOpen, Minus, Pencil, Plus, PlusCircle, Trash2 } from "lucide-react";
 import { MatchEditModal } from "@/components/tournament/MatchEditModal";
 import { PlayerCombobox } from "@/components/tournament/PlayerCombobox";
 import { filterMatches, resolveDefaultSeasonId } from "@/lib/engine";
@@ -19,6 +19,10 @@ import {
   deleteMatchAction,
   updateMatchAction,
 } from "@/server/actions/matches";
+import {
+  closeMatchVotingAction,
+  openMatchVotingAction,
+} from "@/server/actions/voting";
 
 const MATCH_TYPE_LABELS: Record<MatchType, string> = {
   league: "Liga",
@@ -278,6 +282,33 @@ export function AdminMatchesTab({
     }
 
     return res;
+  };
+
+  const handleToggleVoting = (match: Match) => {
+    setFeedback(null);
+    startTransition(async () => {
+      const res =
+        match.votingStatus === "open"
+          ? await closeMatchVotingAction({
+              matchId: match.id,
+              applyVotedMvp: true,
+            })
+          : await openMatchVotingAction({ matchId: match.id });
+
+      if (!res.ok) {
+        setFeedback({ type: "error", text: res.error });
+        return;
+      }
+      setFeedback({
+        type: "success",
+        text:
+          res.message ??
+          (match.votingStatus === "open"
+            ? "Votación cerrada y publicada."
+            : "Votación abierta."),
+      });
+      router.refresh();
+    });
   };
 
   return (
@@ -656,8 +687,41 @@ export function AdminMatchesTab({
                   <span className="font-display text-base font-bold text-pitch-800">
                     {m.teamAScore ?? "—"}–{m.teamBScore ?? "—"}
                   </span>
+                  {m.votingStatus === "open" && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-sm border border-pitch-700/40 bg-pitch-50 px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-pitch-800">
+                      Votación abierta
+                    </span>
+                  )}
                 </span>
-                <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleToggleVoting(m)}
+                    className={cn(
+                      "inline-flex min-h-10 items-center gap-1 rounded-md border px-2.5 text-xs font-bold transition-colors disabled:opacity-50",
+                      m.votingStatus === "open"
+                        ? "border-leather-600 bg-leather-600 text-white hover:bg-leather-700"
+                        : "border-rule bg-paper text-ink hover:border-pitch-700 hover:bg-pitch-50"
+                    )}
+                    title={
+                      m.votingStatus === "open"
+                        ? "Cerrar votación y publicar resultados"
+                        : "Abrir votación post-partido"
+                    }
+                  >
+                    {m.votingStatus === "open" ? (
+                      <>
+                        <Lock className="h-3.5 w-3.5" />
+                        Cerrar voto
+                      </>
+                    ) : (
+                      <>
+                        <LockOpen className="h-3.5 w-3.5" />
+                        Abrir voto
+                      </>
+                    )}
+                  </button>
                   {isAdmin && (
                     <button
                       type="button"

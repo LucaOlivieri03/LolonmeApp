@@ -1,7 +1,10 @@
 import { PartidosInteractiveView } from "@/components/matches/PartidosInteractiveView";
 import type { MatchType } from "@/lib/types/domain";
 import { getViewerSession } from "@/server/auth";
-import { getMatchesViewModel } from "@/server/queries";
+import {
+  getMatchesViewModel,
+  getMatchVotingMapForMatches,
+} from "@/server/queries";
 
 interface PartidosPageProps {
   searchParams: Promise<{
@@ -59,6 +62,11 @@ export default async function PartidosPage({
     getViewerSession(),
   ]);
 
+  const votingByMatchId = await getMatchVotingMapForMatches(
+    viewModel.matches,
+    session
+  );
+
   return (
     <PartidosInteractiveView
       seasons={viewModel.seasons}
@@ -70,7 +78,10 @@ export default async function PartidosPage({
       availableMatchNumbers={viewModel.availableMatchNumbers}
       playerOptions={viewModel.playerOptions}
       matches={viewModel.matches}
+      votingByMatchId={votingByMatchId}
+      viewerPlayerId={session.playerId}
       isAdmin={session.role === "admin"}
+      isOperator={session.role === "admin" || session.role === "authorized"}
     />
   );
 }
