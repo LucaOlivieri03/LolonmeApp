@@ -58,15 +58,13 @@ Documentado en [PRODUCT.md](../PRODUCT.md) y [DESIGN.md](../DESIGN.md):
 
 ## 4. Próximos Pasos Pendientes
 
-1. **Bloqueado por asset**:
-   - Reemplazar los logos viejos (`Logo.svg` / `LogoLOLONMEBOL.svg`) por el logo nuevo oficial (Issue `#36`).
-2. **Postergado por prioridad**:
+1. **Postergado por prioridad**:
    - **Edición de perfil de jugador** (permitir que el jugador logueado edite su apodo/avatar/club favorito desde `/perfil`).
-3. **Restante de Fase 2 — Comunidad y Media**:
+2. **Restante de Fase 2 — Comunidad y Media**:
    - **Blog global por tópicos** (`blog_topics`, `blog_comments` ya listos en DB).
    - **Integración de Club Favorito vía API-Football** (`clubs_cache` ya listo en DB).
    - **Galería de fotos por partido vía Cloudinary** (`match_media` ya listo en DB).
-4. **Fase 3 — Extras**:
+3. **Fase 3 — Extras**:
    - Clips cortos de video (R2 / YouTube oculto), confirmación de asistencia ("Voy / No voy") en Calendario y asistente de armado de equipos.
-5. **Infraestructura / Ops**:
+4. **Infraestructura / Ops**:
    - Workflows cron en `.github/workflows/` (keep-alive semanal de Supabase free tier y sync diario de API-Football).
