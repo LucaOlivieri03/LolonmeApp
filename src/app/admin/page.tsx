@@ -78,6 +78,8 @@ export default async function AdminPage() {
         cupTies: vm.data.cupTies,
       }}
       fund={vm.fund}
+      pendingLinkRequests={vm.pendingLinkRequests}
+      playerAuthLinks={vm.playerAuthLinks}
     />
   );
 }

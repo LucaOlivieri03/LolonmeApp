@@ -31,6 +31,10 @@ import type {
   Player,
   Season,
 } from "@/lib/types/domain";
+import type {
+  AdminPendingLinkRequestItem,
+  AdminPlayerAuthLinkInfo,
+} from "@/lib/types/view-models";
 import { cn } from "@/lib/utils";
 import { createSeasonAction } from "@/server/actions/players";
 
@@ -67,12 +71,16 @@ export interface AdminWorkspaceShellProps {
     fundPayments: FundPayment[];
     fundTransactions: FundTransaction[];
   } | null;
+  pendingLinkRequests?: AdminPendingLinkRequestItem[] | null;
+  playerAuthLinks?: Record<string, AdminPlayerAuthLinkInfo> | null;
 }
 
 export function AdminWorkspaceShell({
   session,
   data,
   fund,
+  pendingLinkRequests = null,
+  playerAuthLinks = null,
 }: AdminWorkspaceShellProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -195,22 +203,33 @@ export function AdminWorkspaceShell({
         aria-label="Secciones de administración"
         className="flex flex-wrap gap-1.5 border-b border-rule pb-3"
       >
-        {visibleTabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActiveTab(id)}
-            className={cn(
-              "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3.5 text-sm font-semibold transition-colors",
-              safeTab === id
-                ? "border-pitch-800 bg-pitch-800 text-white"
-                : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
-            )}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {label}
-          </button>
-        ))}
+        {visibleTabs.map(({ id, label, icon: Icon }) => {
+          const pendingCount =
+            id === "players" && isAdmin
+              ? (pendingLinkRequests?.length ?? 0)
+              : 0;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3.5 text-sm font-semibold transition-colors",
+                safeTab === id
+                  ? "border-pitch-800 bg-pitch-800 text-white"
+                  : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
+              {pendingCount > 0 && (
+                <span className="font-display ml-0.5 inline-flex min-w-5 items-center justify-center rounded-sm bg-leather-600 px-1.5 py-0.5 text-xs font-extrabold leading-none text-white">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </nav>
 
       {isAdmin && (
@@ -377,6 +396,8 @@ export function AdminWorkspaceShell({
           players={data.players}
           currentPlayerId={session.playerId}
           defaultSeasonId={defaultSeasonId}
+          pendingLinkRequests={pendingLinkRequests ?? []}
+          playerAuthLinks={playerAuthLinks ?? {}}
         />
       )}
 

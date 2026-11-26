@@ -160,6 +160,23 @@ export interface PlayerLinkRequestSummary {
   reviewNote?: string | null;
 }
 
+export type AdminPlayerLinkStatus = "linked" | "preloaded" | "unlinked";
+
+export interface AdminPlayerAuthLinkInfo {
+  playerId: string;
+  email: string | null;
+  isLinked: boolean;
+  status: AdminPlayerLinkStatus;
+}
+
+export interface AdminPendingLinkRequestItem {
+  id: string;
+  email: string;
+  requestedPlayerId: string;
+  requestedPlayerName: string;
+  createdAt: string;
+}
+
 export type ProfileViewModel =
   | {
       status: "guest";

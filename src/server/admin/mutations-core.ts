@@ -18,6 +18,7 @@ import {
 import type { PublicTournamentRepository } from "@/server/repositories";
 import type {
   ActionResult,
+  ApprovePlayerLinkRequestInput,
   AwardPlayerTitleInput,
   CreateAnnouncementInput,
   CreateCalendarEventInput,
@@ -32,10 +33,12 @@ import type {
   EnrollPlayerInFundInput,
   MatchRosterEntryInput,
   RegenerateCupBracketInput,
+  RejectPlayerLinkRequestInput,
   ToggleFundPaymentInput,
   UpdateCupTieInput,
   UpdateFundMonthFeeInput,
   UpdateMatchInput,
+  UpdatePlayerEmailInput,
   UpdatePlayerRoleInput,
 } from "@/lib/types/admin-actions";
 
@@ -116,6 +119,7 @@ export interface DbQueryBuilder {
   eq(column: string, value: unknown): DbQueryBuilder;
   neq(column: string, value: unknown): DbQueryBuilder;
   in(column: string, values: unknown[]): DbQueryBuilder;
+  is?(column: string, value: null | boolean): DbQueryBuilder;
   maybeSingle(): Promise<DbQueryResult>;
   single(): Promise<DbQueryResult>;
   then<TResult1 = DbQueryResult, TResult2 = never>(
@@ -1129,6 +1133,371 @@ export async function performUpdatePlayerRole(
   }
 
   return { ok: true, message: "Rol actualizado." };
+}
+
+function whereColumnIsNull(
+  query: DbQueryBuilder,
+  column: string
+): DbQueryBuilder {
+  return typeof query.is === "function"
+    ? query.is(column, null)
+    : query.eq(column, null);
+}
+
+interface LinkRequestDbRecord {
+  id: string;
+  user_id: string;
+  email: string;
+  requested_player_id: string;
+  status: "pending" | "approved" | "rejected";
+}
+
+export async function performApprovePlayerLinkRequest(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: ApprovePlayerLinkRequestInput
+): Promise<ActionResult> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const requestId = input.requestId?.trim() ?? "";
+  if (!UUID_REGEX.test(requestId)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Identificador de solicitud inválido.",
+    };
+  }
+
+  const { data: reqData, error: reqErr } = await db
+    .from("player_link_requests")
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (reqErr) {
+    return dbErrorResult(reqErr, "No se pudo consultar la solicitud");
+  }
+  if (!reqData) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "Solicitud de vinculación no encontrada.",
+    };
+  }
+
+  const req = reqData as LinkRequestDbRecord;
+  if (req.status !== "pending") {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: "Esta solicitud ya fue procesada anteriormente.",
+    };
+  }
+
+  const normalizedEmail = req.email?.trim().toLowerCase() || null;
+  if (!normalizedEmail || normalizedEmail.length > 254 || !EMAIL_REGEX.test(normalizedEmail)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "La solicitud contiene un correo electrónico inválido.",
+    };
+  }
+
+  const [{ data: targetData, error: targetErr }, { data: existingUserPlayer, error: existingErr }] =
+    await Promise.all([
+      db
+        .from("players")
+        .select("id, slug, display_name, user_id, is_active")
+        .eq("id", req.requested_player_id)
+        .maybeSingle(),
+      db
+        .from("players")
+        .select("id, slug, display_name")
+        .eq("user_id", req.user_id)
+        .maybeSingle(),
+    ]);
+
+  if (targetErr) {
+    return dbErrorResult(targetErr, "No se pudo verificar el jugador destino");
+  }
+  if (existingErr) {
+    return dbErrorResult(existingErr, "No se pudo verificar la cuenta solicitante");
+  }
+  if (!targetData) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "El jugador solicitado ya no existe en el padrón.",
+    };
+  }
+
+  const target = targetData as {
+    id: string;
+    slug: string;
+    display_name: string;
+    user_id?: string | null;
+    is_active?: boolean;
+  };
+
+  if (target.is_active === false) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "No se puede vincular un jugador inactivo.",
+    };
+  }
+
+  if (target.user_id !== null && target.user_id !== undefined) {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: `La ficha de ${target.display_name} ya se encuentra vinculada a otra cuenta.`,
+    };
+  }
+
+  if (existingUserPlayer) {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: "Ese usuario ya se encuentra vinculado a otra ficha del padrón.",
+    };
+  }
+
+  const claimQuery = whereColumnIsNull(
+    db
+      .from("players")
+      .update({
+        user_id: req.user_id,
+        email: normalizedEmail,
+      })
+      .eq("id", target.id),
+    "user_id"
+  );
+
+  const { data: claimedPlayer, error: claimErr } = await claimQuery
+    .select("id, slug")
+    .maybeSingle();
+
+  if (claimErr) {
+    return dbErrorResult(
+      claimErr,
+      "No se pudo vincular el correo a la ficha del jugador"
+    );
+  }
+  if (!claimedPlayer) {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: `La ficha de ${target.display_name} acaba de vincularse con otra cuenta.`,
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const { error: approveErr } = await db
+    .from("player_link_requests")
+    .update({
+      status: "approved",
+      reviewed_by: session.playerUuid ?? null,
+      reviewed_at: nowIso,
+    })
+    .eq("id", req.id)
+    .eq("status", "pending");
+
+  if (approveErr) {
+    await db
+      .from("players")
+      .update({ user_id: null })
+      .eq("id", target.id)
+      .eq("user_id", req.user_id);
+    return dbErrorResult(approveErr, "No se pudo confirmar la solicitud aprobada");
+  }
+
+  await db
+    .from("player_link_requests")
+    .update({
+      status: "rejected",
+      reviewed_by: session.playerUuid ?? null,
+      reviewed_at: nowIso,
+      review_note:
+        "Rechazada automáticamente al aprobarse otra vinculación para este jugador.",
+    })
+    .eq("requested_player_id", target.id)
+    .eq("status", "pending")
+    .neq("id", req.id);
+
+  return {
+    ok: true,
+    message: `Cuenta ${normalizedEmail} vinculada oficialmente a ${target.display_name}.`,
+  };
+}
+
+export async function performRejectPlayerLinkRequest(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: RejectPlayerLinkRequestInput
+): Promise<ActionResult> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const requestId = input.requestId?.trim() ?? "";
+  if (!UUID_REGEX.test(requestId)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Identificador de solicitud inválido.",
+    };
+  }
+
+  const cleanNote =
+    typeof input.reviewNote === "string"
+      ? input.reviewNote.trim().slice(0, 300) || null
+      : null;
+
+  const { data: reqData, error: reqErr } = await db
+    .from("player_link_requests")
+    .select("*")
+    .eq("id", requestId)
+    .maybeSingle();
+
+  if (reqErr) {
+    return dbErrorResult(reqErr, "No se pudo consultar la solicitud");
+  }
+  if (!reqData) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "Solicitud de vinculación no encontrada.",
+    };
+  }
+
+  const req = reqData as LinkRequestDbRecord;
+  if (req.status !== "pending") {
+    return {
+      ok: false,
+      code: "CONFLICT",
+      error: "Esta solicitud ya fue procesada anteriormente.",
+    };
+  }
+
+  const { error: updateErr } = await db
+    .from("player_link_requests")
+    .update({
+      status: "rejected",
+      reviewed_by: session.playerUuid ?? null,
+      reviewed_at: new Date().toISOString(),
+      review_note: cleanNote,
+    })
+    .eq("id", req.id)
+    .eq("status", "pending");
+
+  if (updateErr) {
+    return dbErrorResult(updateErr, "No se pudo rechazar la solicitud");
+  }
+
+  return {
+    ok: true,
+    message: "Solicitud de vinculación rechazada.",
+  };
+}
+
+export async function performUpdatePlayerEmail(
+  db: AdminDbClient | null,
+  session: ViewerSession,
+  input: UpdatePlayerEmailInput
+): Promise<ActionResult> {
+  try {
+    assertAdmin(session);
+  } catch (err) {
+    return guardErrorToResult(err);
+  }
+  if (!db) return unconfiguredResult();
+
+  const trimmedIdentifier = input.playerId?.trim() ?? "";
+  if (!trimmedIdentifier) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      error: "Identificador de jugador inválido.",
+    };
+  }
+
+  const lookupCol = UUID_REGEX.test(trimmedIdentifier) ? "id" : "slug";
+  const { data: playerData, error: playerErr } = await db
+    .from("players")
+    .select("id, slug, display_name, user_id")
+    .eq(lookupCol, trimmedIdentifier)
+    .maybeSingle();
+
+  if (playerErr) {
+    return dbErrorResult(playerErr, "No se pudo buscar el jugador");
+  }
+  if (!playerData) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      error: "Jugador no encontrado en el padrón.",
+    };
+  }
+
+  const player = playerData as {
+    id: string;
+    slug: string;
+    display_name: string;
+    user_id?: string | null;
+  };
+
+  const trimmedEmail =
+    typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
+
+  let normalizedEmail: string | null = null;
+  if (trimmedEmail === "") {
+    if (player.user_id !== null && player.user_id !== undefined) {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        error:
+          "No podés dejar vacío el correo de un jugador con cuenta vinculada.",
+      };
+    }
+    normalizedEmail = null;
+  } else {
+    if (trimmedEmail.length > 254 || !EMAIL_REGEX.test(trimmedEmail)) {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        error: "Ingresá un correo electrónico válido.",
+      };
+    }
+    normalizedEmail = trimmedEmail;
+  }
+
+  const { error: updateErr } = await db
+    .from("players")
+    .update({ email: normalizedEmail })
+    .eq("id", player.id);
+
+  if (updateErr) {
+    return dbErrorResult(
+      updateErr,
+      "No se pudo actualizar el correo del jugador"
+    );
+  }
+
+  return {
+    ok: true,
+    message: normalizedEmail
+      ? `Email de ${player.display_name} guardado (${normalizedEmail}).`
+      : `Email precargado eliminado para ${player.display_name}.`,
+  };
 }
 
 export async function performAwardPlayerTitle(

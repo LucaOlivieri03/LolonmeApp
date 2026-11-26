@@ -5,9 +5,11 @@ import type { ViewerSession } from "@/server/auth";
 import { loadAdminViewModel } from "@/server/queries/admin";
 import {
   SeedPublicTournamentRepository,
+  type AdminFundRepository,
   type PublicTournamentRepository,
 } from "@/server/repositories";
 import {
+  performApprovePlayerLinkRequest,
   performAwardPlayerTitle,
   performCreateAnnouncement,
   performCreateCalendarEvent,
@@ -18,8 +20,10 @@ import {
   performDeleteCalendarEvent,
   performDeleteMatch,
   performRegenerateCupBracket,
+  performRejectPlayerLinkRequest,
   performUpdateCupTie,
   performUpdateMatch,
+  performUpdatePlayerEmail,
   performUpdatePlayerRole,
   type AdminDbClient,
   type DbErrorLike,
@@ -206,6 +210,7 @@ function createFakeDb(options: FakeDbOptions = {}) {
     return filters.every((f) => {
       if (f.kind === "eq") return row[f.col] === f.val;
       if (f.kind === "neq") return row[f.col] !== f.val;
+      if (f.kind === "is") return (row[f.col] ?? null) === f.val;
       if (f.kind === "in")
         return Array.isArray(f.val) && f.val.includes(row[f.col]);
       return true;
@@ -287,12 +292,22 @@ function createFakeDb(options: FakeDbOptions = {}) {
 
         if (state.op === "update") {
           const patch = state.payload as Record<string, unknown>;
+          const updated: Array<Record<string, unknown>> = [];
           for (let i = 0; i < rows.length; i++) {
             if (matchesFilters(rows[i], state.filters)) {
               rows[i] = { ...rows[i], ...patch };
+              updated.push(rows[i]);
             }
           }
-          return { data: null, error: null };
+          if (mode === "single") {
+            return updated[0]
+              ? { data: updated[0], error: null }
+              : { data: null, error: { message: "Not found" } };
+          }
+          if (mode === "maybeSingle") {
+            return { data: updated[0] ?? null, error: null };
+          }
+          return { data: updated, error: null };
         }
 
         if (state.op === "delete") {
@@ -337,6 +352,10 @@ function createFakeDb(options: FakeDbOptions = {}) {
         },
         in(col, val) {
           state.filters.push({ kind: "in", col, val });
+          return builder;
+        },
+        is(col, val) {
+          state.filters.push({ kind: "is", col, val });
           return builder;
         },
         maybeSingle() {
@@ -832,5 +851,240 @@ describe("WU-6 SSR Admin Guard & Architectural Contracts", () => {
       "utf8"
     );
     expect(adminCoreSrc).not.toMatch(/\.select\([^)]*email/);
+  });
+
+  it("Issue #29: loadAdminViewModel hydrates pendingLinkRequests and playerAuthLinks ONLY for admin (never authorized)", async () => {
+    const realRepo = new SeedPublicTournamentRepository();
+    const loadAuthLinksData = vi.fn().mockResolvedValue({
+      pendingLinkRequests: [
+        {
+          id: "aaaaaaaa-1111-4111-8111-111111111111",
+          email: "bauti@gmail.com",
+          requestedPlayerId: "b-aguzzi",
+          requestedPlayerName: "B. Aguzzi",
+          createdAt: "2026-11-25T21:00:00Z",
+        },
+      ],
+      playerAuthLinks: {
+        "b-aguzzi": {
+          playerId: "b-aguzzi",
+          email: null,
+          isLinked: false,
+          status: "unlinked" as const,
+        },
+        luca: {
+          playerId: "luca",
+          email: "admin@example.com",
+          isLinked: true,
+          status: "linked" as const,
+        },
+      },
+    });
+
+    const getFundData = vi.fn().mockResolvedValue({
+      fundMonths: [],
+      fundPayments: [],
+      fundTransactions: [],
+    });
+    const mockFundRepo: AdminFundRepository = {
+      getFundData,
+      getFundMonths: vi.fn().mockResolvedValue([]),
+      getFundPayments: vi.fn().mockResolvedValue([]),
+      getFundTransactions: vi.fn().mockResolvedValue([]),
+    };
+
+    const opVm = await loadAdminViewModel(
+      OPERATOR_SESSION,
+      realRepo,
+      mockFundRepo,
+      { loadAuthLinksData }
+    );
+    expect(opVm.status).toBe("authorized");
+    if (opVm.status === "authorized") {
+      expect(opVm.pendingLinkRequests).toBeNull();
+      expect(opVm.playerAuthLinks).toBeNull();
+    }
+    expect(getFundData).not.toHaveBeenCalled();
+    expect(loadAuthLinksData).not.toHaveBeenCalled();
+
+    const adminVm = await loadAdminViewModel(
+      ADMIN_SESSION,
+      realRepo,
+      mockFundRepo,
+      { loadAuthLinksData }
+    );
+    expect(adminVm.status).toBe("authorized");
+    if (adminVm.status === "authorized") {
+      expect(adminVm.pendingLinkRequests).toHaveLength(1);
+      expect(adminVm.pendingLinkRequests?.[0].requestedPlayerId).toBe("b-aguzzi");
+      expect(adminVm.playerAuthLinks?.luca.status).toBe("linked");
+    }
+    expect(loadAuthLinksData).toHaveBeenCalledTimes(1);
+  });
+
+  it("Issue #29: performApprovePlayerLinkRequest, performRejectPlayerLinkRequest, and performUpdatePlayerEmail enforce admin-only guards, prevent double-linking, reject competing requests, and validate emails", async () => {
+    const req1Id = "77777777-7777-4777-8777-777777777701";
+    const reqCompetingId = "77777777-7777-4777-8777-777777777702";
+    const reqRejectId = "77777777-7777-4777-8777-777777777703";
+
+    const { db, store } = createFakeDb({
+      tables: {
+        players: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            slug: "b-aguzzi",
+            display_name: "B. Aguzzi",
+            role: "player",
+            is_active: true,
+            user_id: null,
+            email: null,
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            slug: "pipo",
+            display_name: "Pipo",
+            role: "authorized",
+            is_active: true,
+            user_id: null,
+            email: null,
+          },
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            slug: "luca",
+            display_name: "Luca",
+            role: "admin",
+            is_active: true,
+            user_id: "user-admin-1",
+            email: "admin@example.com",
+          },
+        ],
+        player_link_requests: [
+          {
+            id: req1Id,
+            user_id: "auth-user-bauti-1",
+            email: "Bauti@Gmail.com",
+            requested_player_id: "11111111-1111-4111-8111-111111111111",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-25T20:00:00Z",
+            reviewed_at: null,
+          },
+          {
+            id: reqCompetingId,
+            user_id: "auth-user-impostor-2",
+            email: "impostor@gmail.com",
+            requested_player_id: "11111111-1111-4111-8111-111111111111",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-25T20:05:00Z",
+            reviewed_at: null,
+          },
+          {
+            id: reqRejectId,
+            user_id: "auth-user-pipo-3",
+            email: "pipo@gmail.com",
+            requested_player_id: "22222222-2222-4222-8222-222222222222",
+            status: "pending",
+            reviewed_by: null,
+            review_note: null,
+            created_at: "2026-11-25T20:10:00Z",
+            reviewed_at: null,
+          },
+        ],
+      },
+    });
+
+    // 1. Role guards block guest (401), player (403), and authorized (403) on all 3 mutations
+    for (const nonAdmin of [GUEST_SESSION, PLAYER_SESSION, OPERATOR_SESSION]) {
+      const expectedCode =
+        nonAdmin.role === "guest" ? "UNAUTHENTICATED" : "FORBIDDEN";
+      expect(
+        await performApprovePlayerLinkRequest(db, nonAdmin, { requestId: req1Id })
+      ).toMatchObject({ ok: false, code: expectedCode });
+      expect(
+        await performRejectPlayerLinkRequest(db, nonAdmin, {
+          requestId: reqRejectId,
+        })
+      ).toMatchObject({ ok: false, code: expectedCode });
+      expect(
+        await performUpdatePlayerEmail(db, nonAdmin, {
+          playerId: "pipo",
+          email: "pipo@gmail.com",
+        })
+      ).toMatchObject({ ok: false, code: expectedCode });
+    }
+
+    // 2. Approving req1 links player (user_id + normalized email), marks req1 approved, and auto-rejects competing pending request on same player
+    const approveRes = await performApprovePlayerLinkRequest(db, ADMIN_SESSION, {
+      requestId: req1Id,
+    });
+    expect(approveRes.ok).toBe(true);
+    expect(store.players[0]).toMatchObject({
+      slug: "b-aguzzi",
+      user_id: "auth-user-bauti-1",
+      email: "bauti@gmail.com",
+    });
+    expect(store.player_link_requests[0]).toMatchObject({
+      id: req1Id,
+      status: "approved",
+      reviewed_by: ADMIN_SESSION.playerUuid,
+    });
+    expect(store.player_link_requests[0].reviewed_at).toBeTruthy();
+    expect(store.player_link_requests[1]).toMatchObject({
+      id: reqCompetingId,
+      status: "rejected",
+      reviewed_by: ADMIN_SESSION.playerUuid,
+    });
+
+    // 3. Re-approving an already processed or already-linked player fails with CONFLICT
+    expect(
+      await performApprovePlayerLinkRequest(db, ADMIN_SESSION, {
+        requestId: req1Id,
+      })
+    ).toMatchObject({ ok: false, code: "CONFLICT" });
+
+    // 4. Rejecting reqRejectId marks status rejected with note
+    const rejectRes = await performRejectPlayerLinkRequest(db, ADMIN_SESSION, {
+      requestId: reqRejectId,
+      reviewNote: "Correo incorrecto",
+    });
+    expect(rejectRes.ok).toBe(true);
+    expect(store.player_link_requests[2]).toMatchObject({
+      id: reqRejectId,
+      status: "rejected",
+      review_note: "Correo incorrecto",
+      reviewed_by: ADMIN_SESSION.playerUuid,
+    });
+
+    // 5. Email pre-linking validates format, normalizes lowercase, blocks clearing linked player's email, and allows clearing unlinked email
+    expect(
+      await performUpdatePlayerEmail(db, ADMIN_SESSION, {
+        playerId: "pipo",
+        email: "not-an-email",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
+
+    const setEmailRes = await performUpdatePlayerEmail(db, ADMIN_SESSION, {
+      playerId: "pipo",
+      email: "  Pipo.Crack@Gmail.COM ",
+    });
+    expect(setEmailRes.ok).toBe(true);
+    expect(store.players[1].email).toBe("pipo.crack@gmail.com");
+
+    const clearUnlinkedRes = await performUpdatePlayerEmail(db, ADMIN_SESSION, {
+      playerId: "pipo",
+      email: "   ",
+    });
+    expect(clearUnlinkedRes.ok).toBe(true);
+    expect(store.players[1].email).toBeNull();
+
+    expect(
+      await performUpdatePlayerEmail(db, ADMIN_SESSION, {
+        playerId: "luca",
+        email: "",
+      })
+    ).toMatchObject({ ok: false, code: "VALIDATION" });
   });
 });
