@@ -12,7 +12,7 @@ import type {
   MatchType,
   Season,
 } from "@/lib/types/domain";
-import { cn, formatDateEs } from "@/lib/utils";
+import { cn, formatDateEs, getTodayIsoAr } from "@/lib/utils";
 import {
   createAnnouncementAction,
   createCalendarEventAction,
@@ -56,9 +56,7 @@ export function AdminAnnouncementsTab({
   const [evTitle, setEvTitle] = useState("");
   const [evDesc, setEvDesc] = useState("");
   const [evMatchId, setEvMatchId] = useState("");
-  const [evDate, setEvDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [evDate, setEvDate] = useState(() => getTodayIsoAr());
   const [evType, setEvType] = useState<CalendarEventType>("league");
 
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);

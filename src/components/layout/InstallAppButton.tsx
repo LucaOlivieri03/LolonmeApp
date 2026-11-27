@@ -43,6 +43,7 @@ export function InstallAppButton() {
   const [iosBannerDismissed, setIosBannerDismissed] = useState(true);
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -100,6 +101,8 @@ export function InstallAppButton() {
   useEffect(() => {
     if (!modalOpen) return;
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -107,12 +110,44 @@ export function InstallAppButton() {
         event.preventDefault();
         setModalOpen(false);
         triggerRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const dialogEl = dialogRef.current;
+      if (!dialogEl) return;
+
+      const focusable = Array.from(
+        dialogEl.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey) {
+        if (!active || active === first || !dialogEl.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!active || active === last || !dialogEl.contains(active)) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
     };
   }, [modalOpen]);
 
@@ -201,7 +236,7 @@ export function InstallAppButton() {
             <button
               type="button"
               onClick={() => setModalOpen(true)}
-              className="inline-flex min-h-9 shrink-0 items-center rounded-md bg-pitch-800 px-2.5 text-xs font-bold text-white transition-colors hover:bg-pitch-900"
+              className="inline-flex min-h-10 shrink-0 items-center rounded-md bg-pitch-800 px-3 text-xs font-bold text-white transition-colors hover:bg-pitch-900"
             >
               Descargar
             </button>
@@ -209,7 +244,7 @@ export function InstallAppButton() {
               type="button"
               onClick={handleDismissIosBanner}
               aria-label="Cerrar aviso de instalación"
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-subtle hover:text-ink"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-subtle hover:text-ink"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -231,7 +266,10 @@ export function InstallAppButton() {
               }
             }}
           >
-            <div className="w-full max-w-md rounded-lg border border-rule-strong bg-surface text-ink">
+            <div
+              ref={dialogRef}
+              className="w-full max-w-md rounded-lg border border-rule-strong bg-surface text-ink"
+            >
               <div className="flex items-center justify-between gap-3 border-b border-rule px-4 py-3">
                 <div className="flex items-center gap-2.5">
                   <img
@@ -261,7 +299,7 @@ export function InstallAppButton() {
                     triggerRef.current?.focus();
                   }}
                   aria-label="Cerrar instrucciones de descarga"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-subtle hover:text-ink"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface-subtle hover:text-ink"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>

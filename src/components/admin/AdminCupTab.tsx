@@ -27,6 +27,24 @@ interface AdminCupTabProps {
   cupTies: CupTie[];
 }
 
+function derivePreviousLolonmebolFinalists(
+  targetSeasonId: string,
+  sortedSeasons: Season[],
+  cupEditions: CupEdition[],
+  cupTies: CupTie[]
+): [string, string] {
+  const currentSeason = sortedSeasons.find((s) => s.id === targetSeasonId);
+  if (!currentSeason) return ["", ""];
+  const prevSeason = sortedSeasons.find((s) => s.year < currentSeason.year);
+  if (!prevSeason) return ["", ""];
+  const prevEdition = cupEditions.find((e) => e.seasonId === prevSeason.id);
+  if (!prevEdition) return ["", ""];
+  const prevLolonmebol = cupTies.find(
+    (t) => t.cupEditionId === prevEdition.id && t.round === "lolonmebol"
+  );
+  return [prevLolonmebol?.playerAId ?? "", prevLolonmebol?.playerBId ?? ""];
+}
+
 export function AdminCupTab({
   seasons,
   players,
@@ -45,8 +63,14 @@ export function AdminCupTab({
     resolveDefaultSeasonId(seasons)
   );
   const seasonId = resolveDefaultSeasonId(sortedSeasons, selectedSeasonId);
-  const [finalist1, setFinalist1] = useState("b-aguzzi");
-  const [finalist2, setFinalist2] = useState("pipo");
+  const initialFinalists = derivePreviousLolonmebolFinalists(
+    seasonId,
+    sortedSeasons,
+    cupEditions,
+    cupTies
+  );
+  const [finalist1, setFinalist1] = useState(initialFinalists[0]);
+  const [finalist2, setFinalist2] = useState(initialFinalists[1]);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
   const [feedback, setFeedback] = useState<{
@@ -150,6 +174,14 @@ export function AdminCupTab({
                 aria-pressed={seasonId === s.id}
                 onClick={() => {
                   setSeasonId(s.id);
+                  const [prev1, prev2] = derivePreviousLolonmebolFinalists(
+                    s.id,
+                    sortedSeasons,
+                    cupEditions,
+                    cupTies
+                  );
+                  setFinalist1(prev1);
+                  setFinalist2(prev2);
                   setConfirmRegenerate(false);
                 }}
                 className={cn(

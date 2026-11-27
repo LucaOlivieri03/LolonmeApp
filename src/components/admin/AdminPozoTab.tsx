@@ -13,7 +13,7 @@ import type {
   Player,
   Season,
 } from "@/lib/types/domain";
-import { cn, formatArs, formatDateEs } from "@/lib/utils";
+import { cn, formatArs, formatDateEs, getTodayIsoAr } from "@/lib/utils";
 import {
   createFundTransactionAction,
   createPlayerAndEnrollInFundAction,
@@ -348,7 +348,7 @@ export function AdminPozoTab({
         txType,
         amount,
         description: txDesc.trim(),
-        txDate: new Date().toISOString().slice(0, 10),
+        txDate: getTodayIsoAr(),
       });
       if (!res.ok) {
         setErrorBanner(res.error);

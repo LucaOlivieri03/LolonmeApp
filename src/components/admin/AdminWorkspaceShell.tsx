@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -138,6 +138,8 @@ export function AdminWorkspaceShell({
   playerAuthLinks = null,
 }: AdminWorkspaceShellProps) {
   const router = useRouter();
+  const tabsId = useId();
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [isPending, startTransition] = useTransition();
   const [activeTab, setActiveTab] = useState<AdminTab>("matches");
   const [initialMatchId, setInitialMatchId] = useState<string | null>(null);
@@ -197,6 +199,31 @@ export function AdminWorkspaceShell({
   const safeTab = visibleTabs.some((t) => t.id === activeTab)
     ? activeTab
     : "matches";
+
+  const handleTabKeyDown = (
+    e: React.KeyboardEvent<HTMLButtonElement>,
+    idx: number
+  ) => {
+    const count = visibleTabs.length;
+    if (count <= 1) return;
+    let nextIdx: number | null = null;
+    if (e.key === "ArrowRight") {
+      nextIdx = (idx + 1) % count;
+    } else if (e.key === "ArrowLeft") {
+      nextIdx = (idx - 1 + count) % count;
+    } else if (e.key === "Home") {
+      nextIdx = 0;
+    } else if (e.key === "End") {
+      nextIdx = count - 1;
+    }
+    if (nextIdx === null) return;
+    e.preventDefault();
+    const nextTab = visibleTabs[nextIdx];
+    if (nextTab) {
+      setActiveTab(nextTab.id);
+      tabRefs.current[nextIdx]?.focus();
+    }
+  };
 
   const handleCreateSeason = (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,11 +290,13 @@ export function AdminWorkspaceShell({
         </div>
       </header>
 
-      <nav
+      <div
+        role="tablist"
         aria-label="Secciones de administración"
         className="flex flex-wrap gap-1.5 border-b border-rule pb-3"
       >
-        {visibleTabs.map(({ id, label, icon: Icon }) => {
+        {visibleTabs.map(({ id, label, icon: Icon }, idx) => {
+          const isSelected = safeTab === id;
           const pendingCount =
             id === "players" && isAdmin
               ? (pendingLinkRequests?.length ?? 0)
@@ -275,11 +304,20 @@ export function AdminWorkspaceShell({
           return (
             <button
               key={id}
+              ref={(el) => {
+                tabRefs.current[idx] = el;
+              }}
+              id={`${tabsId}-tab-${id}`}
               type="button"
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`${tabsId}-panel-${id}`}
+              tabIndex={isSelected ? 0 : -1}
               onClick={() => setActiveTab(id)}
+              onKeyDown={(e) => handleTabKeyDown(e, idx)}
               className={cn(
                 "inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3.5 text-sm font-semibold transition-colors",
-                safeTab === id
+                isSelected
                   ? "border-pitch-800 bg-pitch-800 text-white"
                   : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
               )}
@@ -287,14 +325,14 @@ export function AdminWorkspaceShell({
               <Icon className="h-4 w-4 shrink-0" />
               {label}
               {pendingCount > 0 && (
-                <span className="font-display ml-0.5 inline-flex min-w-5 items-center justify-center rounded-sm bg-leather-600 px-1.5 py-0.5 text-xs font-extrabold leading-none text-white">
+                <span className="font-display ml-0.5 inline-flex min-w-5 items-center justify-center rounded-sm bg-leather-700 px-1.5 py-0.5 text-xs font-extrabold leading-none text-white">
                   {pendingCount}
                 </span>
               )}
             </button>
           );
         })}
-      </nav>
+      </div>
 
       {isAdmin && (
         <section className="overflow-hidden rounded-lg border border-rule bg-surface">
@@ -396,7 +434,7 @@ export function AdminWorkspaceShell({
                   <button
                     type="submit"
                     disabled={isPending || isDuplicateSeasonYear}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-700 px-3.5 text-xs font-bold text-white transition-colors hover:bg-leather-700/90 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <PlusCircle className="h-4 w-4" />
                     {isPending ? "Creando..." : "Habilitar Año"}
@@ -434,58 +472,64 @@ export function AdminWorkspaceShell({
         </section>
       )}
 
-      {safeTab === "matches" && (
-        <AdminMatchesTab
-          seasons={sortedSeasons}
-          players={data.players}
-          matches={data.matches}
-          isAdmin={isAdmin}
-          defaultSeasonId={defaultSeasonId}
-          initialMatchId={initialMatchId}
-        />
-      )}
+      <div
+        id={`${tabsId}-panel-${safeTab}`}
+        role="tabpanel"
+        aria-labelledby={`${tabsId}-tab-${safeTab}`}
+      >
+        {safeTab === "matches" && (
+          <AdminMatchesTab
+            seasons={sortedSeasons}
+            players={data.players}
+            matches={data.matches}
+            isAdmin={isAdmin}
+            defaultSeasonId={defaultSeasonId}
+            initialMatchId={initialMatchId}
+          />
+        )}
 
-      {safeTab === "announcements" && (
-        <AdminAnnouncementsTab
-          seasons={sortedSeasons}
-          matches={data.matches}
-          announcements={data.announcements}
-          calendarEvents={data.calendarEvents}
-          defaultSeasonId={defaultSeasonId}
-        />
-      )}
+        {safeTab === "announcements" && (
+          <AdminAnnouncementsTab
+            seasons={sortedSeasons}
+            matches={data.matches}
+            announcements={data.announcements}
+            calendarEvents={data.calendarEvents}
+            defaultSeasonId={defaultSeasonId}
+          />
+        )}
 
-      {safeTab === "cup" && isAdmin && (
-        <AdminCupTab
-          seasons={sortedSeasons}
-          players={data.players}
-          cupEditions={data.cupEditions}
-          cupTies={data.cupTies}
-        />
-      )}
+        {safeTab === "cup" && isAdmin && (
+          <AdminCupTab
+            seasons={sortedSeasons}
+            players={data.players}
+            cupEditions={data.cupEditions}
+            cupTies={data.cupTies}
+          />
+        )}
 
-      {safeTab === "players" && isAdmin && (
-        <AdminPlayersTab
-          seasons={sortedSeasons}
-          players={data.players}
-          currentPlayerId={session.playerId}
-          defaultSeasonId={defaultSeasonId}
-          pendingLinkRequests={pendingLinkRequests ?? []}
-          playerAuthLinks={playerAuthLinks ?? {}}
-        />
-      )}
+        {safeTab === "players" && isAdmin && (
+          <AdminPlayersTab
+            seasons={sortedSeasons}
+            players={data.players}
+            currentPlayerId={session.playerId}
+            defaultSeasonId={defaultSeasonId}
+            pendingLinkRequests={pendingLinkRequests ?? []}
+            playerAuthLinks={playerAuthLinks ?? {}}
+          />
+        )}
 
-      {safeTab === "pozo" && isAdmin && fund && (
-        <AdminPozoTab
-          seasons={sortedSeasons}
-          players={data.players}
-          fundMonths={fund.fundMonths}
-          fundPayments={fund.fundPayments}
-          fundTransactions={fund.fundTransactions}
-        />
-      )}
+        {safeTab === "pozo" && isAdmin && fund && (
+          <AdminPozoTab
+            seasons={sortedSeasons}
+            players={data.players}
+            fundMonths={fund.fundMonths}
+            fundPayments={fund.fundPayments}
+            fundTransactions={fund.fundTransactions}
+          />
+        )}
 
-      {safeTab === "excel" && isAdmin && <AdminExcelTab />}
+        {safeTab === "excel" && isAdmin && <AdminExcelTab />}
+      </div>
     </div>
   );
 }

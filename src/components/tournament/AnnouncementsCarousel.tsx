@@ -14,6 +14,7 @@ export function AnnouncementsCarousel({
 }: AnnouncementsCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const baseId = useId();
   const slidePanelId = `${baseId}-slide`;
@@ -54,18 +55,39 @@ export function AnnouncementsCarousel({
   };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartX.current = e.touches[0]?.clientX ?? null;
+    const touch = e.touches[0];
+    touchStartX.current = touch?.clientX ?? null;
+    touchStartY.current = touch?.clientY ?? null;
+  };
+
+  const handleTouchCancel = () => {
+    touchStartX.current = null;
+    touchStartY.current = null;
   };
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStartX.current === null || count <= 1) return;
-    const endX = e.changedTouches[0]?.clientX ?? touchStartX.current;
-    const delta = endX - touchStartX.current;
+    if (
+      touchStartX.current === null ||
+      touchStartY.current === null ||
+      count <= 1
+    ) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
+    const touch = e.changedTouches[0];
+    const endX = touch?.clientX ?? touchStartX.current;
+    const endY = touch?.clientY ?? touchStartY.current;
+    const dx = endX - touchStartX.current;
+    const dy = endY - touchStartY.current;
     touchStartX.current = null;
-    if (delta <= -40) {
-      goNext();
-    } else if (delta >= 40) {
-      goPrev();
+    touchStartY.current = null;
+    if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) {
+        goNext();
+      } else {
+        goPrev();
+      }
     }
   };
 
@@ -77,6 +99,7 @@ export function AnnouncementsCarousel({
       aria-label="Tablero de anuncios oficiales"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
       <div className="flex items-center justify-between gap-2 border-b border-dashed border-white/20 bg-black/35 px-3.5 py-2 sm:px-4">
         <div className="flex min-w-0 items-center gap-2">
@@ -119,12 +142,15 @@ export function AnnouncementsCarousel({
         </p>
       ) : (
         <div className="p-3 sm:p-3.5">
+          {count > 1 && (
+            <span className="sr-only" aria-live="polite" aria-atomic="true">
+              Anuncio {safeIndex + 1} de {count}: {current.title}
+            </span>
+          )}
           <div
             id={slidePanelId}
             role={count > 1 ? "tabpanel" : undefined}
             aria-labelledby={count > 1 ? `${baseId}-tab-${safeIndex}` : undefined}
-            aria-live="polite"
-            aria-atomic="true"
           >
             <article
               key={current.id}
@@ -175,7 +201,7 @@ export function AnnouncementsCarousel({
                     aria-label={`Ver anuncio ${idx + 1}: ${ann.title}`}
                     onClick={() => setActiveIndex(idx)}
                     onKeyDown={(e) => handleTabKeyDown(e, idx)}
-                    className="inline-flex min-h-9 min-w-8 items-center justify-center rounded-sm px-1"
+                    className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-sm px-1"
                   >
                     <span
                       className={cn(

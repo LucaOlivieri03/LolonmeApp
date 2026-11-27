@@ -18,7 +18,7 @@ import type {
   CalendarEventItem,
   CalendarMonthGroup,
 } from "@/lib/types/view-models";
-import { cn, formatDateEs, formatMonthKeyEs } from "@/lib/utils";
+import { cn, formatDateEs, formatMonthKeyEs, getTodayIsoAr } from "@/lib/utils";
 
 const EVENT_TYPE_META: Record<
   CalendarEventType,
@@ -61,7 +61,7 @@ const WEEKDAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function shiftMonthKey(yyyyMm: string, deltaMonths: number): string {
   const m = /^(\d{4})-(\d{2})$/.exec(yyyyMm);
-  if (!m) return new Date().toISOString().slice(0, 7);
+  if (!m) return getTodayIsoAr().slice(0, 7);
   const date = new Date(
     Date.UTC(Number(m[1]), Number(m[2]) - 1 + deltaMonths, 1)
   );
@@ -96,12 +96,6 @@ function buildMonthGrid(
     cells.push(null);
   }
   return cells;
-}
-
-function getTodayIsoAr(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date());
 }
 
 interface CalendarInteractiveViewProps {
@@ -273,7 +267,7 @@ export function CalendarInteractiveView({
                   setSelectedEventId(nextUpcoming.event.id);
                 }}
                 className={cn(
-                  "inline-flex min-h-8 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold transition-colors",
+                  "inline-flex min-h-10 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-bold transition-colors",
                   nextUpcoming.diffDays === 0
                     ? "border-leather-600 bg-leather-600 text-white hover:bg-leather-700"
                     : "border-leather-500/40 bg-leather-50 text-leather-700 hover:border-leather-600"
