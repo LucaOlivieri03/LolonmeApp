@@ -6,6 +6,7 @@ import { Shield, UserCircle2 } from "lucide-react";
 import type { PlayerRole } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
+import { InstallAppButton } from "./InstallAppButton";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
 function NavLinkPendingIndicator() {
@@ -115,6 +116,7 @@ export function AppHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
+          <InstallAppButton />
           <AnthemPlayer />
           <ThemeSwitcher />
           <Link
