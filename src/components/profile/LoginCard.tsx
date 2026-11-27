@@ -139,7 +139,7 @@ function OtpCodeVerifyForm({ email, requestMessage }: OtpCodeVerifyFormProps) {
           <button
             type="submit"
             disabled={isVerifyingOtp}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-leather-600 px-4 text-xs font-extrabold text-white transition-colors hover:bg-leather-700 disabled:opacity-60"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md bg-leather-700 px-4 text-xs font-extrabold text-white transition-colors hover:bg-leather-800 disabled:opacity-60"
           >
             {isVerifyingOtp ? "Validando..." : "Verificar código"}
           </button>

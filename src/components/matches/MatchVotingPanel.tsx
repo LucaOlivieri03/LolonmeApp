@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -48,25 +48,51 @@ export function MatchVotingPanel({
   } | null>(null);
   const [showBallots, setShowBallots] = useState(false);
 
-  const allPlayers = [...match.teamA, ...match.teamB];
-  const votablePlayers = allPlayers.filter(
-    (p) => p.playerId !== viewerPlayerId
+  const votablePlayers = useMemo(
+    () =>
+      [...match.teamA, ...match.teamB].filter(
+        (p) => p.playerId !== viewerPlayerId
+      ),
+    [match.teamA, match.teamB, viewerPlayerId]
   );
 
-  const initialRatings: Record<string, number> = {};
-  let initialMvp = "";
-  for (const p of votablePlayers) {
-    const existing = summary.viewerEntries.find(
-      (e) => e.targetPlayerId === p.playerId
-    );
-    initialRatings[p.playerId] = existing?.rating ?? 6;
-    if (existing?.votedMvp) {
-      initialMvp = p.playerId;
-    }
-  }
+  const serverBallotKey = useMemo(
+    () =>
+      `${match.id}:${summary.votingStatus}:${summary.viewerEntries
+        .map((e) => `${e.targetPlayerId}:${e.rating}:${e.votedMvp ? 1 : 0}`)
+        .join(",")}`,
+    [match.id, summary.votingStatus, summary.viewerEntries]
+  );
 
-  const [ratings, setRatings] = useState<Record<string, number>>(initialRatings);
-  const [mvpPlayerId, setMvpPlayerId] = useState<string>(initialMvp);
+  const buildInitialBallot = () => {
+    const nextRatings: Record<string, number> = {};
+    let nextMvp = "";
+    for (const p of votablePlayers) {
+      const existing = summary.viewerEntries.find(
+        (e) => e.targetPlayerId === p.playerId
+      );
+      nextRatings[p.playerId] = existing?.rating ?? 6;
+      if (existing?.votedMvp) {
+        nextMvp = p.playerId;
+      }
+    }
+    return { nextRatings, nextMvp };
+  };
+
+  const [ratings, setRatings] = useState<Record<string, number>>(
+    () => buildInitialBallot().nextRatings
+  );
+  const [mvpPlayerId, setMvpPlayerId] = useState<string>(
+    () => buildInitialBallot().nextMvp
+  );
+
+  useEffect(() => {
+    const { nextRatings, nextMvp } = buildInitialBallot();
+    setRatings(nextRatings);
+    setMvpPlayerId(nextMvp);
+    // Only resync when server-provided voting status or viewer entries change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverBallotKey]);
 
   const isOpen = summary.votingStatus === "open";
   const hasVotes = summary.totalVoters > 0;
@@ -159,7 +185,7 @@ export function MatchVotingPanel({
               Abierta
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-sm border border-rule bg-ledger px-2 py-0.5 text-[11px] font-bold text-ink-muted">
+            <span className="inline-flex items-center gap-1 rounded-sm border border-rule bg-surface-subtle px-2 py-0.5 text-[11px] font-bold text-ink-muted">
               <Lock className="h-3 w-3" />
               Cerrada
             </span>
@@ -177,7 +203,7 @@ export function MatchVotingPanel({
                 type="button"
                 disabled={isPending}
                 onClick={handleCloseVoting}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-600 px-3 text-xs font-bold text-white transition-colors hover:bg-leather-700 disabled:opacity-50"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-md bg-leather-700 px-3 text-xs font-bold text-white transition-colors hover:bg-leather-800 disabled:opacity-50"
               >
                 <Lock className="h-3.5 w-3.5" />
                 Cerrar votación y publicar
@@ -288,7 +314,7 @@ export function MatchVotingPanel({
                             className={cn(
                               "inline-flex min-h-10 items-center gap-1 rounded-md border px-2.5 text-xs font-bold transition-colors",
                               isSelectedMvp
-                                ? "border-leather-600 bg-leather-600 text-white"
+                                ? "border-leather-700 bg-leather-700 text-white"
                                 : "border-rule bg-surface text-ink-muted hover:border-leather-600/60 hover:text-ink"
                             )}
                           >
@@ -356,12 +382,12 @@ export function MatchVotingPanel({
           )}
           <div className="overflow-x-auto rounded-md border border-rule">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-rule bg-ledger text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+              <thead className="border-b border-rule bg-surface-subtle text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                 <tr>
-                  <th className="px-3 py-2">Jugador</th>
-                  <th className="px-2 py-2 text-center">Eq.</th>
-                  <th className="px-2 py-2 text-right">Promedio</th>
-                  <th className="px-3 py-2 text-right">Votos MVP</th>
+                  <th scope="col" className="px-3 py-2">Jugador</th>
+                  <th scope="col" className="px-2 py-2 text-center">Eq.</th>
+                  <th scope="col" className="px-2 py-2 text-right">Promedio</th>
+                  <th scope="col" className="px-3 py-2 text-right">Votos MVP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-rule/70 bg-surface">
@@ -373,7 +399,7 @@ export function MatchVotingPanel({
                     <td className="px-3 py-2 font-semibold text-ink">
                       {row.displayName}
                       {row.isTopMvp && (
-                        <span className="ml-1.5 rounded-sm bg-leather-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                        <span className="ml-1.5 rounded-sm bg-leather-700 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                           MVP
                         </span>
                       )}
@@ -399,8 +425,9 @@ export function MatchVotingPanel({
             <div>
               <button
                 type="button"
+                aria-expanded={showBallots}
                 onClick={() => setShowBallots((prev) => !prev)}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-rule bg-paper px-3 text-xs font-bold text-ink transition-colors hover:bg-ledger"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-rule bg-paper px-3 text-xs font-bold text-ink transition-colors hover:bg-surface-subtle"
               >
                 <Eye className="h-3.5 w-3.5 text-pitch-800" />
                 {showBallots

@@ -524,7 +524,7 @@ export default function ReglasPage() {
             </p>
             <div className="grid grid-cols-3 gap-2 pt-1 text-center">
               <div className="rounded-sm bg-surface p-2">
-                <span className="font-display block text-base font-extrabold text-gold-600">
+                <span className="font-display block text-base font-extrabold text-gold-700">
                   <Star
                     className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
                     aria-hidden="true"
@@ -536,7 +536,7 @@ export default function ReglasPage() {
                 </span>
               </div>
               <div className="rounded-sm bg-surface p-2">
-                <span className="font-display block text-base font-extrabold text-gold-600">
+                <span className="font-display block text-base font-extrabold text-gold-700">
                   <Star
                     className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
                     aria-hidden="true"
@@ -548,7 +548,7 @@ export default function ReglasPage() {
                 </span>
               </div>
               <div className="rounded-sm bg-surface p-2">
-                <span className="font-display block text-base font-extrabold text-gold-600">
+                <span className="font-display block text-base font-extrabold text-gold-700">
                   <Star
                     className="inline h-3.5 w-3.5 fill-gold-500 text-gold-500 align-[-2px]"
                     aria-hidden="true"

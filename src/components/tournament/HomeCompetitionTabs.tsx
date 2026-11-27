@@ -121,7 +121,7 @@ export function HomeCompetitionTabs({
                   className={cn(
                     "font-display inline-flex min-h-10 items-center rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
                     isSelected
-                      ? "border-leather-600 bg-leather-600 text-white"
+                      ? "border-leather-700 bg-leather-700 text-white"
                       : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
                   )}
                 >

@@ -4,6 +4,7 @@ import { Archivo, Barlow_Condensed } from "next/font/google";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { PwaRegistrar } from "@/components/layout/PwaRegistrar";
+import type { ThemeKey } from "@/components/layout/ThemeSwitcher";
 import { getViewerSession } from "@/server/auth";
 import "./globals.css";
 
@@ -46,7 +47,7 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-const VALID_THEMES = new Set(["estadio", "salvia", "diario"]);
+const VALID_THEMES = new Set<ThemeKey>(["estadio", "salvia", "diario"]);
 
 export default async function RootLayout({
   children,
@@ -58,8 +59,10 @@ export default async function RootLayout({
     cookies(),
   ]);
   const rawTheme = cookieStore.get("lolonme-theme")?.value;
-  const activeTheme =
-    rawTheme && VALID_THEMES.has(rawTheme) ? rawTheme : "estadio";
+  const activeTheme: ThemeKey =
+    rawTheme && VALID_THEMES.has(rawTheme as ThemeKey)
+      ? (rawTheme as ThemeKey)
+      : "estadio";
 
   return (
     <html
@@ -80,6 +83,7 @@ export default async function RootLayout({
           role={session.role}
           displayName={session.displayName}
           isAuthenticated={Boolean(session.userId)}
+          initialTheme={activeTheme}
         />
         <main
           id="main-content"

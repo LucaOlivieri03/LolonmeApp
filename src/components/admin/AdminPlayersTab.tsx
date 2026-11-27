@@ -292,7 +292,7 @@ export function AdminPlayersTab({
               className={cn(
                 "font-display inline-flex min-w-6 items-center justify-center rounded-sm px-2 py-0.5 text-sm font-extrabold",
                 pendingLinkRequests.length > 0
-                  ? "bg-leather-600 text-white"
+                  ? "bg-leather-700 text-white"
                   : "bg-paper text-ink-muted"
               )}
             >
@@ -418,7 +418,7 @@ export function AdminPlayersTab({
 
         <div className="space-y-3 rounded-lg border border-rule bg-surface p-4">
           <h2 className="font-display flex items-center gap-2 text-xl font-bold tracking-wide text-ink">
-            <Star className="h-5 w-5 fill-gold-500 text-gold-600" />
+            <Star className="h-5 w-5 fill-gold-500 text-gold-700" />
             Otorgar Estrella / Título Oficial
           </h2>
           <select
@@ -460,7 +460,7 @@ export function AdminPlayersTab({
             onClick={handleAwardTitle}
             className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-500 px-4 text-sm font-bold text-ink transition-colors hover:bg-gold-400 disabled:opacity-50"
           >
-            <Star className="h-4 w-4 fill-ink text-ink" />
+            <Star className="h-4 w-4 fill-current" />
             Sumar Estrella
           </button>
         </div>
