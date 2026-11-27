@@ -380,7 +380,8 @@ describe("Redirect sanitization & auth callback / actions security", () => {
 
     const okCode = await resolveAuthCallback(
       "https://lolonmebol.app/auth/callback?code=pkce-123&next=//evil.example",
-      mockClient
+      mockClient,
+      "https://lolonmebol.app"
     );
     expect(okCode).toEqual({
       ok: true,
@@ -390,7 +391,8 @@ describe("Redirect sanitization & auth callback / actions security", () => {
 
     const okTokenHash = await resolveAuthCallback(
       "https://lolonmebol.app/auth/callback?token_hash=th-456&type=magiclink&next=/stats",
-      mockClient
+      mockClient,
+      "https://lolonmebol.app"
     );
     expect(okTokenHash).toEqual({
       ok: true,
@@ -403,11 +405,22 @@ describe("Redirect sanitization & auth callback / actions security", () => {
 
     const missing = await resolveAuthCallback(
       "https://lolonmebol.app/auth/callback",
-      mockClient
+      mockClient,
+      "https://lolonmebol.app"
     );
     expect(missing).toEqual({
       ok: false,
       redirectTo: "https://lolonmebol.app/perfil?authError=missing_code",
+    });
+
+    // Untrusted request origin without safeOrigin falls back to resolveSafeAppOrigin
+    const untrustedOrigin = await resolveAuthCallback(
+      "https://evil.example/auth/callback?code=pkce-999&next=/perfil",
+      mockClient
+    );
+    expect(untrustedOrigin).toEqual({
+      ok: true,
+      redirectTo: "http://localhost:3000/perfil",
     });
   });
 

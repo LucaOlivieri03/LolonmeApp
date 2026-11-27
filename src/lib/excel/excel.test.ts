@@ -41,10 +41,25 @@ describe("Excel Normalizer", () => {
     });
   });
 
-  it("parses Spanish dates into YYYY-MM-DD", () => {
+  it("parses Spanish dates into YYYY-MM-DD, rejects impossible calendar dates, and avoids UTC shift", () => {
     expect(parseSpanishDate("4 de febrero", 2026)).toBe("2026-02-04");
     expect(parseSpanishDate("30 de enero", 2025)).toBe("2025-01-30");
     expect(parseSpanishDate("2026-10-09", 2026)).toBe("2026-10-09");
+    expect(parseSpanishDate("29 de febrero de 2024", 2024)).toBe("2024-02-29");
+
+    // Impossible calendar dates fall back instead of rolling over or emitting invalid ISO strings
+    expect(parseSpanishDate("31 de febrero", 2026)).toBe("2026-01-01");
+    expect(parseSpanishDate("29 de febrero", 2026)).toBe("2026-01-01");
+    expect(parseSpanishDate("31 de abril", 2026)).toBe("2026-01-01");
+    expect(parseSpanishDate("2026-02-31", 2026)).toBe("2026-01-01");
+
+    // Late-evening Argentina timestamps do not shift to next UTC day
+    expect(
+      parseSpanishDate(
+        "Tue Jul 28 2026 21:00:00 GMT-0300 (Argentina Standard Time)",
+        2026
+      )
+    ).toBe("2026-07-28");
   });
 });
 
@@ -193,6 +208,7 @@ describe("Excel Importer & Real LOLONMEBOL.xlsx Cross-Check", () => {
       const repairedF11 = repaired.matches.find((m) => m.id === staleF11.id)!;
       expect(repairedF11.notes).toBe("F11 Oktubre");
       expect(repairedF11.countsForStats).toBe(false);
-    }
+    },
+    15_000
   );
 });

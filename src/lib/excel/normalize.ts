@@ -87,9 +87,49 @@ export function parseCupCaptainCell(raw: string): ParsedCupCaptainCell {
   };
 }
 
+function isValidCalendarDate(
+  year: number,
+  month: number,
+  day: number
+): boolean {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return false;
+  }
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return (
+    dt.getUTCFullYear() === year &&
+    dt.getUTCMonth() === month - 1 &&
+    dt.getUTCDate() === day
+  );
+}
+
+function formatDateInArgentina(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 export function parseSpanishDate(raw: unknown, fallbackYear: number): string {
   if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
-    return raw.toISOString().slice(0, 10);
+    const isUtcMidnight =
+      raw.getUTCHours() === 0 &&
+      raw.getUTCMinutes() === 0 &&
+      raw.getUTCSeconds() === 0 &&
+      raw.getUTCMilliseconds() === 0;
+    return isUtcMidnight
+      ? raw.toISOString().slice(0, 10)
+      : formatDateInArgentina(raw);
   }
 
   const text = String(raw ?? "").trim();
@@ -98,7 +138,13 @@ export function parseSpanishDate(raw: unknown, fallbackYear: number): string {
   // ISO YYYY-MM-DD
   const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
-    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    if (isValidCalendarDate(year, month, day)) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+    return `${fallbackYear}-01-01`;
   }
 
   // Spanish "4 de febrero" or "24 de febrero de 2026"
@@ -109,15 +155,24 @@ export function parseSpanishDate(raw: unknown, fallbackYear: number): string {
     const day = Number(esMatch[1]);
     const month = SPANISH_MONTHS[esMatch[2].toLowerCase()];
     const year = esMatch[3] ? Number(esMatch[3]) : fallbackYear;
-    if (month && day >= 1 && day <= 31) {
+    if (month && isValidCalendarDate(year, month, day)) {
       return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     }
+    return `${fallbackYear}-01-01`;
   }
 
   // JS Date string (e.g. "Tue Jul 28 2026 21:00:00 GMT-0300 ...")
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toISOString().slice(0, 10);
+    if (/(?:GMT|UTC|[+-]\d{2}:?\d{2}|Z)\b/i.test(text)) {
+      return formatDateInArgentina(parsed);
+    }
+    const year = parsed.getFullYear();
+    const month = parsed.getMonth() + 1;
+    const day = parsed.getDate();
+    if (isValidCalendarDate(year, month, day)) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
   }
 
   return `${fallbackYear}-01-01`;

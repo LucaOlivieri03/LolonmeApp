@@ -1,6 +1,10 @@
 import "server-only";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { sanitizeRedirectPath } from "./redirect";
+import {
+  parseHttpOrigin,
+  resolveSafeAppOrigin,
+  sanitizeRedirectPath,
+} from "./redirect";
 
 const VALID_EMAIL_OTP_TYPES = new Set<EmailOtpType>([
   "signup",
@@ -34,13 +38,20 @@ export interface AuthCallbackResolution {
  */
 export async function resolveAuthCallback(
   requestUrl: string,
-  client: CallbackAuthClient | null
+  client: CallbackAuthClient | null,
+  safeOrigin?: string
 ): Promise<AuthCallbackResolution> {
   const url = new URL(requestUrl);
+  const origin =
+    parseHttpOrigin(safeOrigin) ??
+    resolveSafeAppOrigin({
+      hostHeader: url.host,
+      protoHeader: url.protocol.replace(":", ""),
+    });
   const nextPath = sanitizeRedirectPath(url.searchParams.get("next"), "/perfil");
 
   const buildErrorRedirect = (reason: string): AuthCallbackResolution => {
-    const errUrl = new URL("/perfil", url.origin);
+    const errUrl = new URL("/perfil", origin);
     errUrl.searchParams.set("authError", reason);
     return {
       redirectTo: errUrl.toString(),
@@ -65,7 +76,7 @@ export async function resolveAuthCallback(
       return buildErrorRedirect("invalid_or_expired_link");
     }
     return {
-      redirectTo: new URL(nextPath, url.origin).toString(),
+      redirectTo: new URL(nextPath, origin).toString(),
       ok: true,
     };
   }
@@ -81,7 +92,7 @@ export async function resolveAuthCallback(
       return buildErrorRedirect("invalid_or_expired_link");
     }
     return {
-      redirectTo: new URL(nextPath, url.origin).toString(),
+      redirectTo: new URL(nextPath, origin).toString(),
       ok: true,
     };
   }

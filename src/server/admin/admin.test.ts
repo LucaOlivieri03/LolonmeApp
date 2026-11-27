@@ -1279,4 +1279,98 @@ describe("WU-6 SSR Admin Guard & Architectural Contracts", () => {
     expect(rejectRaceRes).toMatchObject({ ok: false, code: "CONFLICT" });
     expect(baseRace.store.player_link_requests[0].status).toBe("approved");
   });
+
+  it("performCreateMatch rejects duplicate resolved player UUIDs (slug + UUID) and sanitizes DB error messages", async () => {
+    const playerAUuid = "11111111-1111-4111-8111-111111111111";
+    const { db, store } = createFakeDb({
+      tables: {
+        seasons: [{ id: "22222222-2222-4222-8222-222222222222", year: 2026 }],
+        players: [
+          {
+            id: playerAUuid,
+            slug: "b-aguzzi",
+            display_name: "B. Aguzzi",
+            role: "player",
+            is_active: true,
+          },
+        ],
+        matches: [],
+        match_players: [],
+      },
+    });
+
+    const dupRes = await performCreateMatch(db, ADMIN_SESSION, {
+      seasonId: "season-2026",
+      matchNumber: 1,
+      matchDate: "2026-04-10",
+      matchType: "league",
+      modality: "F5",
+      teamAScore: 5,
+      teamBScore: 4,
+      countsForLeague: true,
+      roster: [
+        { playerId: "b-aguzzi", team: "A" },
+        { playerId: playerAUuid, team: "B" },
+      ],
+    });
+    expect(dupRes).toMatchObject({ ok: false, code: "VALIDATION" });
+    expect(store.matches).toHaveLength(0);
+
+    // Raw DB error details must not be leaked in INTERNAL error responses
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const failing = createFakeDb({
+        tables: {
+          seasons: [{ id: "22222222-2222-4222-8222-222222222222", year: 2026 }],
+          players: [
+            {
+              id: playerAUuid,
+              slug: "b-aguzzi",
+              display_name: "B. Aguzzi",
+              role: "player",
+              is_active: true,
+            },
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              slug: "pipo",
+              display_name: "Pipo",
+              role: "player",
+              is_active: true,
+            },
+          ],
+          matches: [],
+          match_players: [],
+        },
+        failOn: {
+          matches: {
+            op: "insert",
+            error: { message: "pg_internal_secret_relation_xyz" },
+          },
+        },
+      });
+
+      const failRes = await performCreateMatch(failing.db, ADMIN_SESSION, {
+        seasonId: "season-2026",
+        matchNumber: 1,
+        matchDate: "2026-04-10",
+        matchType: "league",
+        modality: "F5",
+        teamAScore: 5,
+        teamBScore: 4,
+        countsForLeague: true,
+        roster: [
+          { playerId: "b-aguzzi", team: "A" },
+          { playerId: "pipo", team: "B" },
+        ],
+      });
+      expect(failRes.ok).toBe(false);
+      if (!failRes.ok) {
+        expect(failRes.code).toBe("INTERNAL");
+        expect(failRes.error).not.toContain("pg_internal_secret_relation_xyz");
+      }
+      expect(consoleSpy).toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
 });

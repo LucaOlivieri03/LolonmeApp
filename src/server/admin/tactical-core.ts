@@ -49,10 +49,14 @@ function dbErrorResult(
       error: "No tenés permisos para guardar la formación de este equipo.",
     };
   }
+  console.error(
+    `[tactical] Database error (${err.code ?? "unknown"}):`,
+    err.message
+  );
   return {
     ok: false,
     code: "INTERNAL",
-    error: err.message || fallbackMessage,
+    error: fallbackMessage,
   };
 }
 
