@@ -168,14 +168,14 @@ export function StandingsTable({
                         <span>{row.displayName}</span>
                         {row.stars > 0 && (
                           <span
-                            className="inline-flex items-center gap-0.5 text-gold-600"
+                            className="inline-flex items-center gap-0.5 text-gold-700"
                             title={`${row.stars} título${row.stars > 1 ? "s" : ""} oficial${row.stars > 1 ? "es" : ""}`}
                             aria-label={`${row.stars} título${row.stars > 1 ? "s" : ""}`}
                           >
                             {Array.from({ length: row.stars }).map((_, i) => (
                               <Star
                                 key={i}
-                                className="h-3.5 w-3.5 fill-gold-500 text-gold-600"
+                                className="h-3.5 w-3.5 fill-gold-500 text-gold-700"
                                 aria-hidden="true"
                               />
                             ))}

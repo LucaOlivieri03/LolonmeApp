@@ -27,6 +27,7 @@
   --color-leather-500: #e68e23;
   --color-leather-600: #c86e0e;
   --color-leather-700: #9f5206;
+  --color-leather-800: #7f4004;
 
   /* Tournament Gold */
   --color-gold-50: var(--theme-gold-50);
@@ -51,14 +52,14 @@
   --color-crimson-600: #c4202b;
   --color-crimson-700: #9e1620;
 
-  /* Competition Colors (exact Google Sheets 'Fechas 26' hex values) */
-  --color-comp-league: #8e7cc3;
+  /* Competition Colors (WCAG AA solid fills with >= 4.5:1 contrast for white text) */
+  --color-comp-league: #6754a8;
   --color-comp-league-bg: var(--theme-comp-league-bg);
   --color-comp-league-fg: var(--theme-comp-league-fg);
-  --color-comp-cup: #3d85c6;
+  --color-comp-cup: #27649c;
   --color-comp-cup-bg: var(--theme-comp-cup-bg);
   --color-comp-cup-fg: var(--theme-comp-cup-fg);
-  --color-comp-lolonmebol: #e06666;
+  --color-comp-lolonmebol: #b83c3c;
   --color-comp-lolonmebol-bg: var(--theme-comp-lolonmebol-bg);
   --color-comp-lolonmebol-fg: var(--theme-comp-lolonmebol-fg);
   --color-comp-f11: #c27ba0;
@@ -194,8 +195,15 @@
 
 /* Keep dark ink on bright Tournament Gold badges & CTAs */
 :root[data-theme="estadio"] .bg-gold-500.text-ink,
-:root[data-theme="estadio"] .bg-gold-400.text-ink {
+:root[data-theme="estadio"] .bg-gold-400.text-ink,
+:root[data-theme="estadio"] .bg-gold-500 .text-ink,
+:root[data-theme="estadio"] .bg-gold-400 .text-ink {
   color: #111c15;
+}
+
+:root[data-theme="estadio"] .bg-gold-500 .fill-ink,
+:root[data-theme="estadio"] .bg-gold-400 .fill-ink {
+  fill: #111c15;
 }
 
 /* Soften light pastel badge borders on dark surfaces */

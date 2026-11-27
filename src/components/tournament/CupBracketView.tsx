@@ -319,7 +319,7 @@ export function CupBracketView({ ties, editionName }: CupBracketViewProps) {
                     ? isSupercup
                       ? "border-pitch-900 bg-pitch-800 text-gold-400"
                       : isFinal
-                        ? "border-leather-600 bg-leather-600 text-white"
+                        ? "border-leather-700 bg-leather-700 text-white"
                         : "border-pitch-800 bg-pitch-800 text-white"
                     : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
                 )}

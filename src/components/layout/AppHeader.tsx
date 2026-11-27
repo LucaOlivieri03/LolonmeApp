@@ -7,7 +7,7 @@ import type { PlayerRole } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import { AnthemPlayer } from "./AnthemPlayer";
 import { InstallAppButton } from "./InstallAppButton";
-import { ThemeSwitcher } from "./ThemeSwitcher";
+import { ThemeSwitcher, type ThemeKey } from "./ThemeSwitcher";
 
 function NavLinkPendingIndicator() {
   const { pending } = useLinkStatus();
@@ -44,12 +44,14 @@ export interface AppHeaderProps {
   role?: PlayerRole;
   displayName?: string | null;
   isAuthenticated?: boolean;
+  initialTheme?: ThemeKey;
 }
 
 export function AppHeader({
   role = "guest",
   displayName = null,
   isAuthenticated = false,
+  initialTheme = "estadio",
 }: AppHeaderProps) {
   const pathname = usePathname();
   const isAdminActive = pathname.startsWith("/admin");
@@ -118,7 +120,7 @@ export function AppHeader({
         <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
           <InstallAppButton />
           <AnthemPlayer />
-          <ThemeSwitcher />
+          <ThemeSwitcher initialTheme={initialTheme} />
           <Link
             href="/perfil"
             title={isAuthenticated ? `Mi Perfil (${profileLabel})` : "Mi Perfil"}
@@ -148,7 +150,7 @@ export function AppHeader({
               className={cn(
                 "inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-md border px-2 text-xs font-semibold transition-colors lg:px-2.5 xl:px-3",
                 isAdminActive
-                  ? "border-leather-500 bg-leather-600 text-white"
+                  ? "border-leather-500 bg-leather-700 text-white"
                   : "border-white/20 bg-pitch-900/60 text-pitch-50 hover:border-white/35 hover:bg-pitch-900"
               )}
             >
