@@ -13,7 +13,7 @@ import type {
   Player,
   Season,
 } from "@/lib/types/domain";
-import { cn, formatDateEs } from "@/lib/utils";
+import { cn, formatDateEs, getTodayIsoAr } from "@/lib/utils";
 import {
   createMatchAction,
   deleteMatchAction,
@@ -59,7 +59,7 @@ export function AdminMatchesTab({
 
   const [mType, setMType] = useState<MatchType>("league");
   const [mModality, setMModality] = useState<MatchModality>("F5");
-  const [mDate, setMDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [mDate, setMDate] = useState(() => getTodayIsoAr());
   const [mNumber, setMNumber] = useState("");
   const [mScoreA, setMScoreA] = useState("8");
   const [mScoreB, setMScoreB] = useState("6");
@@ -158,6 +158,45 @@ export function AdminMatchesTab({
       })),
     ],
     [players]
+  );
+
+  const teamAOptions = useMemo(
+    () =>
+      players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+        subtitle: teamAIds.includes(p.id)
+          ? "En Equipo A"
+          : teamBIds.includes(p.id)
+            ? "En Equipo B"
+            : undefined,
+      })),
+    [players, teamAIds, teamBIds]
+  );
+
+  const teamBOptions = useMemo(
+    () =>
+      players.map((p) => ({
+        id: p.id,
+        displayName: p.displayName,
+        subtitle: teamBIds.includes(p.id)
+          ? "En Equipo B"
+          : teamAIds.includes(p.id)
+            ? "En Equipo A"
+            : undefined,
+      })),
+    [players, teamAIds, teamBIds]
+  );
+
+  const mvpOptions = useMemo(
+    () => [
+      { id: "", displayName: "Sin MVP asignado aún" },
+      ...[...teamAIds, ...teamBIds].map((id) => ({
+        id,
+        displayName: players.find((p) => p.id === id)?.displayName ?? id,
+      })),
+    ],
+    [players, teamAIds, teamBIds]
   );
 
   const toggleTeamPlayer = (playerId: string, team: "A" | "B") => {
@@ -488,15 +527,7 @@ export function AdminMatchesTab({
           <div className="grid gap-2.5 sm:grid-cols-2">
             <PlayerCombobox
               label="Buscar y sumar/quitar en Equipo A"
-              options={players.map((p) => ({
-                id: p.id,
-                displayName: p.displayName,
-                subtitle: teamAIds.includes(p.id)
-                  ? "En Equipo A"
-                  : teamBIds.includes(p.id)
-                    ? "En Equipo B"
-                    : undefined,
-              }))}
+              options={teamAOptions}
               value={teamASearch}
               onChange={(id) => {
                 setTeamASearch(id);
@@ -507,15 +538,7 @@ export function AdminMatchesTab({
             />
             <PlayerCombobox
               label="Buscar y sumar/quitar en Equipo B"
-              options={players.map((p) => ({
-                id: p.id,
-                displayName: p.displayName,
-                subtitle: teamBIds.includes(p.id)
-                  ? "En Equipo B"
-                  : teamAIds.includes(p.id)
-                    ? "En Equipo A"
-                    : undefined,
-              }))}
+              options={teamBOptions}
               value={teamBSearch}
               onChange={(id) => {
                 setTeamBSearch(id);
@@ -582,14 +605,7 @@ export function AdminMatchesTab({
             <div className="min-w-[230px] flex-1 sm:max-w-xs">
               <PlayerCombobox
                 label="MVP del partido (opcional)"
-                options={[
-                  { id: "", displayName: "Sin MVP asignado aún" },
-                  ...[...teamAIds, ...teamBIds].map((id) => ({
-                    id,
-                    displayName:
-                      players.find((p) => p.id === id)?.displayName ?? id,
-                  })),
-                ]}
+                options={mvpOptions}
                 value={mvpId}
                 onChange={setMvpId}
                 placeholder="Sin MVP asignado aún"

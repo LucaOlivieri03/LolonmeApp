@@ -46,7 +46,10 @@ export function PlayerCombobox({
   const listboxId = useId();
   const labelId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -72,13 +75,13 @@ export function PlayerCombobox({
 
   useEffect(() => {
     if (!isOpen) return;
-    const currentIdx = filteredOptions.findIndex((o) => o.id === value);
+    const currentIdx = optionsRef.current.findIndex((o) => o.id === value);
     setHighlightedIndex(currentIdx >= 0 ? currentIdx : 0);
     const timer = window.setTimeout(() => {
       inputRef.current?.focus();
     }, 10);
     return () => window.clearTimeout(timer);
-  }, [isOpen, filteredOptions, value]);
+  }, [isOpen, value]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -98,6 +101,7 @@ export function PlayerCombobox({
     onChange(optionId);
     setIsOpen(false);
     setQuery("");
+    triggerRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -113,6 +117,7 @@ export function PlayerCombobox({
       e.preventDefault();
       setIsOpen(false);
       setQuery("");
+      triggerRef.current?.focus();
       return;
     }
 
@@ -159,6 +164,7 @@ export function PlayerCombobox({
       )}
 
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}

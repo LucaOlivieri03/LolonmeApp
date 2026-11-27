@@ -139,28 +139,31 @@ export function ReglasInteractiveShell({
             id={section.id}
             className="overflow-hidden rounded-lg border border-rule bg-surface"
           >
-            <button
-              type="button"
-              onClick={() => toggleSection(section.id)}
-              aria-expanded={isOpen}
-              className={cn(
-                "flex min-h-12 w-full items-center justify-between gap-3 bg-surface-subtle/60 px-4 py-3.5 text-left transition-colors hover:bg-surface-subtle sm:px-5",
-                isOpen && "border-b border-rule"
-              )}
-            >
-              <div className="flex items-center gap-2.5">
-                {SECTION_ICONS[section.id]}
-                <h2 className="font-display text-xl font-extrabold tracking-wide text-ink sm:text-2xl">
-                  {section.title}
-                </h2>
-              </div>
-              <ChevronDown
+            <h2 className="m-0">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={isOpen}
                 className={cn(
-                  "h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200",
-                  isOpen && "rotate-180"
+                  "flex min-h-12 w-full items-center justify-between gap-3 bg-surface-subtle/60 px-4 py-3.5 text-left transition-colors hover:bg-surface-subtle sm:px-5",
+                  isOpen && "border-b border-rule"
                 )}
-              />
-            </button>
+              >
+                <span className="flex items-center gap-2.5">
+                  {SECTION_ICONS[section.id]}
+                  <span className="font-display text-xl font-extrabold tracking-wide text-ink sm:text-2xl">
+                    {section.title}
+                  </span>
+                </span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "h-5 w-5 shrink-0 text-ink-muted transition-transform duration-200",
+                    isOpen && "rotate-180"
+                  )}
+                />
+              </button>
+            </h2>
 
             {isOpen && contents[section.id]}
           </section>
