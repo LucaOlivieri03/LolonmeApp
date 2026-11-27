@@ -232,7 +232,36 @@ CREATE TRIGGER trg_guard_operator_match_player_update
 -- 5. PROTECT players.user_id, guard_player_self_update(), AND blog_topics.is_pinned
 -- ============================================================================
 
-REVOKE SELECT (user_id) ON public.players FROM anon;
+-- In PostgreSQL, column-level REVOKE is a no-op over table-level SELECT.
+-- Revoke table-level SELECT and explicitly grant only non-sensitive columns.
+REVOKE SELECT ON public.players FROM anon;
+GRANT SELECT (
+  id,
+  slug,
+  display_name,
+  nickname,
+  avatar_url,
+  role,
+  favorite_club_id,
+  political_orientation,
+  is_active,
+  created_at
+) ON public.players TO anon;
+
+REVOKE SELECT ON public.players FROM authenticated;
+GRANT SELECT (
+  id,
+  user_id,
+  slug,
+  display_name,
+  nickname,
+  avatar_url,
+  role,
+  favorite_club_id,
+  political_orientation,
+  is_active,
+  created_at
+) ON public.players TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.guard_player_self_update()
 RETURNS trigger
@@ -242,14 +271,16 @@ SET search_path = public
 AS $$
 BEGIN
   IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
-    IF NEW.role IS DISTINCT FROM OLD.role
+    IF NEW.id IS DISTINCT FROM OLD.id
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at
+       OR NEW.role IS DISTINCT FROM OLD.role
        OR NEW.email IS DISTINCT FROM OLD.email
        OR NEW.user_id IS DISTINCT FROM OLD.user_id
        OR NEW.is_active IS DISTINCT FROM OLD.is_active
        OR NEW.slug IS DISTINCT FROM OLD.slug
        OR NEW.display_name IS DISTINCT FROM OLD.display_name
     THEN
-      RAISE EXCEPTION 'Only admins can change role, email, user_id, active status, slug, or display_name.'
+      RAISE EXCEPTION 'Only admins can change id, created_at, role, email, user_id, active status, slug, or display_name.'
         USING ERRCODE = '42501';
     END IF;
   END IF;

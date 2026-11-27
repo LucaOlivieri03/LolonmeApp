@@ -174,14 +174,59 @@ describe("0005_security_rls_hardening.sql migration invariants", () => {
     );
   });
 
-  it("5. revokes anon SELECT on players.user_id, hardens guard_player_self_update(), and guards blog_topics.is_pinned", () => {
+  it("5. revokes table-level SELECT on players with explicit column grants, hardens guard_player_self_update(), and guards blog_topics.is_pinned", () => {
     const sql = readMigrationSql();
 
-    expect(sql).toMatch(/REVOKE SELECT \(user_id\) ON public\.players FROM anon;/i);
+    // Table-level revoke + explicit column grants for anon (excludes user_id and email)
+    expect(sql).toMatch(/REVOKE SELECT ON public\.players FROM anon;/i);
+    const anonGrant = sql.match(/GRANT SELECT\s*\(([\s\S]*?)\)\s*ON public\.players TO anon;/i);
+    expect(anonGrant, "Expected explicit column GRANT SELECT to anon").not.toBeNull();
+    const anonCols = anonGrant![1].split(",").map((c) => c.trim().toLowerCase());
+    expect(anonCols).not.toContain("user_id");
+    expect(anonCols).not.toContain("email");
+    expect(anonCols).toEqual(
+      expect.arrayContaining([
+        "id",
+        "slug",
+        "display_name",
+        "nickname",
+        "avatar_url",
+        "role",
+        "favorite_club_id",
+        "political_orientation",
+        "is_active",
+        "created_at",
+      ])
+    );
+
+    // Table-level revoke + explicit column grants for authenticated (excludes email, keeps user_id)
+    expect(sql).toMatch(/REVOKE SELECT ON public\.players FROM authenticated;/i);
+    const authGrant = sql.match(/GRANT SELECT\s*\(([\s\S]*?)\)\s*ON public\.players TO authenticated;/i);
+    expect(authGrant, "Expected explicit column GRANT SELECT to authenticated").not.toBeNull();
+    const authCols = authGrant![1].split(",").map((c) => c.trim().toLowerCase());
+    expect(authCols).not.toContain("email");
+    expect(authCols).toContain("user_id");
+    expect(authCols).toEqual(
+      expect.arrayContaining([
+        "id",
+        "user_id",
+        "slug",
+        "display_name",
+        "nickname",
+        "avatar_url",
+        "role",
+        "favorite_club_id",
+        "political_orientation",
+        "is_active",
+        "created_at",
+      ])
+    );
 
     const playerGuard = extractFunctionBody(sql, "public.guard_player_self_update");
     expect(playerGuard).toMatch(/auth\.uid\(\)\s+IS\s+NOT\s+NULL\s+AND\s+NOT\s+public\.is_admin\(\)/i);
     for (const protectedColumn of [
+      "id",
+      "created_at",
       "role",
       "email",
       "user_id",
