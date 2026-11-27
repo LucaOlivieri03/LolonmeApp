@@ -5,6 +5,7 @@ import {
   resolveAuthCallback,
   type CallbackAuthClient,
 } from "@/server/auth/callback";
+import { resolveSafeAppOrigin } from "@/server/auth/redirect";
 
 export async function GET(request: NextRequest) {
   const env = getSupabaseEnv();
@@ -33,9 +34,16 @@ export async function GET(request: NextRequest) {
       })
     : null;
 
+  const safeOrigin = resolveSafeAppOrigin({
+    hostHeader:
+      request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    protoHeader: request.headers.get("x-forwarded-proto"),
+  });
+
   const { redirectTo } = await resolveAuthCallback(
     request.url,
-    supabase as unknown as CallbackAuthClient | null
+    supabase as unknown as CallbackAuthClient | null,
+    safeOrigin
   );
 
   const response = NextResponse.redirect(redirectTo);

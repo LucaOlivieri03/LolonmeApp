@@ -200,10 +200,16 @@ function dbErrorResult(
       error: "Permisos insuficientes en la base de datos.",
     };
   }
+  console.error(
+    `[admin] Database error (${err.code ?? "unknown"}):`,
+    err.message
+  );
   return {
     ok: false,
     code: "INTERNAL",
-    error: `${fallbackMessage}: ${err.message}`,
+    error: fallbackMessage.endsWith(".")
+      ? fallbackMessage
+      : `${fallbackMessage}.`,
   };
 }
 
@@ -580,6 +586,19 @@ export async function performCreateMatch(
       code: "NOT_FOUND",
       error: `Jugador no encontrado en el padrón: ${missingPlayer.playerId}`,
     };
+  }
+
+  const resolvedUuids = new Set<string>();
+  for (const entry of input.roster) {
+    const uuid = playerUuidMap.get(entry.playerId.trim())!;
+    if (resolvedUuids.has(uuid)) {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        error: "Un jugador no puede repetirse en el mismo partido.",
+      };
+    }
+    resolvedUuids.add(uuid);
   }
 
   const slug = await generateUniqueMatchSlug(
@@ -1575,7 +1594,12 @@ export async function performAwardPlayerTitle(
     return { ok: false, code: "NOT_FOUND", error: "Temporada no encontrada." };
   }
 
-  const awardedAt = new Date().toISOString().slice(0, 10);
+  const awardedAt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   const { error } = await db.from("player_titles").insert({
     player_id: playerUuid,
     season_id: season.id,

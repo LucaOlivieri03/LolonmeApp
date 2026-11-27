@@ -598,23 +598,15 @@ export async function loadStatsViewModel(
 }
 
 /**
- * Tagged cached server query for `/partidos`.
+ * Single tagged cached loader for the public tournament dataset.
+ * Projections for filter-heavy routes (`/partidos`, `/stats`) are computed
+ * per request from this cached snapshot to prevent cache-key collisions and
+ * unbounded user-controlled cache-key amplification.
  */
-export async function getMatchesViewModel(
-  filters: MatchesQueryFilters = {}
-): Promise<MatchesViewModel> {
-  const cacheKey = JSON.stringify({
-    s: filters.seasonFilter ?? "default",
-    t: filters.matchType ?? "ALL",
-    d: (filters.dateFilter ?? "").trim(),
-    n: (filters.matchNumberQuery ?? "").trim(),
-    p: (filters.playerId ?? "ALL").trim(),
-  });
-
+async function getCachedPublicDataset(): Promise<PublicTournamentData> {
   const cached = unstable_cache(
-    async () =>
-      loadMatchesViewModel(getPublicTournamentRepository(), filters),
-    ["public:matches-view-model", cacheKey],
+    async () => getPublicTournamentRepository().getPublicDataset(),
+    ["public:tournament-dataset"],
     {
       revalidate: DEFAULT_REVALIDATE_SECONDS,
       tags: [CACHE_TAGS.seasons, CACHE_TAGS.players, CACHE_TAGS.matches],
@@ -624,25 +616,21 @@ export async function getMatchesViewModel(
 }
 
 /**
+ * Tagged cached server query for `/partidos`.
+ */
+export async function getMatchesViewModel(
+  filters: MatchesQueryFilters = {}
+): Promise<MatchesViewModel> {
+  const data = await getCachedPublicDataset();
+  return buildMatchesViewModel(data, filters);
+}
+
+/**
  * Tagged cached server query for `/stats`.
  */
 export async function getStatsViewModel(
   filters: StatsQueryFilters = {}
 ): Promise<StatsViewModel> {
-  const cacheKey = JSON.stringify({
-    s: filters.seasonFilter ?? "all",
-    m: filters.modality ?? "ALL",
-    l: filters.labPlayerIds === undefined ? "default" : filters.labPlayerIds,
-    p: (filters.playerId ?? "").trim(),
-  });
-
-  const cached = unstable_cache(
-    async () => loadStatsViewModel(getPublicTournamentRepository(), filters),
-    ["public:stats-view-model", cacheKey],
-    {
-      revalidate: DEFAULT_REVALIDATE_SECONDS,
-      tags: [CACHE_TAGS.seasons, CACHE_TAGS.players, CACHE_TAGS.matches],
-    }
-  );
-  return cached();
+  const data = await getCachedPublicDataset();
+  return buildStatsViewModel(data, filters);
 }

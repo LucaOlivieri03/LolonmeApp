@@ -235,6 +235,9 @@ describe("Cup Engine (9 Qualifiers, Quota Release, Preliminary & Overrides)", ()
 
     expect(resolveCupTieWinner(tie, [])).toBe("p2");
 
+    const equalSeedsTie: CupTie = { ...tie, seedA: 4, seedB: 4 };
+    expect(resolveCupTieWinner(equalSeedsTie, [])).toBeNull();
+
     const adminOverridden: CupTie = { ...tie, winnerPlayerId: "p7" };
     expect(resolveCupTieWinner(adminOverridden, [])).toBe("p7");
   });

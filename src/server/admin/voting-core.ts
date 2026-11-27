@@ -55,10 +55,14 @@ function dbErrorResult(
       error: "No tenés permisos para realizar esta acción.",
     };
   }
+  console.error(
+    `[voting] Database error (${err.code ?? "unknown"}):`,
+    err.message
+  );
   return {
     ok: false,
     code: "INTERNAL",
-    error: err.message || fallbackMessage,
+    error: fallbackMessage,
   };
 }
 

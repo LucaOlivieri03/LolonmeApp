@@ -284,6 +284,35 @@ describe("Server Public Queries — Home & Calendar ViewModels", () => {
     expect(vmCleared.lab.subgroup).toBeNull();
     expect(vmCleared.lab.pairwise).toBeNull();
 
+    // Distinct matchType and includeLowSample filters produce distinct stats projections
+    const vmLeague = await loadStatsViewModel(repo, {
+      matchType: "league",
+      includeLowSample: false,
+      labPlayerIds: [p1.playerId, p2.playerId],
+      playerId: p1.playerId,
+    });
+    const vmCup = await loadStatsViewModel(repo, {
+      matchType: "cup",
+      includeLowSample: false,
+      labPlayerIds: [p1.playerId, p2.playerId],
+      playerId: p1.playerId,
+    });
+    const vmLowSample = await loadStatsViewModel(repo, {
+      matchType: "ALL",
+      includeLowSample: true,
+      labPlayerIds: [p1.playerId, p2.playerId],
+      playerId: p1.playerId,
+    });
+
+    expect(vmLeague.selectedMatchType).toBe("league");
+    expect(vmCup.selectedMatchType).toBe("cup");
+    expect(vmLeague.lab.subgroup).not.toEqual(vmCup.lab.subgroup);
+    expect(vmLowSample.includeLowSample).toBe(true);
+    expect(vmDefault.includeLowSample).toBe(false);
+    expect(vmLowSample.activePlayers.length).toBeGreaterThanOrEqual(
+      vmDefault.activePlayers.length
+    );
+
     // No raw matches, no emails, no fund_*
     expect("matches" in vmDefault).toBe(false);
     expect("players" in vmDefault).toBe(false);
