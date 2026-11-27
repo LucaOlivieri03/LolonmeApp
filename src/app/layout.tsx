@@ -27,8 +27,16 @@ export const metadata: Metadata = {
     "Hub digital mobile-first del torneo LOLONMEBOL: Liga, Tabla Histórica, Copa, Estadísticas Grupales, Calendario y Administración.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/assets/Logo.svg",
-    apple: "/assets/Logo.svg",
+    icon: [
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/assets/Logo.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icon-192x192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "LOLONMEBOL",
   },
 };
 
