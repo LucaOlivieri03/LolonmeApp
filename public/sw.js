@@ -1,7 +1,9 @@
-const CACHE_NAME = "lolonmeapp-v2";
+const CACHE_NAME = "lolonmeapp-v3";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
+  "/icon-192x192.png",
+  "/icon-512x512.png",
   "/assets/LogoLOLONMEBOL.svg",
   "/assets/Logo.svg",
 ];
@@ -30,7 +32,13 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        if (response.ok && (url.pathname.startsWith("/assets/") || url.pathname === "/manifest.json")) {
+        if (
+          response.ok &&
+          (url.pathname.startsWith("/assets/") ||
+            url.pathname === "/manifest.json" ||
+            url.pathname === "/icon-192x192.png" ||
+            url.pathname === "/icon-512x512.png")
+        ) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
