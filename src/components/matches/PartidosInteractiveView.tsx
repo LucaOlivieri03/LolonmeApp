@@ -171,7 +171,7 @@ export function PartidosInteractiveView({
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3.5 text-base font-bold tracking-wide transition-colors",
                 selectedSeasonId === s.id
-                  ? "border-leather-600 bg-leather-600 text-white"
+                  ? "border-leather-700 bg-leather-700 text-white"
                   : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
               )}
             >
@@ -185,7 +185,7 @@ export function PartidosInteractiveView({
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3.5 text-sm font-semibold transition-colors",
               selectedSeasonId === "ALL"
-                ? "border-leather-600 bg-leather-600 text-white"
+                ? "border-leather-700 bg-leather-700 text-white"
                 : "border-rule bg-surface text-ink-muted hover:border-rule-strong hover:text-ink"
             )}
           >
@@ -539,7 +539,7 @@ export function PartidosInteractiveView({
                                       </span>
                                     )}
                                     {mp.isMvp && (
-                                      <span className="ml-1.5 rounded-sm bg-leather-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                                      <span className="ml-1.5 rounded-sm bg-leather-700 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                                         MVP
                                       </span>
                                     )}

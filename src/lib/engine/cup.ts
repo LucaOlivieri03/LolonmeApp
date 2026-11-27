@@ -189,6 +189,7 @@ export function resolveCupTieWinner(
 
   // Aggregate tie -> sports advantage (lower seed number = better standings position)
   if (tie.seedA !== null && tie.seedB !== null) {
+    if (tie.seedA === tie.seedB) return null;
     return tie.seedA < tie.seedB ? tie.playerAId : tie.playerBId;
   }
 

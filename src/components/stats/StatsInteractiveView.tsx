@@ -501,7 +501,7 @@ export function StatsInteractiveView({
             className={cn(
               "min-h-10 shrink-0 rounded-md border px-3 text-sm font-semibold transition-colors",
               selectedSeasonId === "ALL"
-                ? "border-leather-600 bg-leather-600 text-white"
+                ? "border-leather-700 bg-leather-700 text-white"
                 : "border-rule bg-paper text-ink-muted hover:text-ink"
             )}
           >
@@ -516,7 +516,7 @@ export function StatsInteractiveView({
               className={cn(
                 "font-display min-h-10 shrink-0 rounded-md border px-3 text-base font-bold transition-colors",
                 selectedSeasonId === s.id
-                  ? "border-leather-600 bg-leather-600 text-white"
+                  ? "border-leather-700 bg-leather-700 text-white"
                   : "border-rule bg-paper text-ink-muted hover:text-ink"
               )}
             >

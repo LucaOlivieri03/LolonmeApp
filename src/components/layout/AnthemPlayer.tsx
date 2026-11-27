@@ -57,9 +57,22 @@ export function AnthemPlayer() {
       return;
     }
 
-    if (mode === "chorus") {
-      if (audio.currentTime < CHORUS_START_SEC || audio.currentTime >= CHORUS_END_SEC) {
+    const needsChorusSeek =
+      mode === "chorus" &&
+      (audio.currentTime < CHORUS_START_SEC || audio.currentTime >= CHORUS_END_SEC);
+
+    let cleanupMetadataListener: (() => void) | null = null;
+    if (needsChorusSeek) {
+      if (audio.readyState >= 1) {
         audio.currentTime = CHORUS_START_SEC;
+      } else {
+        const handleLoadedMetadata = () => {
+          audio.currentTime = CHORUS_START_SEC;
+        };
+        audio.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+        cleanupMetadataListener = () => {
+          audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        };
       }
     }
 
@@ -67,6 +80,7 @@ export function AnthemPlayer() {
       await audio.play();
       setIsPlaying(true);
     } catch {
+      cleanupMetadataListener?.();
       setIsPlaying(false);
     }
   };
@@ -76,7 +90,7 @@ export function AnthemPlayer() {
     setMode(nextMode);
     setProgress(0);
     const audio = audioRef.current;
-    if (audio) {
+    if (audio && audio.readyState >= 1) {
       audio.currentTime = nextMode === "chorus" ? CHORUS_START_SEC : 0;
     }
   };
@@ -93,7 +107,7 @@ export function AnthemPlayer() {
         className={cn(
           "relative inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 px-2 text-xs font-semibold transition-colors lg:px-2.5",
           isPlaying
-            ? "bg-leather-600 text-white"
+            ? "bg-leather-700 text-white"
             : "text-pitch-50 hover:bg-white/10"
         )}
       >
@@ -134,7 +148,7 @@ export function AnthemPlayer() {
         }
         aria-label={mode === "chorus" ? "Cambiar himno a modo completo" : "Cambiar himno a modo estribillo"}
         className={cn(
-          "inline-flex min-h-10 min-w-9 items-center justify-center gap-1 border-l border-white/15 px-1.5 text-xs font-medium transition-colors hover:bg-white/10 sm:min-w-10 sm:px-2 xl:px-2.5",
+          "inline-flex min-h-10 min-w-10 items-center justify-center gap-1 border-l border-white/15 px-1.5 text-xs font-medium transition-colors hover:bg-white/10 sm:px-2 xl:px-2.5",
           mode === "full" ? "bg-pitch-950/70 text-white" : "text-gold-400"
         )}
       >

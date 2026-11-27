@@ -17,6 +17,13 @@ import {
 } from "@/server/repositories";
 
 const MAX_EXCEL_BYTES = 10 * 1024 * 1024; // 10 MB
+const XLSX_ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04] as const;
+
+function hasZipMagicBytes(buffer: ArrayBuffer): boolean {
+  if (buffer.byteLength < XLSX_ZIP_MAGIC.length) return false;
+  const header = new Uint8Array(buffer, 0, XLSX_ZIP_MAGIC.length);
+  return XLSX_ZIP_MAGIC.every((byte, idx) => header[idx] === byte);
+}
 
 function revalidateAllTournamentViews(): void {
   for (const tag of Object.values(CACHE_TAGS)) {
@@ -94,6 +101,16 @@ export async function POST(request: Request) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
+    if (!hasZipMagicBytes(arrayBuffer)) {
+      return NextResponse.json(
+        {
+          error:
+            "El archivo no tiene un formato .xlsx válido (firma ZIP inválida).",
+        },
+        { status: 400 }
+      );
+    }
+
     const [incomingDataset, publicData, fundData] = await Promise.all([
       parseLolonmebolWorkbookBuffer(arrayBuffer),
       getPublicTournamentRepository().getPublicDataset(),
@@ -146,8 +163,13 @@ export async function POST(request: Request) {
       message: applyResult.message,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Error al procesar el archivo Excel";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[import-excel] Error processing uploaded workbook:", err);
+    return NextResponse.json(
+      {
+        error:
+          "No se pudo procesar el archivo Excel. Verificá que sea un .xlsx válido e intentá nuevamente.",
+      },
+      { status: 500 }
+    );
   }
 }

@@ -68,3 +68,15 @@ export function formatArs(amount: number): string {
   const formatted = Math.abs(Math.round(amount)).toLocaleString("es-AR");
   return `${sign}$${formatted}`;
 }
+
+/**
+ * Returns today's ISO date (YYYY-MM-DD) in Argentina timezone (America/Argentina/Buenos_Aires).
+ */
+export function getTodayIsoAr(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}

@@ -53,8 +53,14 @@ function applyTheme(theme: ThemeKey) {
   document.cookie = `${THEME_COOKIE}=${theme}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
 }
 
-export function ThemeSwitcher() {
-  const [active, setActive] = useState<ThemeKey>("estadio");
+export interface ThemeSwitcherProps {
+  initialTheme?: ThemeKey;
+}
+
+export function ThemeSwitcher({
+  initialTheme = "estadio",
+}: ThemeSwitcherProps) {
+  const [active, setActive] = useState<ThemeKey>(initialTheme);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -65,18 +71,25 @@ export function ThemeSwitcher() {
     const currentAttr = document.documentElement.dataset.theme;
     const fromCookie = readThemeCookie();
 
-    let initial: ThemeKey = "estadio";
+    let resolved: ThemeKey = initialTheme;
     if (param && VALID_THEMES.has(param)) {
-      initial = param as ThemeKey;
+      resolved = param as ThemeKey;
     } else if (fromCookie) {
-      initial = fromCookie;
+      resolved = fromCookie;
     } else if (currentAttr && VALID_THEMES.has(currentAttr)) {
-      initial = currentAttr as ThemeKey;
+      resolved = currentAttr as ThemeKey;
     }
 
-    setActive(initial);
-    applyTheme(initial);
-  }, []);
+    if (resolved !== initialTheme) {
+      setActive(resolved);
+    }
+    if (
+      document.documentElement.dataset.theme !== resolved ||
+      fromCookie !== resolved
+    ) {
+      applyTheme(resolved);
+    }
+  }, [initialTheme]);
 
   useEffect(() => {
     if (!open) return;
